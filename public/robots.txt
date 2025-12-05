@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disacllow: /perfil/
 
 Sitemap: https://mannysoytupartner.com/sitemap.xml

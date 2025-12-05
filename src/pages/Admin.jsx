@@ -8,6 +8,14 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 const AdminMetricCard = ({ icon, title, value, gradient, loading }) => (
     <div className={`card p-6 ${gradient} text-white`}>
@@ -29,6 +37,8 @@ const Admin = () => {
     const [topClients, setTopClients] = useState([]);
     const { toast } = useToast();
     const fileInputRef = useRef(null);
+    const [importData, setImportData] = useState(null);
+    const [showImportConfirm, setShowImportConfirm] = useState(false);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -95,18 +105,27 @@ const Admin = () => {
         try {
             const fileContent = await file.text();
             const data = JSON.parse(fileContent);
-
-            if (window.confirm("¿Seguro que quieres importar? Esto sobreescribirá todos los datos actuales.")) {
-                setLoading(true);
-                await api.importMannyData(data);
-                toast({ title: "Importación exitosa", description: "Los datos se han importado correctamente. La página se recargará." });
-                setTimeout(() => window.location.reload(), 2000);
-            }
+            setImportData(data);
+            setShowImportConfirm(true);
         } catch (error) {
-            toast({ title: "Error de importación", description: `Hubo un problema al leer o importar el archivo: ${error.message}`, variant: "destructive" });
-            setLoading(false);
+            toast({ title: "Error de lectura", description: `No se pudo leer el archivo: ${error.message}`, variant: "destructive" });
         }
         event.target.value = null;
+    };
+
+    const handleImportConfirm = async () => {
+        if (!importData) return;
+        setShowImportConfirm(false);
+        setLoading(true);
+        try {
+            await api.importMannyData(importData);
+            toast({ title: "Importación exitosa", description: "Los datos se han importado correctamente. La página se recargará." });
+            setTimeout(() => window.location.reload(), 2000);
+        } catch (error) {
+            toast({ title: "Error de importación", description: error.message, variant: "destructive" });
+            setLoading(false);
+        }
+        setImportData(null);
     };
 
 
@@ -118,6 +137,25 @@ const Admin = () => {
                 <title>Panel Admin - Manny</title>
                 <meta name="description" content="Dashboard de administración del sistema de recompensas Manny" />
             </Helmet>
+
+            <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
+                <DialogContent className="bg-card border-border text-foreground">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl">Confirmar Importación</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-muted-foreground py-4">
+                        ¿Seguro que quieres importar? Esto <strong className="text-destructive">sobreescribirá todos los datos actuales</strong>.
+                    </p>
+                    <DialogFooter className="gap-2">
+                        <DialogClose asChild>
+                            <Button variant="outline">Cancelar</Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={handleImportConfirm}>
+                            Importar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
                 <h1 className="text-3xl md:text-4xl">Dashboard de Admin</h1>

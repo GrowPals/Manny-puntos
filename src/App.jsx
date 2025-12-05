@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import WhatsAppButton from '@/components/features/WhatsAppButton';
 import Footer from '@/components/layout/Footer';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 import { AnimatePresence } from 'framer-motion';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import SEOHelmet from '@/components/common/SEOHelmet';
@@ -21,7 +22,8 @@ const Admin = React.lazy(() => import('@/pages/Admin'));
 const AdminProductos = React.lazy(() => import('@/pages/AdminProductos'));
 const AdminEntregas = React.lazy(() => import('@/pages/AdminEntregas'));
 const AdminClientes = React.lazy(() => import('@/pages/AdminClientes'));
-const AdminGestion = React.lazy(() => import('@/pages/AdminGestion')); 
+const AdminGestion = React.lazy(() => import('@/pages/AdminGestion'));
+const AdminClienteDetalle = React.lazy(() => import('@/pages/AdminClienteDetalle'));
 const ConfirmarCanje = React.lazy(() => import('@/pages/ConfirmarCanje'));
 const MisCanjes = React.lazy(() => import('@/pages/MisCanjes'));
 
@@ -36,18 +38,21 @@ const LoadingFallback = () => (
   </div>
 );
 
-const PageLayout = ({ children, seoTitle, seoDescription }) => (
-  <div className="min-h-screen flex flex-col bg-background text-foreground">
-    <SEOHelmet title={seoTitle} description={seoDescription} />
-    <Header />
-    <main className="flex-1 container mx-auto px-4 py-6 md:py-8 flex flex-col">
-      <Suspense fallback={<LoadingFallback />}>
+const PageLayout = ({ children, seoTitle, seoDescription, isAdminRoute = false }) => {
+  // Add bottom padding for bottom nav on mobile (only for non-admin users)
+  const mainPadding = isAdminRoute ? "py-6 md:py-8" : "py-6 md:py-8 pb-24 md:pb-8";
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <SEOHelmet title={seoTitle} description={seoDescription} />
+      <Header />
+      <main className={`flex-1 container mx-auto px-4 ${mainPadding} flex flex-col`}>
         {children}
-      </Suspense>
-    </main>
-    <Footer />
-  </div>
-);
+      </main>
+      <Footer />
+    </div>
+  );
+};
 
 
 const ProtectedRoute = React.memo(({ children, adminOnly = false }) => {
@@ -84,11 +89,12 @@ const AppRoutes = () => {
           <Route path="/canjear/:productoId" element={<ProtectedRoute><PageLayout seoTitle="Confirmar Canje"><ConfirmarCanje /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-canjes" element={<ProtectedRoute><PageLayout seoTitle="Mi Historial"><MisCanjes /></PageLayout></ProtectedRoute>} />
 
-          <Route path="/admin" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Panel de Administrador"><Admin /></PageLayout></ProtectedRoute>} />
-          <Route path="/admin/productos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Productos"><AdminProductos /></PageLayout></ProtectedRoute>} />
-          <Route path="/admin/clientes" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Clientes"><AdminClientes /></PageLayout></ProtectedRoute>} />
-          <Route path="/admin/entregas" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Entregas"><AdminEntregas /></PageLayout></ProtectedRoute>} />
-          <Route path="/admin/gestion" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Importar/Exportar"><AdminGestion /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Panel de Administrador" isAdminRoute><Admin /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/productos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Productos" isAdminRoute><AdminProductos /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/clientes" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Clientes" isAdminRoute><AdminClientes /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/clientes/:clienteId" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Detalle de Cliente" isAdminRoute><AdminClienteDetalle /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/entregas" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Entregas" isAdminRoute><AdminEntregas /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/gestion" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Importar/Exportar" isAdminRoute><AdminGestion /></PageLayout></ProtectedRoute>} />
           
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
@@ -108,6 +114,7 @@ function App() {
           <Toaster />
           <WhatsAppButton />
           <PWAInstallPrompt />
+          <BottomNav />
         </AuthProvider>
       </SupabaseProvider>
     </ThemeProvider>

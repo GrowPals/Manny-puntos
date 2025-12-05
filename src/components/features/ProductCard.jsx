@@ -26,12 +26,13 @@ const ProductCard = ({ producto, userPoints = 0 }) => {
 
   const getButtonState = () => {
     if (!isAvailable) {
-        return { text: 'No disponible', icon: <XCircle className="w-4 h-4 mr-2" />, disabled: true, variant: "secondary" };
+        return { text: 'No disponible', icon: <XCircle className="w-4 h-4 mr-2" />, disabled: true, variant: "outline", className: "text-muted-foreground" };
     }
     if (!canAfford) {
-        return { text: `Te faltan ${producto.puntos_requeridos - userPoints}`, icon: <Lock className="w-4 h-4 mr-2" />, disabled: true, variant: "secondary" };
+        const faltan = producto.puntos_requeridos - userPoints;
+        return { text: `Te faltan ${faltan} pts`, icon: <Lock className="w-4 h-4 mr-2" />, disabled: true, variant: "outline", className: "text-muted-foreground border-dashed" };
     }
-    return { text: 'Canjear ahora', icon: <Gift className="w-4 h-4 mr-2" />, disabled: false, variant: "investment" };
+    return { text: 'Canjear ahora', icon: <Gift className="w-4 h-4 mr-2" />, disabled: false, variant: "investment", className: "" };
   };
 
   const buttonState = getButtonState();
@@ -89,7 +90,7 @@ const ProductCard = ({ producto, userPoints = 0 }) => {
             disabled={buttonState.disabled}
             variant={buttonState.variant}
             size="lg"
-            className="w-full mt-auto h-12 text-base"
+            className={cn("w-full mt-auto h-12 text-base", buttonState.className)}
         >
             {buttonState.icon}
             {buttonState.text}

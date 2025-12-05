@@ -1,82 +1,140 @@
-# Manny VIP - Sistema de Recompensas y Lealtad
+# Manny Rewards - Sistema de Lealtad
 
-![Manny VIP Banner](https://i.ibb.co/LDLWZhkj/Recurso-1.png)
+Sistema de recompensas PWA para clientes de Manny. Acumula puntos por servicios de mantenimiento y canjea por productos reales.
 
-**Manny VIP** es una plataforma de lealtad progresiva (PWA) diseñada para premiar a los clientes de Manny por sus servicios de mantenimiento. Los usuarios acumulan puntos, canjean recompensas y acceden a beneficios exclusivos según su nivel (Partner o VIP).
+## Características
 
-## 🚀 Características Principales
+- **Sistema de Puntos**: 5% del monto de cada servicio se convierte en puntos
+- **Niveles**: Partner (base) y VIP (premium)
+- **PWA**: Instalable en móviles con notificaciones push
+- **Integración Notion**: Sincronización bidireccional automática
+- **Panel Admin**: Gestión completa de clientes, productos y canjes
 
--   **Sistema de Puntos**: Acumulación y canje de puntos por productos reales.
--   **Niveles de Usuario**:
-    -   **Partner**: Nivel base con acceso a servicios precargados y beneficios estándar.
-    -   **VIP**: Nivel exclusivo con multiplicadores de puntos y acceso premium (próximamente).
--   **PWA (Progressive Web App)**: Instalable en dispositivos móviles, con soporte offline y carga rápida.
--   **Catálogo en Tiempo Real**: Productos y servicios gestionados desde Supabase.
--   **Integración con WhatsApp**: Flujo de canje directo y personalizado.
+## Stack Tecnológico
 
-## 🛠️ Stack Tecnológico
+| Capa | Tecnología |
+|------|------------|
+| Frontend | React 18, Vite 5, Tailwind CSS |
+| UI | Shadcn/ui, Framer Motion, Lucide Icons |
+| Backend | Supabase (PostgreSQL + Edge Functions) |
+| Operaciones | Notion (Contactos, Tickets, Rewards) |
+| PWA | VitePWA + Web Push API |
 
--   **Frontend**: React 18, Vite 5.
--   **Estilos**: Tailwind CSS, Shadcn/ui, Framer Motion (animaciones).
--   **Backend / Base de Datos**: Supabase (PostgreSQL, Auth, Storage).
--   **Iconos**: Lucide React.
--   **Despliegue**: Vercel (recomendado).
+## Instalación
 
-## 📂 Estructura del Proyecto
+```bash
+# Clonar e instalar
+git clone <repo-url>
+cd manny-rewards
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales
+
+# Desarrollo
+npm run dev
+
+# Build producción
+npm run build
+```
+
+## Variables de Entorno
+
+```env
+# Frontend (.env)
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...
+VITE_VAPID_PUBLIC_KEY=BNi...
+
+# Supabase Secrets (configurar en dashboard)
+NOTION_TOKEN=secret_xxx
+VAPID_PUBLIC_KEY=BNi...
+VAPID_PRIVATE_KEY=WZT...
+```
+
+## Estructura del Proyecto
 
 ```
-src/
-├── components/         # Componentes reutilizables
-│   ├── ui/             # Primitivas de diseño (Botones, Cards, Inputs)
-│   └── ...             # Componentes de funcionalidad (Header, ServicesList)
-├── context/            # Estados globales (Auth, Supabase)
-├── lib/                # Utilidades y clientes (Supabase Client)
-├── pages/              # Vistas principales (Dashboard, Login, Admin)
-└── main.jsx            # Punto de entrada
+manny-rewards/
+├── src/
+│   ├── components/      # Componentes React
+│   │   ├── ui/          # Primitivas (Button, Card, etc.)
+│   │   ├── common/      # ErrorBoundary, SEOHelmet
+│   │   ├── features/    # ServicesList, WhatsAppButton
+│   │   └── layout/      # Header, Footer
+│   ├── context/         # AuthContext, SupabaseContext
+│   ├── hooks/           # usePushNotifications, useProducts
+│   ├── pages/           # Dashboard, Admin, Login, etc.
+│   └── lib/             # Supabase client
+├── supabase/
+│   └── functions/       # 8 Edge Functions
+├── public/
+│   └── icons/           # isotipo.svg, logo.svg
+└── docs/                # Documentación técnica
 ```
 
-## ⚡ Instalación y Configuración
+## Edge Functions
 
-1.  **Clonar el repositorio**:
-    ```bash
-    git clone <url-del-repo>
-    cd Manny-VIP
-    ```
+| Función | Propósito |
+|---------|-----------|
+| `notion-contact-webhook` | Nuevo contacto → Cliente |
+| `notion-ticket-completed` | Ticket pagado → Puntos |
+| `notion-canje-status-webhook` | Estado canje desde Notion |
+| `notion-cliente-sync` | Sync nivel/puntos desde Notion |
+| `sync-canje-to-notion` | Canje → Notion |
+| `update-canje-status-notion` | Estado canje → Notion |
+| `update-cliente-nivel` | Cambio nivel → Notion |
+| `send-push-notification` | Notificaciones push |
 
-2.  **Instalar dependencias**:
-    ```bash
-    npm install
-    ```
+## Base de Datos
 
-3.  **Configurar variables de entorno**:
-    Crea un archivo `.env` en la raíz con tus credenciales de Supabase:
-    ```env
-    VITE_SUPABASE_URL=tu_url_de_supabase
-    VITE_SUPABASE_ANON_KEY=tu_anon_key_de_supabase
-    ```
+| Tabla | Descripción |
+|-------|-------------|
+| `clientes` | Usuarios, puntos, nivel, admin |
+| `productos` | Catálogo canjeable |
+| `canjes` | Registro de canjes |
+| `historial_puntos` | Movimientos de puntos |
+| `push_subscriptions` | Suscripciones push |
+| `notification_history` | Log de notificaciones |
+| `servicios_asignados` | Beneficios Partner |
+| `ticket_events` | Eventos webhooks |
 
-4.  **Correr en desarrollo**:
-    ```bash
-    npm run dev
-    ```
+## Deploy en Vercel
 
-5.  **Construir para producción**:
-    ```bash
-    npm run build
-    ```
+### Opción 1: CLI
+```bash
+npm i -g vercel
+vercel --prod
+```
 
-## 🔐 Seguridad y Roles
+### Opción 2: GitHub
+1. Conecta tu repo en [vercel.com/new](https://vercel.com/new)
+2. Framework: Vite (se detecta automáticamente)
+3. Build Command: `npm run build`
+4. Output Directory: `dist`
 
-El sistema utiliza un flujo de autenticación personalizado basado en número de teléfono.
--   **Tabla `clientes`**: Almacena la información del usuario y su rol (`nivel`).
--   **RLS (Row Level Security)**: Políticas configuradas en Supabase para proteger los datos.
+### Variables de Entorno en Vercel
+Configurar en Settings → Environment Variables:
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+VITE_VAPID_PUBLIC_KEY
+```
 
-## 📱 PWA
+### Configuración Incluida
+El archivo `vercel.json` ya incluye:
+- SPA rewrites para React Router
+- Headers de Service Worker para PWA
+- Cache optimizado para assets
+- Headers de seguridad
 
-La aplicación está configurada como una PWA.
--   **Manifest**: `vite.config.js` y `manifest.webmanifest`.
--   **Service Worker**: Generado automáticamente por `vite-plugin-pwa` para caché y soporte offline.
+## Documentación
+
+- [Arquitectura Técnica](docs/ARCHITECTURE.md)
+- [Sistema de Negocio](docs/MANNY_SYSTEM.md)
+- [Plan Maestro](docs/PLAN_MAESTRO_MANNY_REWARDS.md)
 
 ---
 
-Desarrollado con ❤️ para Manny.
+Desarrollado para Manny

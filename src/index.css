@@ -78,6 +78,16 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-black uppercase tracking-tight text-foreground;
   }
+  
+  /* Autofill override */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--background)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 @layer components {
@@ -187,29 +197,4 @@
   .animate-slide-up {
     animation: slide-up 0.3s ease-out forwards;
   }
-}
-
-/* Variables de colores Manny faltantes */
-:root {
-  --color-primary: #e91e63;
-  --color-primary-vibrant: #ff1f6d;
-  --color-primary-dark: #ad1457;
-  --color-secondary: #1e293b;
-  --color-secondary-dark: #0f172a;
-  --color-accent: #10b981;
-  --color-whatsapp: #25D366;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
-}
-
-.btn-whatsapp {
-  background: linear-gradient(135deg, #25D366, #128c7e);
-  color: white;
-  font-weight: 600;
-}
-
-.bg-manny-gradient {
-  background: linear-gradient(135deg, #e91e63 0%, #ff1f6d 15%, #ad1457 30%, #b91659 45%, #a01355 60%, #880e4f 75%, #7a0d47 90%, #5a0936 100%);
 }

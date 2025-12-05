@@ -31,13 +31,13 @@ export const NotificationSettings = ({ clienteId }) => {
 
     if (!isSupported) {
         return (
-            <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <BellOff className="text-gray-400" size={24} />
+            <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl">
+                <BellOff className="text-muted-foreground" size={24} />
                 <div>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <p className="text-sm font-medium text-foreground">
                         Notificaciones no disponibles
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                         Tu navegador no soporta notificaciones push
                     </p>
                 </div>
@@ -47,13 +47,13 @@ export const NotificationSettings = ({ clienteId }) => {
 
     if (permission === 'denied') {
         return (
-            <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <BellOff className="text-red-500" size={24} />
+            <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-xl">
+                <BellOff className="text-destructive" size={24} />
                 <div>
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-destructive">
                         Notificaciones bloqueadas
                     </p>
-                    <p className="text-xs text-red-600 dark:text-red-500">
+                    <p className="text-xs text-destructive/80">
                         Habilítalas desde la configuración de tu navegador
                     </p>
                 </div>
@@ -62,22 +62,22 @@ export const NotificationSettings = ({ clienteId }) => {
     }
 
     return (
-        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
             <div className="flex items-center gap-3">
                 {permission === 'granted' ? (
-                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                        <Bell className="text-green-600 dark:text-green-400" size={20} />
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <Bell className="text-emerald-500" size={20} />
                     </div>
                 ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <BellOff className="text-gray-500" size={20} />
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                        <BellOff className="text-muted-foreground" size={20} />
                     </div>
                 )}
                 <div>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <p className="text-sm font-medium text-foreground">
                         Notificaciones push
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                         {permission === 'granted'
                             ? 'Recibirás alertas de puntos y canjes'
                             : 'Activa para recibir alertas'
@@ -89,11 +89,11 @@ export const NotificationSettings = ({ clienteId }) => {
             <Button
                 onClick={handleToggle}
                 disabled={isLoading}
-                variant={permission === 'granted' ? 'outline' : 'default'}
+                variant={permission === 'granted' ? 'outline' : 'investment'}
                 size="sm"
                 className={permission === 'granted'
-                    ? 'border-green-500 text-green-600 hover:bg-green-50'
-                    : 'bg-gradient-to-r from-pink-500 to-orange-400 text-white'
+                    ? 'border-emerald-500 text-emerald-500 hover:bg-emerald-500/10'
+                    : ''
                 }
             >
                 {isLoading ? (

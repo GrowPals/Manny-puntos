@@ -142,7 +142,7 @@ const AdminGestion = () => {
                                     className="pl-10 h-11 bg-background"
                                 />
                             </div>
-                            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            <div className="space-y-3 max-h-96 overflow-y-auto px-1">
                                 {regularUsers.length > 0 ? regularUsers.map(user => (
                                     <UserRow key={user.id} cliente={user} action="Promover" />
                                 )) : <p className="text-center text-muted-foreground pt-8">No se encontraron clientes.</p>}

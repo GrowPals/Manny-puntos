@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -86,8 +87,11 @@ const ProductForm = ({ product, onFinished }) => {
         <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
                 <DialogTitle className="text-2xl">{product ? 'Editar' : 'Nueva'} Recompensa</DialogTitle>
+                <DialogDescription className="sr-only">
+                    {product ? 'Edita los detalles de la recompensa' : 'Crea una nueva recompensa para el catálogo'}
+                </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-2">
+            <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
                 <Input name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Nombre de la recompensa (ej. Kit de Herramientas)" required className="h-12 text-base" />
                 <Select value={formData.tipo} onValueChange={handleTypeChange}>
                   <SelectTrigger className="h-12 text-base">
@@ -137,6 +141,7 @@ const AdminProductos = () => {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState({ open: false, producto: null });
 
     const loadProductos = useCallback(async () => {
         try {
@@ -164,16 +169,21 @@ const AdminProductos = () => {
         setShowForm(true);
     };
 
-    const handleDelete = async (productoId) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar esta recompensa? Esta acción no se puede deshacer.')) {
-            try {
-                await eliminarProducto(productoId);
-                toast({ title: 'Recompensa eliminada' });
-                loadProductos();
-            } catch (error) {
-                console.error("Error deleting product:", error);
-                toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
-            }
+    const handleDeleteClick = (producto) => {
+        setDeleteConfirm({ open: true, producto });
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteConfirm.producto) return;
+        try {
+            await eliminarProducto(deleteConfirm.producto.id);
+            toast({ title: 'Recompensa eliminada' });
+            loadProductos();
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+        } finally {
+            setDeleteConfirm({ open: false, producto: null });
         }
     };
 
@@ -195,6 +205,25 @@ const AdminProductos = () => {
 
             <Dialog open={showForm} onOpenChange={setShowForm}>
               {showForm && <ProductForm product={editingProduct} onFinished={handleFormFinished} />}
+            </Dialog>
+
+            <Dialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open, producto: null })}>
+                <DialogContent className="bg-card border-border text-foreground">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl">Eliminar Recompensa</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-muted-foreground py-4">
+                        ¿Estás seguro de que quieres eliminar <strong className="text-foreground">{deleteConfirm.producto?.nombre}</strong>? Esta acción no se puede deshacer.
+                    </p>
+                    <DialogFooter className="gap-2">
+                        <DialogClose asChild>
+                            <Button variant="outline">Cancelar</Button>
+                        </DialogClose>
+                        <Button variant="destructive" onClick={handleDeleteConfirm}>
+                            Eliminar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
             </Dialog>
 
             <div className="container mx-auto px-4 py-8">
@@ -226,13 +255,13 @@ const AdminProductos = () => {
                             <div className="mt-4">
                                 <div className="flex items-center justify-between mb-2">
                                      <span className="font-bold text-lg text-primary">{producto.puntos_requeridos} pts</span>
-                                     {producto.tipo === 'producto' && <span className="font-semibold text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">Stock: {producto.stock}</span>}
+                                     {producto.tipo === 'producto' && <span className="font-semibold text-sm px-3 py-1 rounded-full bg-blue-500/10 text-blue-600">Stock: {producto.stock}</span>}
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className={`font-semibold text-sm px-3 py-1 rounded-full ${producto.activo ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>{producto.activo ? 'Activo' : 'Pausado'}</span>
+                                    <span className={`font-semibold text-sm px-3 py-1 rounded-full ${producto.activo ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{producto.activo ? 'Activo' : 'Pausado'}</span>
                                     <div className="flex gap-2">
                                         <Button variant="ghost" size="icon" onClick={() => handleEdit(producto)}><Edit className="w-4 h-4" /></Button>
-                                        <Button variant="destructive" size="icon" onClick={() => handleDelete(producto.id)}><Trash2 className="w-4 h-4" /></Button>
+                                        <Button variant="destructive" size="icon" onClick={() => handleDeleteClick(producto)}><Trash2 className="w-4 h-4" /></Button>
                                     </div>
                                 </div>
                             </div>

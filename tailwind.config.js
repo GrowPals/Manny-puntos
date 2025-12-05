@@ -37,7 +37,7 @@ module.exports = {
 					foreground: 'hsl(var(--secondary-foreground))', // For shadcn/ui
 				},
 				accent: {
-					DEFAULT: 'var(--color-accent)',
+					DEFAULT: 'hsl(var(--accent))',
 					foreground: 'hsl(var(--accent-foreground))',
 				},
 				whatsapp: 'var(--color-whatsapp)', // Direct color for WhatsApp

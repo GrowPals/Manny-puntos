@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, Coins, Info, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -98,7 +98,7 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-card/80 shadow-sm sticky top-0 z-50 backdrop-blur-lg border-b border-border">
+        <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
             <nav className="container mx-auto px-4 py-3">
                 <div className="flex items-center justify-between">
                     <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center gap-2 group" aria-label="Ir a la página principal">
@@ -108,15 +108,19 @@ const Header = () => {
                     <div className="hidden md:flex items-center gap-1">
                         {isAdmin ? <AdminNavLinks /> : (user && <ClientNavLinks />)}
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                          {user && (
-                            <div className="hidden md:flex items-center gap-2">
-                                <div className="px-4 py-2 bg-manny-gradient text-white rounded-xl font-bold flex items-center gap-2 shadow-lg animate-glow">
-                                    <Coins className="w-5 h-5" />
+                            <>
+                                {/* Points badge - visible on mobile for clients, always on desktop */}
+                                <div className={cn(
+                                    "px-3 py-1.5 md:px-4 md:py-2 bg-manny-gradient text-white rounded-xl font-bold flex items-center gap-2 shadow-lg animate-glow text-sm md:text-base",
+                                    isAdmin && "hidden md:flex"
+                                )}>
+                                    <Coins className="w-4 h-4 md:w-5 md:h-5" />
                                     {user.puntos_actuales} pts
                                 </div>
-                            </div>
+                            </>
                         )}
                         <ThemeToggle />
                         {user && (
@@ -126,11 +130,14 @@ const Header = () => {
                               </Button>
                           </div>
                         )}
-                        <div className="md:hidden">
-                            <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-12 w-12" aria-label="Abrir menú">
-                                <Menu className="w-6 h-6" />
-                            </Button>
-                        </div>
+                        {/* Hamburger menu only for admin on mobile */}
+                        {isAdmin && (
+                            <div className="md:hidden">
+                                <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-12 w-12" aria-label="Abrir menú">
+                                    <Menu className="w-6 h-6" />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </nav>

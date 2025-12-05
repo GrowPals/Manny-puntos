@@ -8,14 +8,18 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/features/ProductCard';
 import ServicesList from '@/components/features/ServicesList';
+import NotificationSettings from '@/components/NotificationSettings';
 import { useProducts } from '@/hooks/useProducts';
 
 const Dashboard = () => {
-  const { user, logout, isPartner } = useAuth();
+  const { user, logout, isPartner, isVIP } = useAuth();
   const { productos, loading } = useProducts();
 
   const telefonoMasked = user?.telefono ? `${user.telefono.slice(0, 3)}***${user.telefono.slice(-4)}` : 'No disponible';
   const firstName = user?.nombre?.trim()?.split(' ')[0] || 'Usuario';
+
+  // Mostrar servicios para usuarios Partner o VIP
+  const showServices = isPartner || isVIP;
 
 
   return (
@@ -34,9 +38,13 @@ const Dashboard = () => {
                   ¡Hola, {firstName}!
                 </h1>
                 <p className="text-muted-foreground text-sm">Tel: {telefonoMasked}</p>
-                {isPartner && (
-                  <span className="inline-flex items-center rounded-full border border-purple-500/30 bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-500 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mt-2">
-                    Socio VIP
+                {(isPartner || isVIP) && (
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mt-2 ${
+                    isVIP
+                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+                      : 'border-purple-500/30 bg-purple-500/10 text-purple-500'
+                  }`}>
+                    {isVIP ? 'Cliente VIP' : 'Socio Partner'}
                   </span>
                 )}
               </div>
@@ -66,10 +74,14 @@ const Dashboard = () => {
                  <p className="text-xs md:text-sm opacity-80 mt-2">Última acumulación: {user.ultimo_servicio}</p>
               )}
             </div>
+
+            <div className="mt-6">
+              <NotificationSettings clienteId={user?.id} />
+            </div>
           </div>
         </motion.div>
 
-        {isPartner && <ServicesList />}
+        {showServices && <ServicesList />}
 
         <div className="mb-6 px-4 md:px-0 flex justify-between items-center">
           <h2 className="text-2xl flex items-center gap-2">

@@ -199,8 +199,8 @@ export const SupabaseProvider = ({ children }) => {
 
             if (error) throw new Error("Ocurrió un error al buscar tu historial.");
 
-            if (!data) return { canjes: [], servicios: [] };
-            
+            if (!data) return { canjes: [], historialPuntos: [] };
+
             const canjesMapeados = data.canjes?.map(c => ({
                 id: c.id,
                 fecha: c.created_at,
@@ -210,7 +210,53 @@ export const SupabaseProvider = ({ children }) => {
                 tipo: c.productos?.tipo || c.tipo_producto_original,
             })) || [];
 
-            return { canjes: canjesMapeados, servicios: data.historial_puntos || [] };
+            return { canjes: canjesMapeados, historialPuntos: data.historial_puntos || [] };
+        },
+
+        // ADMIN: Obtener detalle completo de un cliente por ID
+        getClienteDetalleAdmin: async (clienteId) => {
+            const { data: cliente, error: clienteError } = await supabase
+                .from('clientes')
+                .select('*')
+                .eq('id', clienteId)
+                .single();
+
+            if (clienteError) throw new Error('Cliente no encontrado.');
+
+            const { data: canjes, error: canjesError } = await supabase
+                .from('canjes')
+                .select('*, productos(nombre, tipo)')
+                .eq('cliente_id', clienteId)
+                .order('created_at', { ascending: false });
+
+            if (canjesError) throw new Error('Error al cargar canjes del cliente.');
+
+            const { data: historialPuntos, error: historialError } = await supabase
+                .from('historial_puntos')
+                .select('*')
+                .eq('cliente_id', clienteId)
+                .order('created_at', { ascending: false });
+
+            if (historialError) throw new Error('Error al cargar historial de puntos.');
+
+            const { data: serviciosAsignados, error: serviciosError } = await supabase
+                .from('servicios_asignados')
+                .select('*')
+                .eq('cliente_id', clienteId)
+                .order('created_at', { ascending: false });
+
+            if (serviciosError) throw new Error('Error al cargar servicios asignados.');
+
+            return {
+                cliente,
+                canjes: canjes?.map(c => ({
+                    ...c,
+                    producto_nombre: c.productos?.nombre || 'Producto Eliminado',
+                    tipo: c.productos?.tipo || c.tipo_producto_original,
+                })) || [],
+                historialPuntos: historialPuntos || [],
+                serviciosAsignados: serviciosAsignados || []
+            };
         },
         
         registrarCanje: async ({ cliente_id, producto_id }) => {
@@ -287,7 +333,14 @@ export const SupabaseProvider = ({ children }) => {
                 .eq('id', canjeId)
                 .select('*, clientes(id, nombre), productos(nombre)')
                 .single();
-            if (error) throw new Error('Error al actualizar el estado del canje.');
+
+            if (error) {
+                console.error('Error actualizando canje:', error);
+                if (error.code === 'PGRST116') {
+                    throw new Error('El canje no fue encontrado. Es posible que haya sido eliminado.');
+                }
+                throw new Error('Error al actualizar el estado del canje.');
+            }
 
             // Sincronizar estado a Notion (fire and forget)
             try {
@@ -356,7 +409,63 @@ export const SupabaseProvider = ({ children }) => {
             URL.revokeObjectURL(url);
         },
         
-         importMannyData: async (data) => {
+         // SERVICIOS ASIGNADOS (Para Partners/VIP)
+        getServiciosCliente: async (clienteId) => {
+            const { data, error } = await supabase
+                .from('servicios_asignados')
+                .select('*')
+                .eq('cliente_id', clienteId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw new Error('Error al cargar los servicios del cliente.');
+            return data || [];
+        },
+
+        canjearServicioAsignado: async (servicioId) => {
+            const { data, error } = await supabase
+                .from('servicios_asignados')
+                .update({
+                    estado: 'canjeado',
+                    fecha_canje: new Date().toISOString()
+                })
+                .eq('id', servicioId)
+                .select()
+                .single();
+
+            if (error) throw new Error('Error al canjear el servicio.');
+            return data;
+        },
+
+        crearServicioAsignado: async (servicioData) => {
+            if (!servicioData.cliente_id) throw new Error('El cliente es requerido.');
+            if (!servicioData.nombre || servicioData.nombre.trim() === '') throw new Error('El nombre del servicio es requerido.');
+
+            const { data, error } = await supabase
+                .from('servicios_asignados')
+                .insert({
+                    cliente_id: servicioData.cliente_id,
+                    nombre: servicioData.nombre,
+                    descripcion: servicioData.descripcion || null,
+                    estado: 'disponible'
+                })
+                .select()
+                .single();
+
+            if (error) throw new Error('Error al crear el servicio asignado.');
+            return data;
+        },
+
+        eliminarServicioAsignado: async (servicioId) => {
+            const { error } = await supabase
+                .from('servicios_asignados')
+                .delete()
+                .eq('id', servicioId);
+
+            if (error) throw new Error('Error al eliminar el servicio.');
+            return true;
+        },
+
+        importMannyData: async (data) => {
             if (!data.clientes || !data.productos) throw new Error("El archivo no tiene el formato correcto.");
             
             if (data.clientes) {

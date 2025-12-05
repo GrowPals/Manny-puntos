@@ -23,6 +23,9 @@ Manny Rewards es un sistema de lealtad que integra:
 | `canjes` | Registro de canjes realizados |
 | `historial_puntos` | Log de movimientos de puntos |
 | `ticket_events` | Eventos de webhooks de Notion |
+| `push_subscriptions` | Suscripciones de notificaciones push |
+| `notification_history` | Historial de notificaciones enviadas |
+| `servicios_asignados` | Beneficios precargados para Partners |
 
 ### Esquema: clientes
 
@@ -69,17 +72,18 @@ created_at TIMESTAMP
 
 ## Edge Functions Desplegadas
 
-### Funciones Esenciales (7)
+### Funciones Esenciales (8)
 
 | Función | Propósito | Trigger |
 |---------|-----------|---------|
 | `notion-contact-webhook` | Crear cliente cuando se agrega contacto en Notion | Webhook Notion |
-| `notion-ticket-completed` | Asignar puntos cuando ticket se marca pagado | Webhook Notion |
+| `notion-ticket-completed` | Asignar puntos cuando ticket se marca pagado + notificar | Webhook Notion |
 | `notion-canje-status-webhook` | Recibir cambios de estado de canje desde Notion | Webhook Notion |
-| `notion-cliente-sync` | **Sincronizar nivel/puntos desde Notion a Supabase** | Webhook Notion |
+| `notion-cliente-sync` | Sincronizar nivel/puntos desde Notion a Supabase | Webhook Notion |
 | `sync-canje-to-notion` | Crear canje en Manny Rewards DB de Notion | Llamada desde app |
 | `update-canje-status-notion` | Sincronizar cambio de estado a Notion | Llamada desde app |
 | `update-cliente-nivel` | Cambiar nivel y registrar en Notion | Llamada desde app |
+| `send-push-notification` | Enviar notificaciones push a clientes/admins | Llamada interna |
 
 ### IDs de Bases de Datos en Notion
 
@@ -255,9 +259,24 @@ Las funciones internas verifican autenticación via Supabase client.
 ### Variables de Entorno Requeridas
 
 ```
+# Supabase (automáticas en Edge Functions)
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
+
+# Notion
 NOTION_TOKEN
+
+# Push Notifications
+VAPID_PUBLIC_KEY
+VAPID_PRIVATE_KEY
+```
+
+### Variables Frontend (.env)
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+VITE_VAPID_PUBLIC_KEY
 ```
 
 ---
@@ -277,14 +296,28 @@ NOTION_TOKEN
 ## Estructura de Proyecto
 
 ```
-/home/bigez/Manny Rewards/
+manny-rewards/
 ├── src/
+│   ├── components/
+│   │   ├── ui/                    # Primitivas (Button, Card, Dialog...)
+│   │   ├── common/                # ErrorBoundary, SEOHelmet
+│   │   ├── features/              # ServicesList, WhatsAppButton
+│   │   └── layout/                # Header, Footer
 │   ├── context/
-│   │   └── SupabaseContext.jsx    # API principal
+│   │   ├── AuthContext.jsx        # Autenticación por teléfono
+│   │   ├── SupabaseContext.jsx    # API principal
+│   │   └── ThemeContext.jsx       # Tema claro/oscuro
+│   ├── hooks/
+│   │   ├── usePushNotifications.jsx
+│   │   └── useProducts.js
 │   ├── lib/
 │   │   └── customSupabaseClient.js
-│   ├── pages/                      # Vistas de la app
-│   └── components/                 # Componentes UI
+│   └── pages/                     # Dashboard, Admin, Login...
+├── public/
+│   ├── icons/
+│   │   ├── isotipo.svg            # Icono PWA
+│   │   └── logo.svg               # Logo completo
+│   └── sw-custom.js               # Service Worker push handlers
 ├── supabase/
 │   └── functions/
 │       ├── notion-contact-webhook/
@@ -293,10 +326,12 @@ NOTION_TOKEN
 │       ├── notion-cliente-sync/
 │       ├── sync-canje-to-notion/
 │       ├── update-canje-status-notion/
-│       └── update-cliente-nivel/
+│       ├── update-cliente-nivel/
+│       └── send-push-notification/
 └── docs/
-    ├── ARCHITECTURE.md             # Este archivo
-    └── MANNY_SYSTEM.md             # Documentación de negocio
+    ├── ARCHITECTURE.md            # Este archivo
+    ├── MANNY_SYSTEM.md            # Documentación de negocio
+    └── PLAN_MAESTRO_MANNY_REWARDS.md
 ```
 
 ---
