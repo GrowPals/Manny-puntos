@@ -286,8 +286,8 @@ export const SupabaseProvider = ({ children }) => {
             }
 
             // Obtener datos del producto y cliente para notificación
-            const { data: producto } = await supabase.from('productos').select('nombre, tipo').eq('id', producto_id).single();
-            const { data: cliente } = await supabase.from('clientes').select('nombre').eq('id', cliente_id).single();
+            const { data: producto } = await supabase.from('productos').select('nombre, tipo').eq('id', producto_id).maybeSingle();
+            const { data: cliente } = await supabase.from('clientes').select('nombre').eq('id', cliente_id).maybeSingle();
 
             // Notificar a admins del nuevo canje (fire and forget)
             try {
@@ -467,7 +467,7 @@ export const SupabaseProvider = ({ children }) => {
 
         importMannyData: async (data) => {
             if (!data.clientes || !data.productos) throw new Error("El archivo no tiene el formato correcto.");
-            
+
             if (data.clientes) {
                 const { error } = await supabase.from('clientes').upsert(data.clientes, { onConflict: 'telefono' });
                 if (error) throw new Error(`Error importando clientes: ${error.message}`);
@@ -485,6 +485,191 @@ export const SupabaseProvider = ({ children }) => {
                  if (error) console.error(`Error importando historial: ${error.message}`);
             }
             return true;
+        },
+
+        // =====================================================
+        // HISTORIAL DE SERVICIOS
+        // =====================================================
+
+        // Obtener historial de servicios de un cliente (para la vista del cliente)
+        getHistorialServicios: async (clienteId) => {
+            const { data, error } = await supabase
+                .from('historial_servicios')
+                .select('*')
+                .eq('cliente_id', clienteId)
+                .order('fecha_servicio', { ascending: false });
+
+            if (error) throw new Error('Error al cargar el historial de servicios.');
+            return data || [];
+        },
+
+        // Obtener estadísticas del historial de un cliente
+        getHistorialServiciosStats: async (clienteId) => {
+            const { data, error } = await supabase.rpc('get_historial_stats', {
+                p_cliente_id: clienteId
+            });
+
+            if (error) {
+                console.error('Error en get_historial_stats:', error);
+                // Fallback: calcular manualmente si la función no existe
+                const { data: servicios } = await supabase
+                    .from('historial_servicios')
+                    .select('monto, puntos_generados')
+                    .eq('cliente_id', clienteId);
+
+                if (!servicios) return { total_servicios: 0, total_invertido: 0, total_puntos: 0 };
+
+                return {
+                    total_servicios: servicios.length,
+                    total_invertido: servicios.reduce((sum, s) => sum + (s.monto && s.monto > 0 ? Number(s.monto) : 0), 0),
+                    total_puntos: servicios.reduce((sum, s) => sum + (s.puntos_generados && s.puntos_generados > 0 ? s.puntos_generados : 0), 0)
+                };
+            }
+
+            return data?.[0] || { total_servicios: 0, total_invertido: 0, total_puntos: 0 };
+        },
+
+        // =====================================================
+        // CONFIGURACIÓN DE RECORDATORIOS (ADMIN)
+        // =====================================================
+
+        // Obtener configuración de recordatorios
+        getConfigRecordatorios: async () => {
+            const { data, error } = await supabase
+                .from('config_recordatorios')
+                .select('*')
+                .limit(1)
+                .maybeSingle();
+
+            if (error) {
+                throw new Error('Error al cargar configuración de recordatorios.');
+            }
+
+            return data || {
+                activo: true,
+                max_notificaciones_mes: 1,
+                titulo_default: '¿Tiempo de dar mantenimiento?',
+                mensaje_default: 'Han pasado {dias} días desde tu último servicio de {tipo}. El mantenimiento regular ayuda a prolongar la vida útil de tus equipos.',
+                hora_envio: 10
+            };
+        },
+
+        // Actualizar configuración de recordatorios
+        actualizarConfigRecordatorios: async (config) => {
+            const { data: existing } = await supabase
+                .from('config_recordatorios')
+                .select('id')
+                .limit(1)
+                .maybeSingle();
+
+            // Solo incluir campos que no sean undefined
+            const updateData = { updated_at: new Date().toISOString() };
+            if (config.activo !== undefined) updateData.activo = config.activo;
+            if (config.max_notificaciones_mes !== undefined) updateData.max_notificaciones_mes = config.max_notificaciones_mes;
+            if (config.titulo_default !== undefined) updateData.titulo_default = config.titulo_default;
+            if (config.mensaje_default !== undefined) updateData.mensaje_default = config.mensaje_default;
+            if (config.hora_envio !== undefined) updateData.hora_envio = config.hora_envio;
+
+            if (existing) {
+                const { data, error } = await supabase
+                    .from('config_recordatorios')
+                    .update(updateData)
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                if (error) throw new Error('Error al actualizar configuración.');
+                return data;
+            } else {
+                // Para insert, usar valores por defecto si no se proporcionan
+                const insertData = {
+                    activo: config.activo ?? false,
+                    max_notificaciones_mes: config.max_notificaciones_mes ?? 1,
+                    titulo_default: config.titulo_default ?? '¿Tiempo de dar mantenimiento?',
+                    mensaje_default: config.mensaje_default ?? 'Hola {nombre}, han pasado {dias} días desde tu último {servicio}. ¿Te agendamos?',
+                    hora_envio: config.hora_envio ?? 10
+                };
+
+                const { data, error } = await supabase
+                    .from('config_recordatorios')
+                    .insert(insertData)
+                    .select()
+                    .single();
+
+                if (error) throw new Error('Error al crear configuración.');
+                return data;
+            }
+        },
+
+        // Obtener tipos de servicio recurrente
+        getTiposServicioRecurrente: async () => {
+            const { data, error } = await supabase
+                .from('tipos_servicio_recurrente')
+                .select('*')
+                .order('tipo_trabajo', { ascending: true });
+
+            if (error) throw new Error('Error al cargar tipos de servicio recurrente.');
+            return data || [];
+        },
+
+        // Actualizar tipo de servicio recurrente (activar/desactivar o cambiar días)
+        actualizarTipoServicioRecurrente: async (id, updates) => {
+            const { data, error } = await supabase
+                .from('tipos_servicio_recurrente')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw new Error('Error al actualizar tipo de servicio.');
+            return data;
+        },
+
+        // Agregar nuevo tipo de servicio recurrente
+        agregarTipoServicioRecurrente: async (tipoTrabajo, diasRecordatorio = 180) => {
+            const { data, error } = await supabase
+                .from('tipos_servicio_recurrente')
+                .insert({
+                    tipo_trabajo: tipoTrabajo,
+                    dias_recordatorio: diasRecordatorio,
+                    activo: true
+                })
+                .select()
+                .single();
+
+            if (error) {
+                if (error.code === '23505') {
+                    throw new Error('Este tipo de servicio ya existe.');
+                }
+                throw new Error('Error al agregar tipo de servicio.');
+            }
+            return data;
+        },
+
+        // Eliminar tipo de servicio recurrente
+        eliminarTipoServicioRecurrente: async (id) => {
+            const { error } = await supabase
+                .from('tipos_servicio_recurrente')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw new Error('Error al eliminar tipo de servicio.');
+            return true;
+        },
+
+        // Obtener todos los tipos de trabajo únicos del historial (para autocompletar)
+        getTiposTrabajoDisponibles: async () => {
+            const { data, error } = await supabase
+                .from('historial_servicios')
+                .select('tipo_trabajo')
+                .not('tipo_trabajo', 'is', null)
+                .order('tipo_trabajo');
+
+            if (error) return [];
+
+            // Obtener únicos
+            const unicos = [...new Set(data.map(d => d.tipo_trabajo).filter(Boolean))];
+            return unicos.sort();
         }
 
     }), []);

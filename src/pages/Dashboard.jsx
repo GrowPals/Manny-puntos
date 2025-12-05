@@ -3,7 +3,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Coins, Gift, History, LogOut, Loader2 } from 'lucide-react';
+import { Coins, Gift, History, LogOut, Loader2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/features/ProductCard';
@@ -48,7 +48,13 @@ const Dashboard = () => {
                   </span>
                 )}
               </div>
-               <div className="flex items-center gap-2 sm:gap-4 self-end md:self-center">
+               <div className="flex items-center gap-2 sm:gap-4 self-end md:self-center flex-wrap justify-end">
+                <Link to="/mis-servicios">
+                  <Button variant="outline" size="sm" className="hover:bg-secondary hover:text-foreground">
+                    <Wrench className="w-4 h-4 mr-2" />
+                    Mis Servicios
+                  </Button>
+                </Link>
                 <Link to="/mis-canjes">
                   <Button variant="outline" size="sm" className="hover:bg-secondary hover:text-foreground">
                     <History className="w-4 h-4 mr-2" />

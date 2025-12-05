@@ -391,3 +391,27 @@ entrypoint = "./functions/sync-to-notion/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/sync-to-notion/*.html" ]
+
+# Webhook de Notion para tickets completados - NO requiere JWT porque viene de Notion
+[functions.notion-ticket-completed]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/notion-ticket-completed/index.ts"
+
+# Webhook de Notion para contactos - NO requiere JWT porque viene de Notion
+[functions.notion-contact-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/notion-contact-webhook/index.ts"
+
+# Cron para recordatorios automáticos - requiere JWT (llamado internamente)
+[functions.cron-recordatorios]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/cron-recordatorios/index.ts"
+
+# Push notifications - requiere JWT (llamado internamente)
+[functions.send-push-notification]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-push-notification/index.ts"

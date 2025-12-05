@@ -24,8 +24,10 @@ const AdminEntregas = React.lazy(() => import('@/pages/AdminEntregas'));
 const AdminClientes = React.lazy(() => import('@/pages/AdminClientes'));
 const AdminGestion = React.lazy(() => import('@/pages/AdminGestion'));
 const AdminClienteDetalle = React.lazy(() => import('@/pages/AdminClienteDetalle'));
+const AdminRecordatorios = React.lazy(() => import('@/pages/AdminRecordatorios'));
 const ConfirmarCanje = React.lazy(() => import('@/pages/ConfirmarCanje'));
 const MisCanjes = React.lazy(() => import('@/pages/MisCanjes'));
+const MisServicios = React.lazy(() => import('@/pages/MisServicios'));
 
 const AccesoDenegado = React.lazy(() => import('@/pages/AccesoDenegado'));
 
@@ -88,6 +90,7 @@ const AppRoutes = () => {
 
           <Route path="/canjear/:productoId" element={<ProtectedRoute><PageLayout seoTitle="Confirmar Canje"><ConfirmarCanje /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-canjes" element={<ProtectedRoute><PageLayout seoTitle="Mi Historial"><MisCanjes /></PageLayout></ProtectedRoute>} />
+          <Route path="/mis-servicios" element={<ProtectedRoute><PageLayout seoTitle="Mis Servicios"><MisServicios /></PageLayout></ProtectedRoute>} />
 
           <Route path="/admin" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Panel de Administrador" isAdminRoute><Admin /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/productos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Productos" isAdminRoute><AdminProductos /></PageLayout></ProtectedRoute>} />
@@ -95,6 +98,7 @@ const AppRoutes = () => {
           <Route path="/admin/clientes/:clienteId" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Detalle de Cliente" isAdminRoute><AdminClienteDetalle /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/entregas" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Entregas" isAdminRoute><AdminEntregas /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/gestion" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Importar/Exportar" isAdminRoute><AdminGestion /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/recordatorios" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Recordatorios" isAdminRoute><AdminRecordatorios /></PageLayout></ProtectedRoute>} />
           
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

@@ -27,8 +27,9 @@ self.addEventListener('push', (event) => {
     vibrate: data.vibrate || [200, 100, 200],
     tag: data.tag || 'manny-notification',
     renotify: true,
-    requireInteraction: false,
-    data: data.data || { url: '/' }
+    requireInteraction: data.requireInteraction || false,
+    data: data.data || { url: '/' },
+    actions: data.actions || []
   };
 
   event.waitUntil(
@@ -36,13 +37,35 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Handle notification click
+// Handle notification click (general click or action button click)
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event);
+  console.log('[SW] Action:', event.action);
+  console.log('[SW] Notification data:', event.notification.data);
 
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/dashboard';
+  const notificationData = event.notification.data || {};
+
+  // Handle specific actions
+  if (event.action === 'whatsapp') {
+    // Open WhatsApp with the pre-filled message
+    const whatsappUrl = notificationData.whatsapp_url;
+    if (whatsappUrl) {
+      event.waitUntil(
+        clients.openWindow(whatsappUrl)
+      );
+      return;
+    }
+  }
+
+  if (event.action === 'dismiss') {
+    // Just close the notification, already done above
+    return;
+  }
+
+  // Default action: open the app at the specified URL
+  const urlToOpen = notificationData.url || '/dashboard';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })

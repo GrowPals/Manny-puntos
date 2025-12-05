@@ -61,29 +61,29 @@ const MisCanjes = () => {
 
         return (
             <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05, type: 'spring', stiffness: 100 }}
-                className="bg-card rounded-2xl shadow-sm border border-border/50 p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="bg-card rounded-xl shadow-sm border border-border p-4"
             >
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className={`p-2.5 rounded-lg flex-shrink-0 ${isService ? 'bg-emerald-500/10' : 'bg-sky-500/10'}`}>
-                        <IconoTipo className={`w-5 h-5 ${isService ? 'text-emerald-600' : 'text-sky-600'}`}/>
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${isService ? 'bg-primary/10' : 'bg-primary/10'}`}>
+                        <IconoTipo className="w-4 h-4 text-primary" />
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground truncate">{canje.producto_nombre}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-foreground text-sm truncate">{canje.producto_nombre}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
                             {new Date(canje.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                     </div>
                     {/* Puntos */}
-                    <span className="font-mono font-bold text-red-500 flex-shrink-0">-{canje.puntos_usados}</span>
+                    <span className="font-mono font-bold text-sm text-red-500 flex-shrink-0">-{canje.puntos_usados}</span>
                 </div>
                 {/* Status */}
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${estadoInfo.bg} ${estadoInfo.text_color}`}>
+                <div className="mt-3 pt-3 border-t border-border">
+                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium ${estadoInfo.bg} ${estadoInfo.text_color}`}>
                         {estadoInfo.icon}
                         <span>{estadoInfo.text}</span>
                     </div>
@@ -97,25 +97,25 @@ const MisCanjes = () => {
 
         return (
             <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05, type: 'spring', stiffness: 100 }}
-                className="bg-card rounded-2xl shadow-sm border border-border/50 p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="bg-card rounded-xl shadow-sm border border-border p-4"
             >
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className={`p-2.5 rounded-lg flex-shrink-0 ${isPositive ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                        <Coins className={`w-5 h-5 ${isPositive ? 'text-green-600' : 'text-red-500'}`}/>
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${isPositive ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                        <Coins className={`w-4 h-4 ${isPositive ? 'text-green-600' : 'text-red-500'}`}/>
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground truncate">{item.concepto}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-semibold text-foreground text-sm truncate">{item.concepto}</h3>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
                             {new Date(item.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                     </div>
                     {/* Puntos */}
-                    <span className={`font-mono font-bold flex-shrink-0 ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className={`font-mono font-bold text-sm flex-shrink-0 ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
                         {isPositive ? '+' : ''}{item.puntos}
                     </span>
                 </div>
@@ -133,18 +133,24 @@ const MisCanjes = () => {
         <>
             <Helmet><title>Mi Historial - Manny</title></Helmet>
 
-            <Link to="/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-6">
-                <ArrowLeft size={16} />Volver al Dashboard
+            <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
+                <ArrowLeft size={14} />
+                Volver
             </Link>
 
-            <motion.h1
-                initial={{ opacity: 0, y: -20 }}
+            <motion.div
+                initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-3xl md:text-4xl font-bold text-foreground mb-6 flex items-center gap-3"
+                className="mb-6"
             >
-                <History className="w-8 h-8 text-primary" />
-                Mi Historial
-            </motion.h1>
+                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+                    <History className="w-6 h-6 text-primary" />
+                    Mi Historial
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Tus canjes y movimientos de puntos
+                </p>
+            </motion.div>
 
             {/* Tabs */}
             <div className="flex border-b border-border mb-6">
@@ -210,15 +216,17 @@ const MisCanjes = () => {
 
 const EmptyState = ({ icon, title, description }) => (
     <motion.div
-        initial={{opacity: 0, scale: 0.95}}
+        initial={{opacity: 0, scale: 0.98}}
         animate={{opacity: 1, scale: 1}}
-        className="text-center py-16 bg-card rounded-2xl shadow-sm border border-border/50"
+        className="text-center py-12 bg-card rounded-xl shadow-sm border border-border"
     >
-        <div className="mx-auto text-muted-foreground/50 mb-4">{icon}</div>
-        <h2 className="text-xl font-bold text-foreground">{title}</h2>
-        <p className="text-muted-foreground text-lg mt-2">{description}</p>
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground/50">
+            {icon}
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">{description}</p>
         <Link to="/dashboard">
-           <Button className="mt-4">Ver Catálogo</Button>
+           <Button className="mt-5" size="sm">Ver Catálogo</Button>
         </Link>
     </motion.div>
 );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,6 +72,7 @@ const Header = () => {
             <NavLink to="/admin/productos" onClick={onClick}><Package className="w-5 h-5 mr-3" /> Recompensas</NavLink>
             <NavLink to="/admin/clientes" onClick={onClick}><Users className="w-5 h-5 mr-3" /> Clientes</NavLink>
             <NavLink to="/admin/entregas" onClick={onClick}><Truck className="w-5 h-5 mr-3" /> Canjes</NavLink>
+            <NavLink to="/admin/recordatorios" onClick={onClick}><Bell className="w-5 h-5 mr-3" /> Recordatorios</NavLink>
             <NavLink to="/admin/gestion" onClick={onClick}><ShieldCheck className="w-5 h-5 mr-3" /> Admins</NavLink>
             <hr className="my-2 border-border" />
             <NavLink to="/dashboard" end onClick={onClick}><Shield className="w-5 h-5 mr-3" /> Vista Cliente</NavLink>
@@ -81,6 +82,7 @@ const Header = () => {
     const ClientNavLinks = ({ onClick }) => (
         <>
             <NavLink to="/dashboard" end onClick={onClick}><Gift className="w-5 h-5 mr-3" /> Canjear</NavLink>
+            <NavLink to="/mis-servicios" onClick={onClick}><Wrench className="w-5 h-5 mr-3" /> Mis Servicios</NavLink>
             <NavLink to="/mis-canjes" onClick={onClick}><History className="w-5 h-5 mr-3" /> Mis Canjes</NavLink>
         </>
     );

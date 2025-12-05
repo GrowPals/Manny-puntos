@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Gift, History, LogOut } from 'lucide-react';
+import { Gift, History, Wrench, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const BottomNav = () => {
 
     const navItems = [
         { to: '/dashboard', icon: Gift, label: 'Recompensas' },
+        { to: '/mis-servicios', icon: Wrench, label: 'Servicios' },
         { to: '/mis-canjes', icon: History, label: 'Historial' },
     ];
 
@@ -28,7 +29,7 @@ const BottomNav = () => {
         <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
             {/* Main nav container */}
             <div className="bg-card border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
-                <div className="grid grid-cols-3 h-[68px] max-w-sm mx-auto">
+                <div className="grid grid-cols-4 h-[68px] max-w-md mx-auto">
                     {navItems.map(({ to, icon: Icon, label }) => {
                         const isActive = location.pathname === to;
                         return (

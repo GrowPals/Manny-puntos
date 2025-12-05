@@ -18,19 +18,19 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
         if (supported) {
             setPermission(Notification.permission);
-            checkExistingSubscription();
+            // Check existing subscription (fire and forget, errors handled inside)
+            const checkSubscription = async () => {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const existingSub = await registration.pushManager.getSubscription();
+                    setSubscription(existingSub);
+                } catch (error) {
+                    console.error('Error checking subscription:', error);
+                }
+            };
+            checkSubscription();
         }
     }, []);
-
-    const checkExistingSubscription = async () => {
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            const existingSub = await registration.pushManager.getSubscription();
-            setSubscription(existingSub);
-        } catch (error) {
-            console.error('Error checking subscription:', error);
-        }
-    };
 
     const urlBase64ToUint8Array = (base64String) => {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);

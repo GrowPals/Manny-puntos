@@ -29,6 +29,10 @@ const ConfirmarCanje = () => {
             setError(null);
             try {
                 const prod = await api.getProductoById(productoId);
+                if (!prod) {
+                    setError('Recompensa no encontrada.');
+                    return;
+                }
                 setProducto(prod);
                 if (user.puntos_actuales < prod.puntos_requeridos) {
                     setError('No tienes puntos Manny suficientes para esta recompensa.');

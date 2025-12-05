@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -142,6 +143,9 @@ const Admin = () => {
                 <DialogContent className="bg-card border-border text-foreground">
                     <DialogHeader>
                         <DialogTitle className="text-xl">Confirmar Importación</DialogTitle>
+                        <DialogDescription>
+                            Esta acción importará datos desde un archivo JSON.
+                        </DialogDescription>
                     </DialogHeader>
                     <p className="text-muted-foreground py-4">
                         ¿Seguro que quieres importar? Esto <strong className="text-destructive">sobreescribirá todos los datos actuales</strong>.
