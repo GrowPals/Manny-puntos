@@ -3,11 +3,9 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Coins, Gift, History, LogOut, Loader2, Wrench, TrendingUp } from 'lucide-react';
+import { Coins, Gift, History, LogOut, Loader2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/services/api';
 import ProductCard from '@/components/features/ProductCard';
 import ServicesList from '@/components/features/ServicesList';
 import NotificationSettings from '@/components/NotificationSettings';
@@ -17,28 +15,11 @@ const Dashboard = () => {
   const { user, logout, isPartner, isVIP } = useAuth();
   const { productos, loading } = useProducts();
 
-  // Estadísticas del cliente
-  const { data: stats } = useQuery({
-    queryKey: ['dashboard-stats', user?.id],
-    queryFn: () => api.services.getHistorialServiciosStats(user.id),
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 10,
-  });
-
   const telefonoMasked = user?.telefono ? `${user.telefono.slice(0, 3)}***${user.telefono.slice(-4)}` : 'No disponible';
   const firstName = user?.nombre?.trim()?.split(' ')[0] || 'Usuario';
 
   // Mostrar servicios para usuarios Partner o VIP
   const showServices = isPartner || isVIP;
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
 
 
   return (
@@ -99,33 +80,6 @@ const Dashboard = () => {
                  <p className="text-xs md:text-sm opacity-80 mt-2">Última acumulación: {user.ultimo_servicio}</p>
               )}
             </div>
-
-            {/* Mini Stats */}
-            {stats && (stats.total_servicios > 0 || stats.total_invertido > 0) && (
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="bg-muted/50 rounded-xl p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-                    <Wrench className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-medium uppercase">Servicios</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{stats.total_servicios}</p>
-                </div>
-                <div className="bg-muted/50 rounded-xl p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-medium uppercase">Invertido</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{formatCurrency(stats.total_invertido)}</p>
-                </div>
-                <div className="bg-muted/50 rounded-xl p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-                    <Coins className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-medium uppercase">Generados</span>
-                  </div>
-                  <p className="text-lg font-bold text-primary">{stats.total_puntos?.toLocaleString('es-MX') || 0}</p>
-                </div>
-              </div>
-            )}
 
             <div className="mt-6">
               <NotificationSettings clienteId={user?.id} />
