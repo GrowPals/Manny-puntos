@@ -8,17 +8,20 @@ import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { cn } from '@/lib/utils';
 import MannyLogo from '@/assets/images/manny-logo.svg';
 
-const NavLink = React.memo(({ to, children, onClick, end = false }) => {
+const NavLink = React.memo(({ to, children, onClick, end = false, compact = false }) => {
     return (
         <RouterNavLink
             to={to}
             end={end}
             onClick={onClick}
             className={({ isActive }) => cn(
-                "flex items-center justify-start text-base h-12 px-4 rounded-md transition-all duration-200 font-medium",
-                isActive 
-                    ? "btn-investment text-primary-foreground shadow-md" 
-                    : "bg-transparent text-foreground hover:border hover:border-primary hover:text-primary"
+                "flex items-center justify-start rounded-lg transition-all duration-200 font-medium whitespace-nowrap",
+                compact
+                    ? "text-sm h-9 px-3"
+                    : "text-base h-12 px-4",
+                isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
         >
             {children}
@@ -66,24 +69,38 @@ const Header = () => {
     
     const toggleMenu = useCallback(() => setIsMenuOpen(prev => !prev), []);
 
-    const AdminNavLinks = ({ onClick }) => (
+    // Desktop admin links - compact version for header
+    const AdminNavLinksDesktop = () => (
         <>
-            <NavLink to="/admin" end onClick={onClick}><LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard</NavLink>
-            <NavLink to="/admin/productos" onClick={onClick}><Package className="w-5 h-5 mr-3" /> Recompensas</NavLink>
-            <NavLink to="/admin/clientes" onClick={onClick}><Users className="w-5 h-5 mr-3" /> Clientes</NavLink>
-            <NavLink to="/admin/entregas" onClick={onClick}><Truck className="w-5 h-5 mr-3" /> Canjes</NavLink>
-            <NavLink to="/admin/recordatorios" onClick={onClick}><Bell className="w-5 h-5 mr-3" /> Recordatorios</NavLink>
-            <NavLink to="/admin/gestion" onClick={onClick}><ShieldCheck className="w-5 h-5 mr-3" /> Admins</NavLink>
-            <hr className="my-2 border-border" />
-            <NavLink to="/dashboard" end onClick={onClick}><Shield className="w-5 h-5 mr-3" /> Vista Cliente</NavLink>
+            <NavLink to="/admin" end compact><LayoutDashboard className="w-4 h-4 mr-1.5" />Dashboard</NavLink>
+            <NavLink to="/admin/productos" compact><Package className="w-4 h-4 mr-1.5" />Productos</NavLink>
+            <NavLink to="/admin/clientes" compact><Users className="w-4 h-4 mr-1.5" />Clientes</NavLink>
+            <NavLink to="/admin/entregas" compact><Truck className="w-4 h-4 mr-1.5" />Canjes</NavLink>
+            <NavLink to="/admin/recordatorios" compact><Bell className="w-4 h-4 mr-1.5" />Recordatorios</NavLink>
+            <div className="w-px h-6 bg-border mx-1" />
+            <NavLink to="/dashboard" end compact><Shield className="w-4 h-4 mr-1.5" />Cliente</NavLink>
         </>
     );
-    
-    const ClientNavLinks = ({ onClick }) => (
+
+    // Mobile admin links - full version for drawer
+    const AdminNavLinksMobile = ({ onClick }) => (
         <>
-            <NavLink to="/dashboard" end onClick={onClick}><Gift className="w-5 h-5 mr-3" /> Canjear</NavLink>
-            <NavLink to="/mis-servicios" onClick={onClick}><Wrench className="w-5 h-5 mr-3" /> Mis Servicios</NavLink>
-            <NavLink to="/mis-canjes" onClick={onClick}><History className="w-5 h-5 mr-3" /> Mis Canjes</NavLink>
+            <NavLink to="/admin" end onClick={onClick}><LayoutDashboard className="w-5 h-5 mr-3" />Dashboard</NavLink>
+            <NavLink to="/admin/productos" onClick={onClick}><Package className="w-5 h-5 mr-3" />Recompensas</NavLink>
+            <NavLink to="/admin/clientes" onClick={onClick}><Users className="w-5 h-5 mr-3" />Clientes</NavLink>
+            <NavLink to="/admin/entregas" onClick={onClick}><Truck className="w-5 h-5 mr-3" />Canjes</NavLink>
+            <NavLink to="/admin/recordatorios" onClick={onClick}><Bell className="w-5 h-5 mr-3" />Recordatorios</NavLink>
+            <NavLink to="/admin/gestion" onClick={onClick}><ShieldCheck className="w-5 h-5 mr-3" />Admins</NavLink>
+            <hr className="my-2 border-border" />
+            <NavLink to="/dashboard" end onClick={onClick}><Shield className="w-5 h-5 mr-3" />Vista Cliente</NavLink>
+        </>
+    );
+
+    const ClientNavLinks = ({ onClick, compact = false }) => (
+        <>
+            <NavLink to="/dashboard" end onClick={onClick} compact={compact}><Gift className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Canjear</NavLink>
+            <NavLink to="/mis-servicios" onClick={onClick} compact={compact}><Wrench className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Servicios</NavLink>
+            <NavLink to="/mis-canjes" onClick={onClick} compact={compact}><History className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Canjes</NavLink>
         </>
     );
 
@@ -101,42 +118,37 @@ const Header = () => {
 
     return (
         <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
-            <nav className="container mx-auto px-4 py-3">
-                <div className="flex items-center justify-between">
-                    <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center gap-2 group" aria-label="Ir a la página principal">
-                        <img src={MannyLogo} alt="Manny Logo" className="h-24 -my-6 w-auto transition-transform duration-300 group-hover:scale-105" />
+            <nav className="container mx-auto px-4 h-14">
+                <div className="flex items-center justify-between h-full gap-4">
+                    <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0" aria-label="Ir a la página principal">
+                        <img src={MannyLogo} alt="Manny Logo" className="h-10 w-auto transition-transform duration-300 group-hover:scale-105" />
                     </Link>
 
-                    <div className="hidden md:flex items-center gap-1">
-                        {isAdmin ? <AdminNavLinks /> : (user && <ClientNavLinks />)}
+                    <div className="hidden lg:flex items-center gap-1">
+                        {isAdmin ? <AdminNavLinksDesktop /> : (user && <ClientNavLinks compact />)}
                     </div>
 
                     <div className="flex items-center gap-2">
-                         {user && (
-                            <>
-                                {/* Points badge - visible on mobile for clients, always on desktop */}
-                                <div className={cn(
-                                    "px-3 py-1.5 md:px-4 md:py-2 bg-manny-gradient text-white rounded-xl font-bold flex items-center gap-2 shadow-lg animate-glow text-sm md:text-base",
-                                    isAdmin && "hidden md:flex"
-                                )}>
-                                    <Coins className="w-4 h-4 md:w-5 md:h-5" />
-                                    {user.puntos_actuales} pts
-                                </div>
-                            </>
+                        {user && (
+                            <div className={cn(
+                                "px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold flex items-center gap-1.5 text-sm",
+                                isAdmin && "hidden lg:flex"
+                            )}>
+                                <Coins className="w-4 h-4" />
+                                {user.puntos_actuales?.toLocaleString('es-MX')}
+                            </div>
                         )}
                         <ThemeToggle />
                         {user && (
-                          <div className="hidden md:block">
-                              <Button variant="ghost" size="icon" onClick={handleLogout} className="h-12 w-12" aria-label="Cerrar sesión">
-                                  <LogOut className="w-6 h-6" />
-                              </Button>
-                          </div>
+                            <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden lg:flex h-9 w-9" aria-label="Cerrar sesión">
+                                <LogOut className="w-5 h-5" />
+                            </Button>
                         )}
-                        {/* Hamburger menu only for admin on mobile */}
-                        {isAdmin && (
-                            <div className="md:hidden">
-                                <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-12 w-12" aria-label="Abrir menú">
-                                    <Menu className="w-6 h-6" />
+                        {/* Hamburger menu on mobile/tablet */}
+                        {user && (
+                            <div className="lg:hidden">
+                                <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-9 w-9" aria-label="Abrir menú">
+                                    <Menu className="w-5 h-5" />
                                 </Button>
                             </div>
                         )}
@@ -173,12 +185,12 @@ const Header = () => {
                             </div>
                             <div className="flex flex-col gap-2 flex-1">
                                 {user && (
-                                    <div className="p-4 bg-muted text-foreground rounded-xl font-bold flex items-center gap-3 shadow-inner mb-6">
+                                    <div className="p-4 bg-primary/10 text-foreground rounded-xl font-bold flex items-center gap-3 mb-6">
                                         <Coins className="w-6 h-6 text-primary" />
-                                        <span className="text-xl">{user.puntos_actuales} Puntos Manny</span>
+                                        <span className="text-xl">{user.puntos_actuales?.toLocaleString('es-MX')} Puntos</span>
                                     </div>
                                 )}
-                                {isAdmin ? <AdminNavLinks onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} />}
+                                {isAdmin ? <AdminNavLinksMobile onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} />}
                             </div>
                             <Button variant="destructive" size="lg" onClick={handleLogout} className="mt-auto h-14 text-base">
                                 <LogOut className="w-5 h-5 mr-3" /> Cerrar Sesión

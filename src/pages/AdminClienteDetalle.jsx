@@ -458,7 +458,6 @@ const AdminClienteDetalle = () => {
                 open={showPointsModal}
                 onClose={() => setShowPointsModal(false)}
                 cliente={cliente}
-                onSuccess={fetchData}
             />
 
             {/* Modal: Asignar Servicio */}
@@ -466,7 +465,6 @@ const AdminClienteDetalle = () => {
                 open={showServiceModal}
                 onClose={() => setShowServiceModal(false)}
                 cliente={cliente}
-                onSuccess={fetchData}
             />
 
             {/* Modal: Cambiar Nivel */}
@@ -474,7 +472,6 @@ const AdminClienteDetalle = () => {
                 open={showLevelModal}
                 onClose={() => setShowLevelModal(false)}
                 cliente={cliente}
-                onSuccess={fetchData}
             />
 
             {/* Modal: Confirmar Eliminar Servicio */}
