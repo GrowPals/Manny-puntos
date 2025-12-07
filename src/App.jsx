@@ -41,8 +41,8 @@ const LoadingFallback = () => (
 );
 
 const PageLayout = ({ children, seoTitle, seoDescription, isAdminRoute = false }) => {
-  // Add bottom padding for bottom nav on mobile (only for non-admin users)
-  const mainPadding = isAdminRoute ? "py-6 md:py-8" : "py-6 md:py-8 pb-24 md:pb-8";
+  // Add bottom padding for bottom nav on mobile/tablet (only for non-admin users)
+  const mainPadding = isAdminRoute ? "py-6 lg:py-8" : "py-6 lg:py-8 pb-24 lg:pb-8";
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -107,7 +107,14 @@ const AppRoutes = () => {
   );
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (

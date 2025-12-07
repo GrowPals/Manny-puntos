@@ -4,11 +4,8 @@ import { motion } from 'framer-motion';
 import {
     Wrench,
     Loader2,
-    ArrowLeft,
     Calendar,
-    Coins,
-    DollarSign,
-    FileText
+    Coins
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -73,18 +70,17 @@ const MisServicios = () => {
     const StatsHeader = () => {
         if (!stats) return null;
 
-        const hasInvertido = stats.total_invertido && stats.total_invertido > 0;
         const hasPuntos = stats.total_puntos && stats.total_puntos > 0;
         const hasServicios = stats.total_servicios && stats.total_servicios > 0;
 
         // Si no hay ninguna estadística con valor, no mostrar nada
-        if (!hasInvertido && !hasPuntos && !hasServicios) return null;
+        if (!hasPuntos && !hasServicios) return null;
 
         return (
             <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-3 gap-3 mb-6"
+                className="grid grid-cols-2 gap-3 mb-6"
             >
                 {hasServicios && (
                     <div className="bg-card rounded-xl p-3 border border-border shadow-sm">
@@ -93,15 +89,6 @@ const MisServicios = () => {
                             <span className="text-[10px] font-medium uppercase tracking-wide">Servicios</span>
                         </div>
                         <p className="text-xl font-bold text-foreground">{stats.total_servicios}</p>
-                    </div>
-                )}
-                {hasInvertido && (
-                    <div className="bg-card rounded-xl p-3 border border-border shadow-sm">
-                        <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-medium uppercase tracking-wide">Invertido</span>
-                        </div>
-                        <p className="text-xl font-bold text-foreground">{formatCurrency(stats.total_invertido)}</p>
                     </div>
                 )}
                 {hasPuntos && (
@@ -207,11 +194,6 @@ const MisServicios = () => {
             <Helmet>
                 <title>Mis Servicios - Manny</title>
             </Helmet>
-
-            <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
-                <ArrowLeft size={14} />
-                Volver
-            </Link>
 
             <motion.div
                 initial={{ opacity: 0, y: -10 }}

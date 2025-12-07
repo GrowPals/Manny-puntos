@@ -26,7 +26,7 @@ const BottomNav = () => {
     };
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
             {/* Main nav container */}
             <div className="bg-card border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
                 <div className="grid grid-cols-4 h-[68px] max-w-md mx-auto">

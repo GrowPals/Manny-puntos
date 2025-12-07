@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { History, Loader2, ArrowLeft, PackageCheck, Hourglass, Wrench, Calendar, CheckCircle, Package, Coins } from 'lucide-react';
+import { History, Loader2, PackageCheck, Hourglass, Wrench, Calendar, CheckCircle, Package, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
@@ -122,11 +122,6 @@ const MisCanjes = () => {
     return (
         <>
             <Helmet><title>Mi Historial - Manny</title></Helmet>
-
-            <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4">
-                <ArrowLeft size={14} />
-                Volver
-            </Link>
 
             <motion.div
                 initial={{ opacity: 0, y: -10 }}

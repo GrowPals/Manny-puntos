@@ -48,7 +48,8 @@ const Dashboard = () => {
                   </span>
                 )}
               </div>
-               <div className="flex items-center gap-2 sm:gap-4 self-end md:self-center flex-wrap justify-end">
+               {/* Only show navigation buttons on desktop - mobile uses BottomNav */}
+               <div className="hidden lg:flex items-center gap-4">
                 <Link to="/mis-servicios">
                   <Button variant="outline" size="sm" className="hover:bg-secondary hover:text-foreground">
                     <Wrench className="w-4 h-4 mr-2" />
