@@ -12,6 +12,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import { AnimatePresence } from 'framer-motion';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import SEOHelmet from '@/components/common/SEOHelmet';
+import OfflineIndicator from '@/components/common/OfflineIndicator';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import OnboardingModal from '@/components/features/OnboardingModal';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
@@ -140,6 +141,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ErrorBoundary>
+            <OfflineIndicator />
             <AppRoutes />
           </ErrorBoundary>
           <Toaster />

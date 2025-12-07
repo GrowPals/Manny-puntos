@@ -178,15 +178,54 @@ export const cambiarRolAdmin = async (clienteId, esAdmin) => {
 /**
  * Sincroniza un cliente de Supabase a Notion
  * Crea el Contacto y Manny Reward si no existen
+ * Ahora con fallback a cola de reintentos si falla
  */
 export const syncToNotion = async (clienteId) => {
-    const { data, error } = await supabase.functions.invoke('sync-cliente-to-notion', {
-        body: { cliente_id: clienteId }
+    try {
+        const { data, error } = await supabase.functions.invoke('sync-cliente-to-notion', {
+            body: { cliente_id: clienteId }
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        return data;
+    } catch (error) {
+        console.warn('Direct Notion sync failed, queueing for retry:', error.message);
+
+        // Queue for retry instead of failing silently
+        await enqueueSyncOperation('sync_cliente', clienteId, {
+            original_error: error.message
+        });
+
+        // Return a pending status so the caller knows it's queued
+        return {
+            status: 'queued',
+            message: 'La sincronización se completará en breve',
+            queued: true
+        };
+    }
+};
+
+/**
+ * Encola una operación de sincronización para procesamiento con reintentos
+ * @param {string} operationType - Tipo de operación
+ * @param {string} resourceId - ID del recurso relacionado
+ * @param {object} payload - Datos adicionales
+ */
+export const enqueueSyncOperation = async (operationType, resourceId, payload = {}) => {
+    const { data, error } = await supabase.rpc('enqueue_sync_operation', {
+        p_operation_type: operationType,
+        p_resource_id: resourceId,
+        p_payload: payload,
+        p_source: 'clients_service',
+        p_source_context: { timestamp: new Date().toISOString() }
     });
 
     if (error) {
-        console.error('Error syncing client to Notion:', error);
-        throw new Error('Error al sincronizar cliente con Notion');
+        console.error('Failed to enqueue sync operation:', error);
+        return null;
     }
 
     return data;

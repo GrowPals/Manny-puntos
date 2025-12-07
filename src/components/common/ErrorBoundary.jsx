@@ -9,10 +9,14 @@ class ErrorBoundary extends React.Component {
 
   static getDerivedStateFromError(error) {
     const errorMessage = error?.message || error?.toString() || '';
+    const errorName = error?.name || '';
     const isChunkError =
       errorMessage.includes('Failed to fetch dynamically imported module') ||
       errorMessage.includes('Loading chunk') ||
-      errorMessage.includes('ChunkLoadError');
+      errorMessage.includes('ChunkLoadError') ||
+      errorMessage.includes('dynamically imported module') ||
+      errorName === 'ChunkLoadError' ||
+      (errorMessage.includes('Failed to fetch') && errorMessage.includes('.js'));
 
     return { hasError: true, error: error, isChunkError };
   }

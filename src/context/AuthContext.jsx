@@ -55,13 +55,26 @@ export const AuthProvider = ({ children }) => {
       const pendingReferralCode = safeStorage.getString(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
       if (pendingReferralCode && clienteData.id) {
         try {
-          await api.referrals.applyReferralCode(clienteData.id, pendingReferralCode);
+          const result = await api.referrals.applyReferralCode(clienteData.id, pendingReferralCode);
           safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
-          console.log('Pending referral code applied successfully');
+          console.log('Pending referral code applied successfully:', result);
         } catch (referralError) {
-          // Don't block login if referral fails - just log it
-          console.warn('Failed to apply pending referral code:', referralError.message);
-          safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE); // Clear it anyway
+          // Only clear the code if it's a business logic error (invalid code, already used, etc.)
+          // Keep it for retry if it's a network/server error
+          const isBusinessError = referralError.isBusinessError ||
+            referralError.message?.includes('inválido') ||
+            referralError.message?.includes('expirado') ||
+            referralError.message?.includes('ya tiene') ||
+            referralError.message?.includes('límite');
+
+          if (isBusinessError) {
+            console.warn('Referral code rejected (business error):', referralError.message);
+            safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+          } else {
+            // Network error - keep the code for next login attempt
+            console.warn('Failed to apply referral code (will retry):', referralError.message);
+            // Don't remove - will try again on next login
+          }
         }
       }
 

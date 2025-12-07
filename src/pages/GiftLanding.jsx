@@ -9,6 +9,8 @@ import { api } from '@/services/api';
 import confetti from 'canvas-confetti';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
 import { VALIDATION, UI_CONFIG, isValidPhone } from '@/config';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { logger } from '@/lib/logger';
 
 // Componente de partículas flotantes
 const FloatingParticles = () => (
@@ -41,6 +43,7 @@ const GiftLanding = () => {
   const { codigo } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   const [loading, setLoading] = useState(true);
   const [giftData, setGiftData] = useState(null);
@@ -51,6 +54,7 @@ const GiftLanding = () => {
   const [claimed, setClaimed] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [claimAttempted, setClaimAttempted] = useState(false); // Prevent double submission
+  const [isExclusiveGift, setIsExclusiveGift] = useState(false); // For destinatario validation
 
   // Cargar datos del regalo
   useEffect(() => {
@@ -74,6 +78,10 @@ const GiftLanding = () => {
           setError('Esta promoción ha alcanzado el límite de participantes');
         } else {
           setGiftData(data);
+          // Detectar si es regalo exclusivo para mostrar advertencia temprana
+          if (data.destinatario_telefono) {
+            setIsExclusiveGift(true);
+          }
         }
       } catch (err) {
         console.error('Error loading gift:', err);
@@ -128,6 +136,16 @@ const GiftLanding = () => {
       return;
     }
 
+    // Check network status first
+    if (!isOnline) {
+      toast({
+        title: 'Sin conexión',
+        description: 'Verifica tu conexión a internet e intenta nuevamente',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (!isValidPhone(telefono)) {
       toast({
         title: 'Teléfono inválido',
@@ -144,6 +162,11 @@ const GiftLanding = () => {
         description: 'Este regalo es para otro número de teléfono',
         variant: 'destructive'
       });
+      logger.warn('Gift claim rejected - wrong phone for exclusive gift', {
+        codigo,
+        expectedPhone: giftData.destinatario_telefono?.slice(-4),
+        attemptedPhone: telefono.slice(-4),
+      });
       return;
     }
 
@@ -154,21 +177,26 @@ const GiftLanding = () => {
       const result = await api.gifts.claimGift(codigo, telefono);
 
       if (result.success) {
-        // Si es cliente nuevo, sincronizar a Notion (fire and forget)
+        // Log successful claim
+        logger.giftClaimed(giftData.id, result.cliente_id, {
+          codigo,
+          tipo: giftData.tipo,
+          esClienteNuevo: result.cliente_nuevo,
+        });
+
+        // Si es cliente nuevo, sincronizar a Notion (now with queue fallback)
         if (result.cliente_nuevo && result.cliente_id) {
-          try {
-            await api.clients.syncToNotion(result.cliente_id);
-          } catch (syncError) {
-            console.warn('Error syncing new client to Notion:', syncError);
+          const syncResult = await api.clients.syncToNotion(result.cliente_id);
+          if (syncResult?.queued) {
+            logger.syncQueued(result.cliente_id, 'sync_cliente', { source: 'gift_claim' });
           }
         }
 
-        // Crear ticket en Notion automáticamente para servicios (fire and forget)
+        // Crear ticket en Notion automáticamente para servicios (now with queue fallback)
         if (result.beneficio_id && giftData.tipo === 'servicio') {
-          try {
-            await api.gifts.createBenefitTicket(result.beneficio_id);
-          } catch (ticketError) {
-            console.warn('Error creating benefit ticket:', ticketError);
+          const ticketResult = await api.gifts.createBenefitTicket(result.beneficio_id);
+          if (ticketResult?.queued) {
+            logger.syncQueued(result.beneficio_id, 'create_benefit_ticket', { source: 'gift_claim' });
           }
         }
 
@@ -451,12 +479,27 @@ const GiftLanding = () => {
                 )}
               </motion.div>
 
+              {/* Advertencia para regalos exclusivos */}
+              {isExclusiveGift && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20"
+                >
+                  <p className="text-xs text-blue-600 flex items-center justify-center gap-1">
+                    <Phone className="w-3 h-3" />
+                    Este regalo es para un número específico: ***{giftData.destinatario_telefono?.slice(-4)}
+                  </p>
+                </motion.div>
+              )}
+
               {/* Indicador de términos para campañas */}
               {giftData.es_campana && giftData.terminos_condiciones && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
+                  transition={{ delay: 0.55 }}
                   className="mb-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20"
                 >
                   <p className="text-xs text-orange-600 flex items-center justify-center gap-1">

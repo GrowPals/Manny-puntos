@@ -369,15 +369,55 @@ export const deleteGiftLink = async (linkId) => {
 /**
  * Crea un ticket en Notion para un beneficio
  * Se llama automáticamente cuando un cliente reclama un beneficio de servicio
+ * Ahora con fallback a cola de reintentos si falla
  */
 export const createBenefitTicket = async (beneficioId) => {
-  const { data, error } = await supabase.functions.invoke('create-reward-ticket', {
-    body: { tipo: 'beneficio', id: beneficioId }
+  try {
+    const { data, error } = await supabase.functions.invoke('create-reward-ticket', {
+      body: { tipo: 'beneficio', id: beneficioId }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.warn('Direct Notion sync failed, queueing for retry:', error.message);
+
+    // Queue for retry instead of failing silently
+    await enqueueSyncOperation('create_benefit_ticket', beneficioId, {
+      original_error: error.message
+    });
+
+    // Return a pending status so the caller knows it's queued
+    return {
+      status: 'queued',
+      message: 'El ticket será creado en breve',
+      queued: true
+    };
+  }
+};
+
+/**
+ * Encola una operación de sincronización para procesamiento con reintentos
+ * @param {string} operationType - Tipo de operación ('sync_cliente', 'create_benefit_ticket', etc.)
+ * @param {string} resourceId - ID del recurso relacionado
+ * @param {object} payload - Datos adicionales
+ */
+export const enqueueSyncOperation = async (operationType, resourceId, payload = {}) => {
+  const { data, error } = await supabase.rpc('enqueue_sync_operation', {
+    p_operation_type: operationType,
+    p_resource_id: resourceId,
+    p_payload: payload,
+    p_source: 'gifts_service',
+    p_source_context: { timestamp: new Date().toISOString() }
   });
 
   if (error) {
-    console.error('Error creating benefit ticket:', error);
-    throw new Error(ERROR_MESSAGES.GIFTS.TICKET_ERROR);
+    console.error('Failed to enqueue sync operation:', error);
+    // Don't throw - this is a fallback mechanism
+    return null;
   }
 
   return data;
