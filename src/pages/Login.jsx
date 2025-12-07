@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import SEOHelmet from '@/components/common/SEOHelmet';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
+import { VALIDATION, isValidPhone } from '@/config';
 
 const Login = () => {
   const [telefono, setTelefono] = useState('');
@@ -17,22 +18,22 @@ const Login = () => {
   const { toast } = useToast();
 
   const handlePhoneChange = (e) => {
-    const formatted = e.target.value.replace(/\D/g, '').slice(0, 10);
+    const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
     setTelefono(formatted);
   };
 
   const handlePinChange = (e) => {
-    const formatted = e.target.value.replace(/\D/g, '').slice(0, 4);
+    const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PIN.LENGTH);
     setPin(formatted);
   };
 
   // Paso 1: Verificar teléfono
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
-    if (telefono.length !== 10) {
+    if (!isValidPhone(telefono)) {
       toast({
         title: "Teléfono inválido",
-        description: "Por favor, ingresa un número de 10 dígitos.",
+        description: "Por favor, ingresa un número válido de 10 dígitos.",
         variant: "destructive"
       });
       return;
@@ -75,10 +76,10 @@ const Login = () => {
   // Paso 2: Verificar PIN
   const handlePinSubmit = async (e) => {
     e.preventDefault();
-    if (pin.length !== 4) {
+    if (pin.length !== VALIDATION.PIN.LENGTH) {
       toast({
         title: "PIN incompleto",
-        description: "El PIN debe tener 4 dígitos.",
+        description: `El PIN debe tener ${VALIDATION.PIN.LENGTH} dígitos.`,
         variant: "destructive"
       });
       return;
@@ -235,7 +236,7 @@ const Login = () => {
                       variant="investment"
                       size="lg"
                       className="w-full h-14 text-base"
-                      disabled={loading || telefono.length !== 10}
+                      disabled={loading || !isValidPhone(telefono)}
                     >
                       {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
                     </Button>

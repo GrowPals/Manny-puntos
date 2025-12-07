@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/services/api';
 import confetti from 'canvas-confetti';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
+import { VALIDATION, UI_CONFIG, isValidPhone } from '@/config';
 
 // Componente de partículas flotantes
 const FloatingParticles = () => (
@@ -49,6 +50,7 @@ const GiftLanding = () => {
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [claimAttempted, setClaimAttempted] = useState(false); // Prevent double submission
 
   // Cargar datos del regalo
   useEffect(() => {
@@ -86,13 +88,17 @@ const GiftLanding = () => {
 
   const handleReveal = () => {
     setStep('reveal');
-    // Confetti al revelar
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#E91E63', '#9C27B0', '#673AB7', '#FFD700']
-    });
+    // Confetti al revelar with error handling
+    try {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: UI_CONFIG.CHART_COLORS
+      });
+    } catch {
+      // Non-critical, ignore confetti errors
+    }
   };
 
   const handleContinueToClaim = () => {
@@ -110,17 +116,22 @@ const GiftLanding = () => {
   };
 
   const handlePhoneChange = (e) => {
-    const formatted = e.target.value.replace(/\D/g, '').slice(0, 10);
+    const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
     setTelefono(formatted);
   };
 
   const handleClaim = async (e) => {
     e.preventDefault();
 
-    if (telefono.length !== 10) {
+    // Prevent double submission
+    if (claiming || claimAttempted) {
+      return;
+    }
+
+    if (!isValidPhone(telefono)) {
       toast({
         title: 'Teléfono inválido',
-        description: 'Por favor ingresa 10 dígitos',
+        description: 'Por favor ingresa un número válido de 10 dígitos',
         variant: 'destructive'
       });
       return;
@@ -137,6 +148,7 @@ const GiftLanding = () => {
     }
 
     setClaiming(true);
+    setClaimAttempted(true);
 
     try {
       const result = await api.gifts.claimGift(codigo, telefono);
@@ -162,40 +174,45 @@ const GiftLanding = () => {
 
         setClaimed(true);
 
-        // Mega confetti!
-        const duration = 3000;
-        const end = Date.now() + duration;
+        // Mega confetti with error handling
+        try {
+          const duration = UI_CONFIG.REDIRECT_DELAY;
+          const end = Date.now() + duration;
 
-        const frame = () => {
-          confetti({
-            particleCount: 7,
-            angle: 60,
-            spread: 55,
-            origin: { x: 0 },
-            colors: ['#E91E63', '#9C27B0', '#FFD700']
-          });
-          confetti({
-            particleCount: 7,
-            angle: 120,
-            spread: 55,
-            origin: { x: 1 },
-            colors: ['#E91E63', '#9C27B0', '#FFD700']
-          });
+          const frame = () => {
+            confetti({
+              particleCount: 7,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0 },
+              colors: UI_CONFIG.CHART_COLORS.slice(0, 3)
+            });
+            confetti({
+              particleCount: 7,
+              angle: 120,
+              spread: 55,
+              origin: { x: 1 },
+              colors: UI_CONFIG.CHART_COLORS.slice(0, 3)
+            });
 
-          if (Date.now() < end) {
-            requestAnimationFrame(frame);
-          }
-        };
-        frame();
+            if (Date.now() < end) {
+              requestAnimationFrame(frame);
+            }
+          };
+          frame();
+        } catch (confettiError) {
+          // Confetti is non-critical, don't block on errors
+          console.warn('Confetti animation failed:', confettiError);
+        }
 
-        // Redirigir después de 3 segundos
+        // Redirigir después del delay configurado
         setTimeout(() => {
           if (result.cliente_nuevo) {
             navigate('/login');
           } else {
             navigate('/dashboard');
           }
-        }, 3000);
+        }, UI_CONFIG.REDIRECT_DELAY);
       }
     } catch (err) {
       console.error('Error claiming gift:', err);
@@ -204,6 +221,8 @@ const GiftLanding = () => {
         description: err.message || 'No pudimos canjear el regalo',
         variant: 'destructive'
       });
+      // Reset claimAttempted to allow retry on error
+      setClaimAttempted(false);
     } finally {
       setClaiming(false);
     }
@@ -609,7 +628,7 @@ const GiftLanding = () => {
                   variant="investment"
                   size="lg"
                   className="w-full h-14 text-lg"
-                  disabled={claiming || telefono.length !== 10}
+                  disabled={claiming || !isValidPhone(telefono)}
                 >
                   {claiming ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

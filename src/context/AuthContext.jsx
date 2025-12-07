@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '@/services/api';
+import { safeStorage } from '@/lib/utils';
+import { STORAGE_CONFIG } from '@/config';
 
 const AuthContext = createContext(null);
 
@@ -22,23 +24,14 @@ export const AuthProvider = ({ children }) => {
 
   // Cargar sesión guardada
   useEffect(() => {
-    try {
-      setLoading(true);
-      const storedUser = localStorage.getItem('manny_user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser && typeof parsedUser === 'object' && parsedUser.id && parsedUser.telefono) {
-          setUser(parsedUser);
-        } else {
-          localStorage.removeItem('manny_user');
-        }
-      }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage.", error);
-      localStorage.removeItem('manny_user');
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    const storedUser = safeStorage.get(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
+    if (storedUser && typeof storedUser === 'object' && storedUser.id && storedUser.telefono) {
+      setUser(storedUser);
+    } else {
+      safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
     }
+    setLoading(false);
   }, []);
 
   // Verificar si cliente existe y tiene PIN
@@ -56,7 +49,21 @@ export const AuthProvider = ({ children }) => {
       setUser(clienteData);
       setNeedsOnboarding(false);
 
-      localStorage.setItem('manny_user', JSON.stringify(clienteData));
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, clienteData);
+
+      // Check for pending referral code and apply it
+      const pendingReferralCode = safeStorage.getString(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+      if (pendingReferralCode && clienteData.id) {
+        try {
+          await api.referrals.applyReferralCode(clienteData.id, pendingReferralCode);
+          safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+          console.log('Pending referral code applied successfully');
+        } catch (referralError) {
+          // Don't block login if referral fails - just log it
+          console.warn('Failed to apply pending referral code:', referralError.message);
+          safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE); // Clear it anyway
+        }
+      }
 
       const destination = clienteData.es_admin ? '/admin' : '/dashboard';
       const from = location.state?.from?.pathname || destination;
@@ -66,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login failed:', error);
       setUser(null);
-      localStorage.removeItem('manny_user');
+      safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
       throw error;
     } finally {
       setLoading(false);
@@ -116,7 +123,7 @@ export const AuthProvider = ({ children }) => {
       setNeedsOnboarding(false);
 
       // Ahora sí guardamos en localStorage
-      localStorage.setItem('manny_user', JSON.stringify(updatedUser));
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, updatedUser);
 
       return true;
     } catch (error) {
@@ -139,7 +146,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     setUser(null);
     setNeedsOnboarding(false);
-    localStorage.removeItem('manny_user');
+    safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
     navigate('/login', { replace: true });
   }, [navigate]);
 
@@ -147,7 +154,7 @@ export const AuthProvider = ({ children }) => {
     setUser(currentUser => {
       if (!currentUser) return null;
       const newUser = { ...currentUser, ...updatedData };
-      localStorage.setItem('manny_user', JSON.stringify(newUser));
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, newUser);
       return newUser;
     });
   }, []);

@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
+import { VALIDATION, STORAGE_CONFIG, isValidPhone } from '@/config';
+import { safeStorage } from '@/lib/utils';
 
 const ReferralLanding = () => {
   const { codigo } = useParams();
@@ -22,6 +24,7 @@ const ReferralLanding = () => {
 
   const [telefono, setTelefono] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false); // Prevent double submission
 
   // Si ya está logueado, redirigir
   useEffect(() => {
@@ -65,23 +68,29 @@ const ReferralLanding = () => {
   }, [codigo]);
 
   const handlePhoneChange = (e) => {
-    const formatted = e.target.value.replace(/\D/g, '').slice(0, 10);
+    const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
     setTelefono(formatted);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (telefono.length !== 10) {
+    // Prevent double submission
+    if (submitting || submitAttempted) {
+      return;
+    }
+
+    if (!isValidPhone(telefono)) {
       toast({
         title: 'Teléfono inválido',
-        description: 'Por favor ingresa 10 dígitos',
+        description: 'Por favor ingresa un número válido de 10 dígitos',
         variant: 'destructive'
       });
       return;
     }
 
     setSubmitting(true);
+    setSubmitAttempted(true);
 
     try {
       // Verificar si el cliente existe
@@ -89,7 +98,7 @@ const ReferralLanding = () => {
 
       if (result.exists) {
         // Cliente existente - guardar código en localStorage para aplicar después
-        localStorage.setItem('pending_referral_code', codigo);
+        safeStorage.setString(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE, codigo);
         toast({
           title: 'Ya tienes cuenta',
           description: 'Inicia sesión para aplicar el código de referido'
@@ -121,6 +130,8 @@ const ReferralLanding = () => {
         description: err.message || 'No pudimos completar el registro',
         variant: 'destructive'
       });
+      // Reset submitAttempted to allow retry on error
+      setSubmitAttempted(false);
     } finally {
       setSubmitting(false);
     }
@@ -283,7 +294,7 @@ const ReferralLanding = () => {
               variant="investment"
               size="lg"
               className="w-full h-14 text-lg"
-              disabled={submitting || telefono.length !== 10}
+              disabled={submitting || !isValidPhone(telefono)}
             >
               {submitting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

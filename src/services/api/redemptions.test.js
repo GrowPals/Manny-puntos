@@ -55,7 +55,7 @@ describe('Redemptions Service', () => {
 
       const result = await registrarCanje({ cliente_id: 1, producto_id: 1 });
       expect(result.canje.id).toBe(1);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('sync-canje-to-notion', expect.any(Object));
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('create-reward-ticket', expect.any(Object));
     });
 
     it('should throw specific error for insufficient points', async () => {

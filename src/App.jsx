@@ -15,6 +15,7 @@ import SEOHelmet from '@/components/common/SEOHelmet';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import OnboardingModal from '@/components/features/OnboardingModal';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
+import { CACHE_CONFIG } from '@/config';
 
 // Lazy load pages
 const Login = React.lazy(() => import('@/pages/Login'));
@@ -125,8 +126,10 @@ const AppRoutes = () => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      refetchOnWindowFocus: false,
+      staleTime: CACHE_CONFIG.STALE_TIME,
+      gcTime: CACHE_CONFIG.GC_TIME,
+      refetchOnWindowFocus: CACHE_CONFIG.REFETCH_ON_WINDOW_FOCUS,
+      refetchOnMount: CACHE_CONFIG.REFETCH_ON_MOUNT,
     },
   },
 });

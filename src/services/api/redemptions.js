@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { withRetry } from '@/lib/utils';
 
 export const getTodosLosCanjes = async () => {
     const { data, error } = await supabase
@@ -57,21 +58,36 @@ export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
 };
 
 export const registrarCanje = async ({ cliente_id, producto_id }) => {
-    const { data, error } = await supabase.rpc('registrar_canje_atomico', {
-        p_cliente_id: cliente_id,
-        p_producto_id: producto_id
-    });
+    // Use retry logic for the critical redemption operation
+    const data = await withRetry(
+        async () => {
+            const { data, error } = await supabase.rpc('registrar_canje_atomico', {
+                p_cliente_id: cliente_id,
+                p_producto_id: producto_id
+            });
 
-    if (error) {
-        console.error('Error en RPC registrar_canje_atomico:', error);
-        if (error.message.includes('Puntos insuficientes')) {
-            throw new Error(ERROR_MESSAGES.REDEMPTIONS.INSUFFICIENT_POINTS);
+            if (error) {
+                console.error('Error en RPC registrar_canje_atomico:', error);
+                // Don't retry business logic errors
+                if (error.message.includes('Puntos insuficientes')) {
+                    const businessError = new Error(ERROR_MESSAGES.REDEMPTIONS.INSUFFICIENT_POINTS);
+                    businessError.isBusinessError = true;
+                    throw businessError;
+                }
+                if (error.message.includes('Producto agotado')) {
+                    const businessError = new Error(ERROR_MESSAGES.REDEMPTIONS.OUT_OF_STOCK);
+                    businessError.isBusinessError = true;
+                    throw businessError;
+                }
+                throw new Error(ERROR_MESSAGES.REDEMPTIONS.PROCESS_ERROR);
+            }
+
+            return data;
+        },
+        {
+            shouldRetry: (error) => !error.isBusinessError
         }
-        if (error.message.includes('Producto agotado')) {
-            throw new Error(ERROR_MESSAGES.REDEMPTIONS.OUT_OF_STOCK);
-        }
-        throw new Error(ERROR_MESSAGES.REDEMPTIONS.PROCESS_ERROR);
-    }
+    );
 
     // Fire and forget: Crear ticket en Notion Tickets Manny
     try {

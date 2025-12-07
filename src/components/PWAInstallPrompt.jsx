@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, X, Smartphone } from 'lucide-react';
+import { safeStorage } from '@/lib/utils';
 
 export const PWAInstallPrompt = () => {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -27,7 +28,7 @@ export const PWAInstallPrompt = () => {
         if (!isMobile) return;
 
         // Verificar si ya se descartó el prompt recientemente
-        const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+        const dismissed = safeStorage.getString('pwa-prompt-dismissed');
         if (dismissed) {
             const dismissedDate = new Date(dismissed);
             const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -68,7 +69,7 @@ export const PWAInstallPrompt = () => {
 
     const handleDismiss = () => {
         setShowPrompt(false);
-        localStorage.setItem('pwa-prompt-dismissed', new Date().toISOString());
+        safeStorage.setString('pwa-prompt-dismissed', new Date().toISOString());
     };
 
     // No mostrar si ya está instalada

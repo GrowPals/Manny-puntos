@@ -1,4 +1,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { withRetry } from '@/lib/utils';
+import { ERROR_MESSAGES } from '@/constants/errors';
+import { isValidPhone } from '@/config';
 
 // ==================== PÚBLICO ====================
 
@@ -60,24 +63,47 @@ export const getGiftByCode = async (codigo) => {
 };
 
 /**
- * Canjea un link de regalo (usa la nueva función v2 para campañas)
+ * Canjea un link de regalo (usa la nueva función v3 con locking para race conditions)
  */
 export const claimGift = async (codigo, telefono) => {
-  const { data, error } = await supabase.rpc('canjear_link_regalo_v2', {
-    p_codigo: codigo.toUpperCase(),
-    p_telefono: telefono
-  });
+  // Validate inputs before sending to server
+  const codigoLimpio = String(codigo).trim().toUpperCase();
+  const telefonoLimpio = String(telefono).replace(/\D/g, '');
 
-  if (error) {
-    console.error('Error canjeando regalo:', error);
-    throw new Error('Error al canjear el regalo');
+  if (!codigoLimpio || codigoLimpio.length < 6) {
+    throw new Error(ERROR_MESSAGES.GIFTS.INVALID_CODE);
   }
 
-  if (!data.success) {
-    throw new Error(data.error || 'No se pudo canjear el regalo');
+  if (!isValidPhone(telefonoLimpio)) {
+    throw new Error(ERROR_MESSAGES.GIFTS.INVALID_PHONE);
   }
 
-  return data;
+  // Use retry logic for the critical gift claiming operation
+  return await withRetry(
+    async () => {
+      const { data, error } = await supabase.rpc('canjear_link_regalo_v3', {
+        p_codigo: codigoLimpio,
+        p_telefono: telefonoLimpio
+      });
+
+      if (error) {
+        console.error('Error canjeando regalo:', error);
+        throw new Error(ERROR_MESSAGES.GIFTS.CLAIM_ERROR);
+      }
+
+      if (!data || !data.success) {
+        // Don't retry business logic errors (already claimed, expired, etc.)
+        const businessError = new Error(data?.error || 'No se pudo canjear el regalo');
+        businessError.isBusinessError = true;
+        throw businessError;
+      }
+
+      return data;
+    },
+    {
+      shouldRetry: (error) => !error.isBusinessError
+    }
+  );
 };
 
 /**
@@ -90,7 +116,7 @@ export const getMisBeneficios = async (clienteId) => {
 
   if (error) {
     console.error('Error obteniendo beneficios:', error);
-    throw new Error('Error al cargar tus beneficios');
+    throw new Error(ERROR_MESSAGES.GIFTS.BENEFITS_LOAD_ERROR);
   }
 
   return data || [];
@@ -158,7 +184,7 @@ export const createGiftLink = async ({
 
   if (error) {
     console.error('Error creando link:', error);
-    throw new Error('Error al crear el link de regalo');
+    throw new Error(ERROR_MESSAGES.GIFTS.CREATE_ERROR);
   }
 
   return {
@@ -184,7 +210,7 @@ export const getAllGiftLinks = async () => {
 
   if (error) {
     console.error('Error obteniendo links:', error);
-    throw new Error('Error al cargar links de regalo');
+    throw new Error(ERROR_MESSAGES.GIFTS.LOAD_ERROR);
   }
 
   return data || [];
@@ -204,7 +230,7 @@ export const getGiftStats = async () => {
 
   if (e1) {
     console.error('Error obteniendo stats:', e1);
-    throw new Error('Error al cargar estadísticas');
+    throw new Error(ERROR_MESSAGES.GIFTS.STATS_ERROR);
   }
 
   const stats = {
@@ -243,7 +269,7 @@ export const getLinkBeneficiarios = async (linkId) => {
 
   if (error) {
     console.error('Error obteniendo beneficiarios:', error);
-    throw new Error('Error al cargar beneficiarios');
+    throw new Error(ERROR_MESSAGES.GIFTS.BENEFICIARIES_ERROR);
   }
 
   return data || [];
@@ -264,7 +290,7 @@ export const getClienteBeneficios = async (clienteId) => {
 
   if (error) {
     console.error('Error obteniendo beneficios del cliente:', error);
-    throw new Error('Error al cargar beneficios');
+    throw new Error(ERROR_MESSAGES.GIFTS.BENEFITS_LOAD_ERROR);
   }
 
   return data || [];
@@ -282,7 +308,7 @@ export const marcarBeneficioUsado = async (beneficioId, adminId, notas = null) =
 
   if (error) {
     console.error('Error marcando beneficio:', error);
-    throw new Error('Error al marcar beneficio como usado');
+    throw new Error(ERROR_MESSAGES.GIFTS.MARK_USED_ERROR);
   }
 
   if (!data.success) {
@@ -306,7 +332,7 @@ export const expireGiftLink = async (linkId) => {
 
   if (error) {
     console.error('Error expirando link:', error);
-    throw new Error('Error al expirar el link');
+    throw new Error(ERROR_MESSAGES.GIFTS.EXPIRE_ERROR);
   }
 
   return data;
@@ -324,7 +350,7 @@ export const deleteGiftLink = async (linkId) => {
     .limit(1);
 
   if (beneficios && beneficios.length > 0) {
-    throw new Error('No se puede eliminar un link que ya tiene beneficiarios');
+    throw new Error(ERROR_MESSAGES.GIFTS.DELETE_HAS_BENEFICIARIES);
   }
 
   const { error } = await supabase
@@ -334,7 +360,7 @@ export const deleteGiftLink = async (linkId) => {
 
   if (error) {
     console.error('Error eliminando link:', error);
-    throw new Error('Error al eliminar el link');
+    throw new Error(ERROR_MESSAGES.GIFTS.DELETE_ERROR);
   }
 
   return true;
@@ -351,50 +377,7 @@ export const createBenefitTicket = async (beneficioId) => {
 
   if (error) {
     console.error('Error creating benefit ticket:', error);
-    throw new Error('Error al crear ticket para el beneficio');
-  }
-
-  return data;
-};
-
-/**
- * Actualiza un link de regalo
- */
-export const updateGiftLink = async (linkId, updates) => {
-  const allowedFields = [
-    'nombre_beneficio',
-    'descripcion_beneficio',
-    'puntos_regalo',
-    'mensaje_personalizado',
-    'imagen_url',
-    'imagen_banner',
-    'color_tema',
-    'destinatario_telefono',
-    'fecha_expiracion',
-    'terminos_condiciones',
-    'instrucciones_uso',
-    'vigencia_beneficio',
-    'max_canjes',
-    'nombre_campana'
-  ];
-
-  const filteredUpdates = {};
-  for (const key of allowedFields) {
-    if (updates[key] !== undefined) {
-      filteredUpdates[key] = updates[key];
-    }
-  }
-
-  const { data, error } = await supabase
-    .from('links_regalo')
-    .update(filteredUpdates)
-    .eq('id', linkId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error actualizando link:', error);
-    throw new Error('Error al actualizar el link');
+    throw new Error(ERROR_MESSAGES.GIFTS.TICKET_ERROR);
   }
 
   return data;

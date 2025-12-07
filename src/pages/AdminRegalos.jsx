@@ -30,6 +30,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
+import { VALIDATION } from '@/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -536,11 +537,11 @@ const AdminRegalos = () => {
                                         value={newLink.destinatario_telefono}
                                         onChange={(e) => setNewLink({
                                             ...newLink,
-                                            destinatario_telefono: e.target.value.replace(/\D/g, '').slice(0, 10)
+                                            destinatario_telefono: e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH)
                                         })}
                                         placeholder="Dejar vacío para cualquiera"
                                         className="bg-background"
-                                        maxLength={10}
+                                        maxLength={VALIDATION.PHONE.LENGTH}
                                     />
                                 </div>
                             )}

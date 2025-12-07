@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { isValidPhone, normalizePhone } from '@/config';
 
 export const getTodosLosClientes = async () => {
   const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
@@ -12,7 +13,10 @@ export const getTodosLosClientes = async () => {
 
 export const crearOActualizarCliente = async (clienteData) => {
   if (!clienteData.nombre || clienteData.nombre.trim().length < 3) throw new Error(ERROR_MESSAGES.CLIENTS.NAME_REQUIRED);
-  if (!clienteData.telefono || !/^[0-9]{10}$/.test(String(clienteData.telefono).replace(/\D/g, ''))) throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_REQUIRED);
+  if (!clienteData.telefono || !isValidPhone(clienteData.telefono)) throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_REQUIRED);
+
+  // Normalize phone number
+  clienteData.telefono = normalizePhone(clienteData.telefono);
 
   const upsertPayload = {
     ...clienteData,

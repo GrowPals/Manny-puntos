@@ -1,14 +1,15 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { ERROR_MESSAGES } from '@/constants/errors';
 
 export const exportMannyData = async () => {
     const { data: clientes, error: e1 } = await supabase.from('clientes').select('*');
-    if (e1) throw new Error(`Error exportando clientes: ${e1.message}`);
+    if (e1) throw new Error(`${ERROR_MESSAGES.ADMIN.EXPORT_CLIENTS_ERROR}: ${e1.message}`);
     const { data: productos, error: e2 } = await supabase.from('productos').select('*');
-    if (e2) throw new Error(`Error exportando productos: ${e2.message}`);
+    if (e2) throw new Error(`${ERROR_MESSAGES.ADMIN.EXPORT_PRODUCTS_ERROR}: ${e2.message}`);
     const { data: canjes, error: e3 } = await supabase.from('canjes').select('*');
-    if (e3) throw new Error(`Error exportando canjes: ${e3.message}`);
+    if (e3) throw new Error(`${ERROR_MESSAGES.ADMIN.EXPORT_REDEMPTIONS_ERROR}: ${e3.message}`);
     const { data: historial, error: e4 } = await supabase.from('historial_puntos').select('*');
-    if(e4) throw new Error(`Error exportando historial: ${e4.message}`);
+    if(e4) throw new Error(`${ERROR_MESSAGES.ADMIN.EXPORT_HISTORY_ERROR}: ${e4.message}`);
 
     const fullData = { clientes, productos, canjes, historial_puntos: historial, version: 'supabase-1.0' };
     
@@ -24,15 +25,15 @@ export const exportMannyData = async () => {
 };
 
 export const importMannyData = async (data) => {
-    if (!data.clientes || !data.productos) throw new Error("El archivo no tiene el formato correcto.");
+    if (!data.clientes || !data.productos) throw new Error(ERROR_MESSAGES.ADMIN.IMPORT_FORMAT_ERROR);
 
     if (data.clientes) {
         const { error } = await supabase.from('clientes').upsert(data.clientes, { onConflict: 'telefono' });
-        if (error) throw new Error(`Error importando clientes: ${error.message}`);
+        if (error) throw new Error(`${ERROR_MESSAGES.ADMIN.IMPORT_CLIENTS_ERROR}: ${error.message}`);
     }
     if (data.productos) {
         const { error } = await supabase.from('productos').upsert(data.productos, { onConflict: 'id' });
-        if (error) throw new Error(`Error importando productos: ${error.message}`);
+        if (error) throw new Error(`${ERROR_MESSAGES.ADMIN.IMPORT_PRODUCTS_ERROR}: ${error.message}`);
     }
     if (data.canjes) {
             const { error } = await supabase.from('canjes').upsert(data.canjes, { onConflict: 'id' });
@@ -54,7 +55,7 @@ export const getConfigRecordatorios = async () => {
         .maybeSingle();
 
     if (error) {
-        throw new Error('Error al cargar configuración de recordatorios.');
+        throw new Error(ERROR_MESSAGES.ADMIN.REMINDERS_LOAD_ERROR);
     }
 
     return data || {
@@ -88,7 +89,7 @@ export const actualizarConfigRecordatorios = async (config) => {
             .select()
             .single();
 
-        if (error) throw new Error('Error al actualizar configuración.');
+        if (error) throw new Error(ERROR_MESSAGES.ADMIN.REMINDERS_UPDATE_ERROR);
         return data;
     } else {
         const insertData = {
@@ -105,7 +106,7 @@ export const actualizarConfigRecordatorios = async (config) => {
             .select()
             .single();
 
-        if (error) throw new Error('Error al crear configuración.');
+        if (error) throw new Error(ERROR_MESSAGES.ADMIN.REMINDERS_CREATE_ERROR);
         return data;
     }
 };
@@ -116,7 +117,7 @@ export const getTiposServicioRecurrente = async () => {
         .select('*')
         .order('tipo_trabajo', { ascending: true });
 
-    if (error) throw new Error('Error al cargar tipos de servicio recurrente.');
+    if (error) throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_LOAD_ERROR);
     return data || [];
 };
 
@@ -128,7 +129,7 @@ export const actualizarTipoServicioRecurrente = async (id, updates) => {
         .select()
         .single();
 
-    if (error) throw new Error('Error al actualizar tipo de servicio.');
+    if (error) throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_UPDATE_ERROR);
     return data;
 };
 
@@ -145,9 +146,9 @@ export const agregarTipoServicioRecurrente = async (tipoTrabajo, diasRecordatori
 
     if (error) {
         if (error.code === '23505') {
-            throw new Error('Este tipo de servicio ya existe.');
+            throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_DUPLICATE);
         }
-        throw new Error('Error al agregar tipo de servicio.');
+        throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_ADD_ERROR);
     }
     return data;
 };
@@ -158,7 +159,7 @@ export const eliminarTipoServicioRecurrente = async (id) => {
         .delete()
         .eq('id', id);
 
-    if (error) throw new Error('Error al eliminar tipo de servicio.');
+    if (error) throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_DELETE_ERROR);
     return true;
 };
 

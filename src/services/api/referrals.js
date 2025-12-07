@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { withRetry } from '@/lib/utils';
+import { ERROR_MESSAGES } from '@/constants/errors';
 
 // ==================== CLIENTE ====================
 
@@ -12,7 +14,7 @@ export const getOrCreateReferralCode = async (clienteId) => {
 
   if (error) {
     console.error('Error obteniendo código de referido:', error);
-    throw new Error('Error al obtener tu código de referido');
+    throw new Error(ERROR_MESSAGES.REFERRALS.CODE_ERROR);
   }
 
   return data?.[0] || null;
@@ -88,7 +90,7 @@ export const getMisReferidos = async (clienteId) => {
 
   if (error) {
     console.error('Error obteniendo referidos:', error);
-    throw new Error('Error al cargar tus referidos');
+    throw new Error(ERROR_MESSAGES.REFERRALS.LOAD_ERROR);
   }
 
   return data || [];
@@ -121,20 +123,41 @@ export const validateReferralCode = async (codigo) => {
 };
 
 /**
- * Aplica un código de referido a un cliente nuevo
+ * Aplica un código de referido a un cliente nuevo (usa v2 con locking)
  */
 export const applyReferralCode = async (referidoId, codigo) => {
-  const { data, error } = await supabase.rpc('aplicar_codigo_referido', {
-    p_referido_id: referidoId,
-    p_codigo: codigo.toUpperCase()
-  });
+  const codigoLimpio = String(codigo).trim().toUpperCase();
 
-  if (error) {
-    console.error('Error aplicando código:', error);
-    throw new Error('Error al aplicar el código de referido');
+  if (!codigoLimpio || codigoLimpio.length < 6) {
+    throw new Error(ERROR_MESSAGES.REFERRALS.INVALID_CODE);
   }
 
-  return data;
+  // Use retry logic for this critical operation
+  return await withRetry(
+    async () => {
+      const { data, error } = await supabase.rpc('aplicar_codigo_referido_v2', {
+        p_referido_id: referidoId,
+        p_codigo: codigoLimpio
+      });
+
+      if (error) {
+        console.error('Error aplicando código:', error);
+        throw new Error(ERROR_MESSAGES.REFERRALS.APPLY_ERROR);
+      }
+
+      if (!data || !data.success) {
+        // Don't retry business logic errors
+        const businessError = new Error(data?.error || 'No se pudo aplicar el código');
+        businessError.isBusinessError = true;
+        throw businessError;
+      }
+
+      return data;
+    },
+    {
+      shouldRetry: (error) => !error.isBusinessError
+    }
+  );
 };
 
 /**
@@ -166,7 +189,7 @@ export const getAdminReferralStats = async () => {
     .from('referidos')
     .select('estado');
 
-  if (e1) throw new Error('Error cargando estadísticas');
+  if (e1) throw new Error(ERROR_MESSAGES.REFERRALS.STATS_ERROR);
 
   const stats = {
     total: referidosPorEstado?.length || 0,
@@ -229,7 +252,7 @@ export const getAllReferidos = async () => {
 
   if (error) {
     console.error('Error obteniendo todos los referidos:', error);
-    throw new Error('Error al cargar referidos');
+    throw new Error(ERROR_MESSAGES.REFERRALS.ALL_LOAD_ERROR);
   }
 
   return data || [];
@@ -247,7 +270,7 @@ export const getAdminReferralConfig = async () => {
 
   if (error) {
     console.error('Error obteniendo config admin:', error);
-    throw new Error('Error al cargar configuración');
+    throw new Error(ERROR_MESSAGES.REFERRALS.CONFIG_LOAD_ERROR);
   }
 
   return data;
@@ -272,42 +295,7 @@ export const updateReferralConfig = async (config) => {
 
   if (error) {
     console.error('Error actualizando config:', error);
-    throw new Error('Error al guardar configuración');
-  }
-
-  return data;
-};
-
-/**
- * Cancela un referido manualmente (admin)
- */
-export const cancelReferido = async (referidoId) => {
-  const { data, error } = await supabase
-    .from('referidos')
-    .update({ estado: 'cancelado' })
-    .eq('id', referidoId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error cancelando referido:', error);
-    throw new Error('Error al cancelar referido');
-  }
-
-  return data;
-};
-
-/**
- * Activa un referido manualmente (admin override)
- */
-export const activateReferidoManual = async (referidoId) => {
-  const { data, error } = await supabase.rpc('activar_referido', {
-    p_referido_id: referidoId
-  });
-
-  if (error) {
-    console.error('Error activando referido:', error);
-    throw new Error('Error al activar referido');
+    throw new Error(ERROR_MESSAGES.REFERRALS.CONFIG_SAVE_ERROR);
   }
 
   return data;

@@ -20,11 +20,11 @@ export const checkClienteExists = async (telefono) => {
   return data; // { exists: boolean, has_pin: boolean, cliente?: {...} }
 };
 
-// Login con PIN (para usuarios que ya tienen PIN)
+// Login con PIN (para usuarios que ya tienen PIN) - Usa función segura con rate limiting
 export const loginWithPin = async (telefono, pin) => {
   const telefonoLimpio = String(telefono).replace(/\D/g, '');
 
-  const { data, error } = await supabase.rpc('verify_client_pin', {
+  const { data, error } = await supabase.rpc('verify_client_pin_secure', {
     telefono_input: telefonoLimpio,
     pin_input: pin
   });
@@ -34,11 +34,15 @@ export const loginWithPin = async (telefono, pin) => {
     throw new Error(ERROR_MESSAGES.AUTH.CONNECTION_ERROR);
   }
 
-  if (!data) {
-    throw new Error(ERROR_MESSAGES.AUTH.INVALID_CREDENTIALS);
+  if (!data || !data.success) {
+    // Check for rate limiting
+    if (data?.rate_limited) {
+      throw new Error('Demasiados intentos. Por favor espera 5 minutos.');
+    }
+    throw new Error(data?.error || ERROR_MESSAGES.AUTH.INVALID_CREDENTIALS);
   }
 
-  return data; // Cliente sin PIN
+  return data.cliente;
 };
 
 // Login sin PIN (primera vez - para onboarding)
@@ -59,13 +63,13 @@ export const loginFirstTime = async (telefono) => {
   };
 };
 
-// Registrar PIN (onboarding)
+// Registrar PIN (onboarding) - Usa función segura con hash bcrypt
 export const registerPin = async (telefono, newPin) => {
   const telefonoLimpio = String(telefono).replace(/\D/g, '');
 
-  const { data, error } = await supabase.rpc('register_client_pin', {
+  const { data, error } = await supabase.rpc('register_client_pin_secure', {
     telefono_input: telefonoLimpio,
-    new_pin: newPin
+    pin_input: newPin
   });
 
   if (error) {
@@ -96,37 +100,4 @@ export const resetClientPin = async (clienteId) => {
   }
 
   return true;
-};
-
-// Función de login unificada (decide qué flujo usar)
-export const login = async (telefono, pin = null) => {
-  if (pin) {
-    return loginWithPin(telefono, pin);
-  } else {
-    return loginFirstTime(telefono);
-  }
-};
-
-// Legacy - mantener por compatibilidad
-export const getClienteByTelefono = async (telefono) => {
-  const telefonoLimpio = String(telefono).replace(/\D/g, '');
-  if (!/^[0-9]{10}$/.test(telefonoLimpio)) {
-    throw new Error(ERROR_MESSAGES.AUTH.INVALID_PHONE_FORMAT);
-  }
-
-  const { data, error } = await supabase
-    .from('clientes')
-    .select('id, nombre, telefono, puntos_actuales, es_admin, nivel, ultimo_servicio, fecha_registro')
-    .eq('telefono', telefonoLimpio)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Supabase DB Error in getClienteByTelefono:', error);
-    throw new Error(ERROR_MESSAGES.AUTH.CONNECTION_ERROR);
-  }
-  return data;
-};
-
-export const verifyPin = async (telefono, pin) => {
-  return loginWithPin(telefono, pin);
 };
