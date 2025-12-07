@@ -11,6 +11,7 @@ import { useProducts } from '@/hooks/useProducts';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog';
 
 const TOTAL_STEPS = 4;
@@ -180,6 +181,7 @@ const OnboardingModal = () => {
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        <DialogTitle className="sr-only">Configuración inicial de cuenta</DialogTitle>
         <div className="p-6 pb-8">
           <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} />
 

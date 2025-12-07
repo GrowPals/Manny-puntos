@@ -13,65 +13,51 @@ interface UpdateNivelData {
   nuevo_nivel: 'partner' | 'vip';
 }
 
-async function createNivelChangeInNotion(
-  clienteNotionId: string | null,
-  clienteNombre: string,
-  nuevoNivel: string,
-  clienteSupabaseId: string,
-  notionToken: string
-): Promise<string | null> {
-  const today = new Date().toISOString().split('T')[0];
-  const nivelCapitalized = nuevoNivel === 'vip' ? 'VIP' : 'Partner';
-
-  const properties: Record<string, unknown> = {
-    'Registro': {
-      title: [{ text: { content: `Cambio de nivel: ${clienteNombre} → ${nivelCapitalized}` } }]
-    },
-    'Tipo': {
-      select: { name: 'Puntos Ganados' }  // Usamos este tipo para registros de cambio
-    },
-    'Puntos': {
-      number: 0  // No afecta puntos
-    },
-    'Nivel': {
-      select: { name: nivelCapitalized }
-    },
-    'Fecha': {
-      date: { start: today }
-    },
-    'Supabase ID': {
-      rich_text: [{ text: { content: `nivel-change-${clienteSupabaseId}` } }]
-    }
-  };
-
-  // Agregar relación con Cliente si tiene notion_page_id
-  if (clienteNotionId) {
-    properties['Cliente'] = {
-      relation: [{ id: clienteNotionId }]
-    };
-  }
-
-  const response = await fetch('https://api.notion.com/v1/pages', {
-    method: 'POST',
+async function notionRequest(endpoint: string, method: string, body: any, token: string) {
+  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
+    method,
     headers: {
-      'Authorization': `Bearer ${notionToken}`,
+      'Authorization': `Bearer ${token}`,
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      parent: { database_id: MANNY_REWARDS_DATABASE_ID },
-      properties
-    }),
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to create nivel change in Notion:', errorText);
-    return null;
+    const error = await response.text();
+    console.error(`Notion API error: ${error}`);
+    throw new Error(`Notion API error: ${error}`);
   }
 
-  const page = await response.json();
-  return page.id;
+  return response.json();
+}
+
+async function findMannyRewardByContacto(contactoId: string, notionToken: string): Promise<string | null> {
+  const result = await notionRequest(`/databases/${MANNY_REWARDS_DATABASE_ID}/query`, 'POST', {
+    filter: {
+      property: 'Cliente',
+      relation: { contains: contactoId }
+    },
+    page_size: 1
+  }, notionToken);
+
+  if (result.results && result.results.length > 0) {
+    return result.results[0].id;
+  }
+  return null;
+}
+
+async function updateMannyRewardNivel(rewardId: string, nuevoNivel: string, notionToken: string) {
+  const nivelCapitalized = nuevoNivel === 'vip' ? 'VIP' : 'Partner';
+
+  await notionRequest(`/pages/${rewardId}`, 'PATCH', {
+    properties: {
+      'Nivel': { select: { name: nivelCapitalized } }
+    }
+  }, notionToken);
+
+  console.log(`Updated Manny Reward ${rewardId} nivel to ${nivelCapitalized}`);
 }
 
 Deno.serve(async (req: Request) => {
@@ -113,7 +99,7 @@ Deno.serve(async (req: Request) => {
     // Obtener datos del cliente
     const { data: cliente, error: clienteError } = await supabase
       .from('clientes')
-      .select('id, nombre, nivel, notion_page_id')
+      .select('id, nombre, nivel, notion_page_id, notion_reward_id')
       .eq('id', cliente_id)
       .single();
 
@@ -134,14 +120,29 @@ Deno.serve(async (req: Request) => {
       throw updateError;
     }
 
-    // Crear registro de cambio en Notion Manny Rewards
-    const notionPageId = await createNivelChangeInNotion(
-      cliente.notion_page_id,
-      cliente.nombre,
-      nuevo_nivel,
-      cliente.id,
-      notionToken
-    );
+    // Buscar y actualizar Manny Reward en Notion
+    let mannyRewardId = cliente.notion_reward_id;
+
+    // Si no tenemos el reward_id guardado, buscarlo por el contacto
+    if (!mannyRewardId && cliente.notion_page_id) {
+      mannyRewardId = await findMannyRewardByContacto(cliente.notion_page_id, notionToken);
+
+      // Guardar el reward_id encontrado para futuras referencias
+      if (mannyRewardId) {
+        await supabase
+          .from('clientes')
+          .update({ notion_reward_id: mannyRewardId })
+          .eq('id', cliente_id);
+      }
+    }
+
+    // Actualizar nivel en Notion si encontramos el Manny Reward
+    if (mannyRewardId) {
+      await updateMannyRewardNivel(mannyRewardId, nuevo_nivel, notionToken);
+      console.log(`Manny Reward ${mannyRewardId} nivel synced to ${nuevo_nivel}`);
+    } else {
+      console.warn(`No Manny Reward found for cliente ${cliente.nombre} - Notion sync skipped`);
+    }
 
     console.log(`Cliente ${cliente.nombre} nivel updated to ${nuevo_nivel}`);
 
@@ -149,7 +150,8 @@ Deno.serve(async (req: Request) => {
       status: 'success',
       cliente_id: cliente_id,
       nuevo_nivel: nuevo_nivel,
-      notion_page_id: notionPageId
+      notion_reward_id: mannyRewardId,
+      notion_synced: !!mannyRewardId
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

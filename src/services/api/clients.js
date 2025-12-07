@@ -170,3 +170,20 @@ export const cambiarRolAdmin = async (clienteId, esAdmin) => {
     if (error) throw new Error(ERROR_MESSAGES.CLIENTS.ROLE_CHANGE_ERROR);
     return data;
 };
+
+/**
+ * Sincroniza un cliente de Supabase a Notion
+ * Crea el Contacto y Manny Reward si no existen
+ */
+export const syncToNotion = async (clienteId) => {
+    const { data, error } = await supabase.functions.invoke('sync-cliente-to-notion', {
+        body: { cliente_id: clienteId }
+    });
+
+    if (error) {
+        console.error('Error syncing client to Notion:', error);
+        throw new Error('Error al sincronizar cliente con Notion');
+    }
+
+    return data;
+};

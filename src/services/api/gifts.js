@@ -7,14 +7,10 @@ import { supabase } from '@/lib/customSupabaseClient';
  * Soporta links individuales y campañas masivas
  */
 export const getGiftByCode = async (codigo) => {
-  // Primero incrementar vistas
-  await supabase
-    .from('links_regalo')
-    .update({
-      veces_visto: supabase.sql`veces_visto + 1`,
-      ultima_vista: new Date().toISOString()
-    })
-    .eq('codigo', codigo.toUpperCase());
+  // Primero incrementar vistas usando RPC para increment atómico
+  await supabase.rpc('incrementar_vistas_link', {
+    p_codigo: codigo.toUpperCase()
+  });
 
   const { data, error } = await supabase
     .from('links_regalo')
@@ -342,6 +338,23 @@ export const deleteGiftLink = async (linkId) => {
   }
 
   return true;
+};
+
+/**
+ * Crea un ticket en Notion para un beneficio
+ * Se llama automáticamente cuando un cliente reclama un beneficio de servicio
+ */
+export const createBenefitTicket = async (beneficioId) => {
+  const { data, error } = await supabase.functions.invoke('create-reward-ticket', {
+    body: { tipo: 'beneficio', id: beneficioId }
+  });
+
+  if (error) {
+    console.error('Error creating benefit ticket:', error);
+    throw new Error('Error al crear ticket para el beneficio');
+  }
+
+  return data;
 };
 
 /**

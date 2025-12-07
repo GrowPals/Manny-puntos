@@ -45,6 +45,14 @@ export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
         .eq('id', canjeId);
 
     if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.UPDATE_STATUS_ERROR);
+
+    // Sync status change to Notion (fire and forget)
+    try {
+        await supabase.functions.invoke('update-canje-status-notion', {
+            body: { canje_id: canjeId, nuevo_estado: nuevoEstado }
+        });
+    } catch (e) { console.warn('Error syncing canje status to Notion:', e); }
+
     return true;
 };
 
@@ -65,12 +73,12 @@ export const registrarCanje = async ({ cliente_id, producto_id }) => {
         throw new Error(ERROR_MESSAGES.REDEMPTIONS.PROCESS_ERROR);
     }
 
-    // Fire and forget notifications
+    // Fire and forget: Crear ticket en Notion Tickets Manny
     try {
-        await supabase.functions.invoke('sync-canje-to-notion', {
-            body: { canje_id: data.canjeId }
+        await supabase.functions.invoke('create-reward-ticket', {
+            body: { tipo: 'canje', id: data.canjeId }
         });
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn('Error creating reward ticket:', e); }
 
     return {
         nuevoSaldo: data.nuevoSaldo,

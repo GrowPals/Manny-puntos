@@ -142,6 +142,24 @@ const GiftLanding = () => {
       const result = await api.gifts.claimGift(codigo, telefono);
 
       if (result.success) {
+        // Si es cliente nuevo, sincronizar a Notion (fire and forget)
+        if (result.cliente_nuevo && result.cliente_id) {
+          try {
+            await api.clients.syncToNotion(result.cliente_id);
+          } catch (syncError) {
+            console.warn('Error syncing new client to Notion:', syncError);
+          }
+        }
+
+        // Crear ticket en Notion automáticamente para servicios (fire and forget)
+        if (result.beneficio_id && giftData.tipo === 'servicio') {
+          try {
+            await api.gifts.createBenefitTicket(result.beneficio_id);
+          } catch (ticketError) {
+            console.warn('Error creating benefit ticket:', ticketError);
+          }
+        }
+
         setClaimed(true);
 
         // Mega confetti!

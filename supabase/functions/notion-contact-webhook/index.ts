@@ -6,11 +6,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
+
 interface NotionPage {
   id: string;
   properties: {
     [key: string]: any;
   };
+}
+
+async function notionRequest(endpoint: string, method: string, body: any, token: string) {
+  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`Notion API error: ${error}`);
+    throw new Error(`Notion API error: ${error}`);
+  }
+
+  return response.json();
 }
 
 function extractPhoneNumber(properties: any): string | null {
@@ -19,11 +41,9 @@ function extractPhoneNumber(properties: any): string | null {
 
   let phone = phoneField.phone_number.replace(/\D/g, '');
 
-  // Normalizar: quitar prefijo 52 si existe
   if (phone.startsWith('52') && phone.length > 10) {
     phone = phone.slice(2);
   }
-  // Quitar prefijo 1 si existe (llamadas internacionales)
   if (phone.startsWith('1') && phone.length > 10) {
     phone = phone.slice(1);
   }
@@ -62,8 +82,37 @@ async function getPageFromNotion(pageId: string, notionToken: string): Promise<N
   return await response.json();
 }
 
+async function findMannyRewardByContacto(contactoId: string, notionToken: string): Promise<string | null> {
+  const result = await notionRequest(`/databases/${MANNY_REWARDS_DB}/query`, 'POST', {
+    filter: {
+      property: 'Cliente',
+      relation: { contains: contactoId }
+    },
+    page_size: 1
+  }, notionToken);
+
+  if (result.results && result.results.length > 0) {
+    return result.results[0].id;
+  }
+  return null;
+}
+
+async function createMannyReward(contactoId: string, nombre: string, notionToken: string): Promise<string> {
+  const result = await notionRequest('/pages', 'POST', {
+    parent: { database_id: MANNY_REWARDS_DB },
+    properties: {
+      'Nombre': { title: [{ text: { content: nombre } }] },
+      'Cliente': { relation: [{ id: contactoId }] },
+      'Nivel': { select: { name: 'Partner' } },
+      'Puntos': { number: 0 }
+    }
+  }, notionToken);
+
+  console.log(`Created Manny Reward: ${result.id} for ${nombre}`);
+  return result.id;
+}
+
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -95,7 +144,6 @@ Deno.serve(async (req: Request) => {
       page = payload;
       notionPageId = page.id;
     } else {
-      // Notion Automations envía solo el page_id
       notionPageId = payload.data?.id || payload.id || payload.page_id || payload.page?.id;
 
       if (notionPageId && notionToken) {
@@ -150,7 +198,11 @@ Deno.serve(async (req: Request) => {
       .eq('telefono', telefono)
       .single();
 
+    let clienteId: string;
+
     if (existing) {
+      clienteId = existing.id;
+
       // Si existe pero no tiene notion_page_id, actualizarlo
       if (!existing.notion_page_id) {
         const { error: updateError } = await supabase
@@ -163,47 +215,52 @@ Deno.serve(async (req: Request) => {
 
         if (updateError) throw updateError;
         console.log(`Linked existing client ${existing.id} to Notion page ${notionPageId}`);
-
-        return new Response(JSON.stringify({
-          status: 'linked',
-          cliente_id: existing.id,
-          notion_page_id: notionPageId
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      } else {
+        console.log(`Client already exists and linked: ${existing.id}`);
       }
+    } else {
+      // Crear nuevo cliente con nivel 'partner' por defecto
+      const { data: newClient, error: insertError } = await supabase
+        .from('clientes')
+        .insert({
+          nombre: nombre.trim(),
+          telefono: telefono,
+          puntos_actuales: 0,
+          nivel: 'partner',
+          es_admin: false,
+          notion_page_id: notionPageId,
+          last_sync_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-      console.log(`Client already exists and linked: ${existing.id}`);
-      return new Response(JSON.stringify({ status: 'exists', cliente_id: existing.id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (insertError) throw insertError;
+      clienteId = newClient.id;
+      console.log(`Created new client: ${newClient.id}`);
     }
 
-    // Crear nuevo cliente con nivel 'partner' por defecto
-    const { data: newClient, error: insertError } = await supabase
-      .from('clientes')
-      .insert({
-        nombre: nombre.trim(),
-        telefono: telefono,
-        puntos_actuales: 0,
-        nivel: 'partner',
-        es_admin: false,
-        notion_page_id: notionPageId,
-        last_sync_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    // CREAR MANNY REWARD SI NO EXISTE
+    let mannyRewardId: string | null = null;
+    if (notionToken && notionPageId) {
+      // Verificar si ya existe Manny Reward para este contacto
+      mannyRewardId = await findMannyRewardByContacto(notionPageId, notionToken);
 
-    if (insertError) throw insertError;
-
-    console.log(`Created new client: ${newClient.id}`);
+      if (!mannyRewardId) {
+        // Crear nuevo Manny Reward
+        mannyRewardId = await createMannyReward(notionPageId, nombre.trim(), notionToken);
+        console.log(`Created Manny Reward: ${mannyRewardId}`);
+      } else {
+        console.log(`Manny Reward already exists: ${mannyRewardId}`);
+      }
+    }
 
     return new Response(JSON.stringify({
-      status: 'created',
-      cliente_id: newClient.id,
-      nombre: newClient.nombre,
-      telefono: newClient.telefono,
-      nivel: 'partner'
+      status: existing ? (existing.notion_page_id ? 'exists' : 'linked') : 'created',
+      cliente_id: clienteId,
+      nombre: nombre.trim(),
+      telefono: telefono,
+      nivel: 'partner',
+      manny_reward_id: mannyRewardId
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
