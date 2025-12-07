@@ -16,9 +16,11 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Cargar sesión guardada
   useEffect(() => {
     try {
       setLoading(true);
@@ -39,18 +41,28 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = useCallback(async (telefono, pin) => {
+  // Verificar si cliente existe y tiene PIN
+  const checkCliente = useCallback(async (telefono) => {
+    const result = await api.auth.checkClienteExists(telefono);
+    return result; // { exists, has_pin, cliente? }
+  }, []);
+
+  // Login con PIN (usuarios que ya tienen PIN)
+  const loginWithPin = useCallback(async (telefono, pin) => {
     setLoading(true);
     try {
-      const clienteData = await api.auth.login(telefono, pin);
-      
+      const clienteData = await api.auth.loginWithPin(telefono, pin);
+
       setUser(clienteData);
+      setNeedsOnboarding(false);
+
       localStorage.setItem('manny_user', JSON.stringify(clienteData));
-      
+
       const destination = clienteData.es_admin ? '/admin' : '/dashboard';
       const from = location.state?.from?.pathname || destination;
       navigate(from, { replace: true });
 
+      return clienteData;
     } catch (error) {
       console.error('Login failed:', error);
       setUser(null);
@@ -61,8 +73,72 @@ export const AuthProvider = ({ children }) => {
     }
   }, [navigate, location.state]);
 
+  // Login primera vez (sin PIN - para onboarding)
+  const loginFirstTime = useCallback(async (telefono) => {
+    setLoading(true);
+    try {
+      const clienteData = await api.auth.loginFirstTime(telefono);
+
+      setUser(clienteData);
+      setNeedsOnboarding(true);
+
+      // NO guardamos en localStorage hasta que complete onboarding
+
+      const destination = clienteData.es_admin ? '/admin' : '/dashboard';
+      navigate(destination, { replace: true });
+
+      return clienteData;
+    } catch (error) {
+      console.error('First time login failed:', error);
+      setUser(null);
+      setNeedsOnboarding(false);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
+  // Registrar PIN (onboarding)
+  const registerPin = useCallback(async (newPin) => {
+    if (!user?.telefono) {
+      throw new Error('No hay usuario activo');
+    }
+
+    setLoading(true);
+    try {
+      await api.auth.registerPin(user.telefono, newPin);
+
+      // Actualizar usuario sin needsOnboarding
+      const updatedUser = { ...user };
+      delete updatedUser.needsOnboarding;
+
+      setUser(updatedUser);
+      setNeedsOnboarding(false);
+
+      // Ahora sí guardamos en localStorage
+      localStorage.setItem('manny_user', JSON.stringify(updatedUser));
+
+      return true;
+    } catch (error) {
+      console.error('Register PIN failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Login unificado (decide el flujo)
+  const login = useCallback(async (telefono, pin = null) => {
+    if (pin) {
+      return loginWithPin(telefono, pin);
+    } else {
+      return loginFirstTime(telefono);
+    }
+  }, [loginWithPin, loginFirstTime]);
+
   const logout = useCallback(() => {
     setUser(null);
+    setNeedsOnboarding(false);
     localStorage.removeItem('manny_user');
     navigate('/login', { replace: true });
   }, [navigate]);
@@ -86,10 +162,15 @@ export const AuthProvider = ({ children }) => {
     isPartner,
     isVIP,
     loading,
+    needsOnboarding,
+    checkCliente,
     login,
+    loginWithPin,
+    loginFirstTime,
+    registerPin,
     logout,
     updateUser,
-  }), [user, isAdmin, isPartner, isVIP, loading, login, logout, updateUser]);
+  }), [user, isAdmin, isPartner, isVIP, loading, needsOnboarding, checkCliente, login, loginWithPin, loginFirstTime, registerPin, logout, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

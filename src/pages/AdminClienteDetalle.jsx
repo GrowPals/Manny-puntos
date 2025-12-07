@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import {
     ArrowLeft, User, Phone, Coins, Crown, Calendar, Gift, History,
     PlusCircle, Trash2, Loader2, Package, Wrench, CheckCircle,
-    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock
+    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,7 @@ const AdminClienteDetalle = () => {
     const [showPointsModal, setShowPointsModal] = useState(false);
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [showLevelModal, setShowLevelModal] = useState(false);
+    const [showResetPinModal, setShowResetPinModal] = useState(false);
     const [deleteService, setDeleteService] = useState(null);
 
     const { data, isLoading: loading, error } = useQuery({
@@ -204,6 +205,10 @@ const AdminClienteDetalle = () => {
                                 <Button size="sm" variant="outline" onClick={() => setShowLevelModal(true)}>
                                     <Crown className="w-4 h-4 mr-1" />
                                     Nivel
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setShowResetPinModal(true)}>
+                                    <KeyRound className="w-4 h-4 mr-1" />
+                                    PIN
                                 </Button>
                             </div>
                         </div>
@@ -474,6 +479,13 @@ const AdminClienteDetalle = () => {
                 cliente={cliente}
             />
 
+            {/* Modal: Resetear PIN */}
+            <ResetPinModal
+                open={showResetPinModal}
+                onClose={() => setShowResetPinModal(false)}
+                cliente={cliente}
+            />
+
             {/* Modal: Confirmar Eliminar Servicio */}
             <Dialog open={!!deleteService} onOpenChange={() => setDeleteService(null)}>
                 <DialogContent className="bg-card border-border">
@@ -612,6 +624,60 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
                         </Button>
                     </DialogFooter>
                 </form>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+const ResetPinModal = ({ open, onClose, cliente }) => {
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: () => api.auth.resetClientPin(cliente.id),
+        onSuccess: () => {
+            toast({
+                title: 'PIN reseteado',
+                description: `${cliente.nombre} deberá crear un nuevo PIN en su próximo inicio de sesión.`
+            });
+            onClose();
+            queryClient.invalidateQueries(['admin-cliente-detalle', cliente.id]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    });
+
+    const handleReset = () => {
+        mutation.mutate();
+    };
+
+    const isSubmitting = mutation.isPending;
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                    <DialogTitle>Resetear PIN de {cliente?.nombre}</DialogTitle>
+                    <DialogDescription>
+                        Esto eliminará el PIN actual del cliente. La próxima vez que inicie sesión, deberá crear uno nuevo.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 text-sm text-amber-600">
+                        <p className="font-medium mb-1">¿Por qué resetear el PIN?</p>
+                        <p className="text-amber-600/80">Solo usa esta opción si el cliente olvidó su PIN y te contactó para recuperar el acceso.</p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Cancelar</Button>
+                    </DialogClose>
+                    <Button variant="destructive" onClick={handleReset} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Resetear PIN
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

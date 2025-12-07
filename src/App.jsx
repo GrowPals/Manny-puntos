@@ -13,6 +13,7 @@ import { AnimatePresence } from 'framer-motion';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import SEOHelmet from '@/components/common/SEOHelmet';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import OnboardingModal from '@/components/features/OnboardingModal';
 import MannyLogo from '@/assets/images/manny-logo.svg';
 
 // Lazy load pages
@@ -127,6 +128,7 @@ function App() {
           <Toaster />
           <WhatsAppButton />
           <PWAInstallPrompt />
+          <OnboardingModal />
           <BottomNav />
         </AuthProvider>
       </QueryClientProvider>
