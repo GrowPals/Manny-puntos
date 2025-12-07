@@ -159,7 +159,13 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
 };
 
 export const cambiarRolAdmin = async (clienteId, esAdmin) => {
-    const { data, error } = await supabase.from('clientes').update({ es_admin: esAdmin }).eq('id', clienteId).select().single();
+    const { data, error } = await supabase
+        .from('clientes')
+        .update({ es_admin: esAdmin })
+        .eq('id', clienteId)
+        .select()
+        .single();
+
     if (error) throw new Error('Error al cambiar el rol del usuario.');
     return data;
 };

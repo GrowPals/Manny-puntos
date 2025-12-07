@@ -15,7 +15,8 @@ import {
     Power,
     ChevronRight
 } from 'lucide-react';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,134 +33,126 @@ import {
 } from "@/components/ui/dialog";
 
 const AdminRecordatorios = () => {
-    const api = useSupabaseAPI();
     const { toast } = useToast();
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [config, setConfig] = useState(null);
-    const [tiposRecurrentes, setTiposRecurrentes] = useState([]);
-    const [tiposDisponibles, setTiposDisponibles] = useState([]);
+    const queryClient = useQueryClient();
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [editingTipo, setEditingTipo] = useState(null);
     const [newTipo, setNewTipo] = useState({ tipo_trabajo: '', dias_recordatorio: 180 });
 
-    const fetchData = useCallback(async () => {
-        if (!api) return;
-        setLoading(true);
+    const { data: config = {
+        activo: false,
+        max_notificaciones_mes: 1,
+        titulo_default: '¿Es hora de dar mantenimiento?',
+        mensaje_default: 'Hola {nombre}, han pasado {dias} días desde tu último {servicio}. ¿Te ayudamos a agendar tu próximo servicio?',
+        hora_envio: 10
+    }, isLoading: loadingConfig } = useQuery({
+        queryKey: ['admin-recordatorios-config'],
+        queryFn: api.admin.getConfigRecordatorios,
+    });
 
-        try {
-            const [configData, tiposData, disponiblesData] = await Promise.all([
-                api.getConfigRecordatorios(),
-                api.getTiposServicioRecurrente(),
-                api.getTiposTrabajoDisponibles()
-            ]);
+    const { data: tiposRecurrentes = [], isLoading: loadingTipos } = useQuery({
+        queryKey: ['admin-recordatorios-tipos'],
+        queryFn: api.admin.getTiposServicioRecurrente,
+    });
 
-            setConfig(configData || {
-                activo: false,
-                max_notificaciones_mes: 1,
-                titulo_default: '¿Es hora de dar mantenimiento?',
-                mensaje_default: 'Hola {nombre}, han pasado {dias} días desde tu último {servicio}. ¿Te ayudamos a agendar tu próximo servicio?',
-                hora_envio: 10
-            });
-            setTiposRecurrentes(tiposData || []);
-            setTiposDisponibles(disponiblesData || []);
-        } catch (error) {
-            console.error("Error al cargar configuración:", error);
-            toast({
-                title: "Error",
-                description: "No se pudo cargar la configuración de recordatorios.",
-                variant: "destructive"
-            });
-        } finally {
-            setLoading(false);
+    const { data: tiposDisponibles = [], isLoading: loadingDisponibles } = useQuery({
+        queryKey: ['admin-recordatorios-disponibles'],
+        queryFn: api.admin.getTiposTrabajoDisponibles,
+    });
+
+    const loading = loadingConfig || loadingTipos || loadingDisponibles;
+
+    const configMutation = useMutation({
+        mutationFn: api.admin.actualizarConfigRecordatorios,
+        onSuccess: (data) => {
+            queryClient.setQueryData(['admin-recordatorios-config'], data);
+            toast({ title: "Guardado", description: "Configuración actualizada correctamente." });
+        },
+        onError: (error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         }
-    }, [api, toast]);
+    });
+
+    const addTipoMutation = useMutation({
+        mutationFn: ({ tipoTrabajo, diasRecordatorio }) => api.admin.agregarTipoServicioRecurrente(tipoTrabajo, diasRecordatorio),
+        onSuccess: (data) => {
+            toast({ title: "Agregado", description: `"${data.tipo_trabajo}" configurado para recordar cada ${data.dias_recordatorio} días.` });
+            setShowAddDialog(false);
+            setNewTipo({ tipo_trabajo: '', dias_recordatorio: 180 });
+            queryClient.invalidateQueries(['admin-recordatorios-tipos']);
+        },
+        onError: (error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
+
+    const updateTipoMutation = useMutation({
+        mutationFn: ({ id, updates }) => api.admin.actualizarTipoServicioRecurrente(id, updates),
+        onSuccess: () => {
+            toast({ title: "Guardado" });
+            setEditingTipo(null);
+            queryClient.invalidateQueries(['admin-recordatorios-tipos']);
+        },
+        onError: (error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
+
+    const deleteTipoMutation = useMutation({
+        mutationFn: api.admin.eliminarTipoServicioRecurrente,
+        onSuccess: () => {
+            toast({ title: "Eliminado" });
+            queryClient.invalidateQueries(['admin-recordatorios-tipos']);
+        },
+        onError: (error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
+
+    const [localConfig, setLocalConfig] = useState(null);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    const handleToggleActive = async (checked) => {
-        setSaving(true);
-        try {
-            await api.actualizarConfigRecordatorios({ ...config, activo: checked });
-            setConfig(prev => ({ ...prev, activo: checked }));
-            toast({
-                title: checked ? "Recordatorios activados" : "Recordatorios desactivados",
-                description: checked
-                    ? "Los clientes recibirán notificaciones automáticas."
-                    : "No se enviarán recordatorios."
-            });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setSaving(false);
+        if (config) {
+            setLocalConfig(config);
         }
+    }, [config]);
+
+    const handleToggleActive = (checked) => {
+        const newConfig = { ...localConfig, activo: checked };
+        setLocalConfig(newConfig);
+        configMutation.mutate(newConfig);
     };
 
-    const handleSaveConfig = async () => {
-        setSaving(true);
-        try {
-            await api.actualizarConfigRecordatorios(config);
-            toast({ title: "Guardado", description: "Configuración actualizada correctamente." });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setSaving(false);
-        }
+    const handleSaveConfig = () => {
+        configMutation.mutate(localConfig);
     };
 
-    const handleAddTipo = async () => {
+    const handleAddTipo = () => {
         if (!newTipo.tipo_trabajo || !newTipo.dias_recordatorio) {
             toast({ title: "Error", description: "Completa todos los campos", variant: "destructive" });
             return;
         }
-
-        setSaving(true);
-        try {
-            await api.agregarTipoServicioRecurrente(newTipo.tipo_trabajo, newTipo.dias_recordatorio);
-            toast({ title: "Agregado", description: `"${newTipo.tipo_trabajo}" configurado para recordar cada ${newTipo.dias_recordatorio} días.` });
-            setShowAddDialog(false);
-            setNewTipo({ tipo_trabajo: '', dias_recordatorio: 180 });
-            fetchData();
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setSaving(false);
-        }
+        addTipoMutation.mutate({ tipoTrabajo: newTipo.tipo_trabajo, diasRecordatorio: newTipo.dias_recordatorio });
     };
 
-    const handleSaveTipo = async () => {
+    const handleSaveTipo = () => {
         if (!editingTipo) return;
-        setSaving(true);
-        try {
-            await api.actualizarTipoServicioRecurrente(editingTipo.id, {
+        updateTipoMutation.mutate({
+            id: editingTipo.id,
+            updates: {
                 dias_recordatorio: editingTipo.dias_recordatorio,
                 mensaje_personalizado: editingTipo.mensaje_personalizado || null,
                 activo: editingTipo.activo
-            });
-            setTiposRecurrentes(prev =>
-                prev.map(t => t.id === editingTipo.id ? editingTipo : t)
-            );
-            setEditingTipo(null);
-            toast({ title: "Guardado" });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setSaving(false);
-        }
+            }
+        });
     };
 
-    const handleDeleteTipo = async (id, nombre) => {
+    const handleDeleteTipo = (id, nombre) => {
         if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-        try {
-            await api.eliminarTipoServicioRecurrente(id);
-            setTiposRecurrentes(prev => prev.filter(t => t.id !== id));
-            toast({ title: "Eliminado" });
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        }
+        deleteTipoMutation.mutate(id);
     };
+
+    const saving = configMutation.isPending || addTipoMutation.isPending || updateTipoMutation.isPending || deleteTipoMutation.isPending;
 
     // Filtrar tipos disponibles que no están ya configurados
     const tiposSinConfigurar = tiposDisponibles.filter(
@@ -409,29 +402,29 @@ const AdminRecordatorios = () => {
             <div className="bg-card rounded-2xl p-5 mb-6 border border-border shadow-sm">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl transition-colors ${config?.activo ? 'bg-primary/10' : 'bg-muted/50'}`}>
-                            <Power className={`w-6 h-6 transition-colors ${config?.activo ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className={`p-3 rounded-xl transition-colors ${localConfig?.activo ? 'bg-primary/10' : 'bg-muted/50'}`}>
+                            <Power className={`w-6 h-6 transition-colors ${localConfig?.activo ? 'text-primary' : 'text-muted-foreground'}`} />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
                                 <h2 className="font-bold text-lg">
-                                    {config?.activo ? 'Sistema Activo' : 'Sistema Inactivo'}
+                                    {localConfig?.activo ? 'Sistema Activo' : 'Sistema Inactivo'}
                                 </h2>
-                                {config?.activo && (
+                                {localConfig?.activo && (
                                     <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">
                                         ON
                                     </span>
                                 )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                {config?.activo
-                                    ? `Envío diario a las ${config.hora_envio}:00 hrs`
+                                {localConfig?.activo
+                                    ? `Envío diario a las ${localConfig.hora_envio}:00 hrs`
                                     : 'Activa para enviar recordatorios automáticos'}
                             </p>
                         </div>
                     </div>
                     <Switch
-                        checked={config?.activo || false}
+                        checked={localConfig?.activo || false}
                         onCheckedChange={handleToggleActive}
                         disabled={saving}
                         className="scale-110"
@@ -502,8 +495,8 @@ const AdminRecordatorios = () => {
                             Título de la notificación
                         </label>
                         <Input
-                            value={config?.titulo_default || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, titulo_default: e.target.value }))}
+                            value={localConfig?.titulo_default || ''}
+                            onChange={(e) => setLocalConfig(prev => ({ ...prev, titulo_default: e.target.value }))}
                             className="bg-background border-border"
                             placeholder="¿Es hora de dar mantenimiento?"
                         />
@@ -515,8 +508,8 @@ const AdminRecordatorios = () => {
                             Cuerpo del mensaje
                         </label>
                         <textarea
-                            value={config?.mensaje_default || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, mensaje_default: e.target.value }))}
+                            value={localConfig?.mensaje_default || ''}
+                            onChange={(e) => setLocalConfig(prev => ({ ...prev, mensaje_default: e.target.value }))}
                             placeholder="Hola {nombre}, han pasado {dias} días..."
                             className="w-full h-24 p-3 rounded-xl bg-background border border-border text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
@@ -536,8 +529,8 @@ const AdminRecordatorios = () => {
                             Hora de envío:
                         </div>
                         <Select
-                            value={String(config?.hora_envio || 10)}
-                            onValueChange={(value) => setConfig(prev => ({ ...prev, hora_envio: parseInt(value) }))}
+                            value={String(localConfig?.hora_envio || 10)}
+                            onValueChange={(value) => setLocalConfig(prev => ({ ...prev, hora_envio: parseInt(value) }))}
                         >
                             <SelectTrigger className="w-32 bg-background border-border">
                                 <SelectValue />
@@ -559,9 +552,9 @@ const AdminRecordatorios = () => {
                             Vista previa de notificación
                         </p>
                         <div className="bg-background rounded-xl p-4 shadow-sm border border-border">
-                            <p className="font-semibold text-sm text-foreground">{config?.titulo_default || '¿Es hora de dar mantenimiento?'}</p>
+                            <p className="font-semibold text-sm text-foreground">{localConfig?.titulo_default || '¿Es hora de dar mantenimiento?'}</p>
                             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                                {generatePreview(config?.mensaje_default)}
+                                {generatePreview(localConfig?.mensaje_default)}
                             </p>
                             <div className="flex gap-2 mt-4">
                                 <div className="flex-1 bg-primary text-primary-foreground text-xs font-medium py-2.5 px-4 rounded-lg text-center">

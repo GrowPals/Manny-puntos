@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -34,42 +35,41 @@ import {
 const AdminClienteDetalle = () => {
     const { clienteId } = useParams();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
-    const [loading, setLoading] = useState(true);
-    const [cliente, setCliente] = useState(null);
-    const [canjes, setCanjes] = useState([]);
-    const [historialPuntos, setHistorialPuntos] = useState([]);
-    const [serviciosAsignados, setServiciosAsignados] = useState([]);
-    const [historialServicios, setHistorialServicios] = useState([]);
-    const [stats, setStats] = useState(null);
     const [activeTab, setActiveTab] = useState('historial');
-
-    // Modal states
     const [showPointsModal, setShowPointsModal] = useState(false);
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [showLevelModal, setShowLevelModal] = useState(false);
     const [deleteService, setDeleteService] = useState(null);
 
-    const fetchData = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await api.clients.getClienteDetalleAdmin(clienteId);
-            setCliente(data.cliente);
-            setCanjes(data.canjes);
-            setHistorialPuntos(data.historialPuntos);
-            setServiciosAsignados(data.serviciosAsignados);
-            setHistorialServicios(data.historialServicios);
-            setStats(data.stats);
-        } catch (error) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setLoading(false);
-        }
-    }, [clienteId, toast]);
+    const { data, isLoading: loading, error } = useQuery({
+        queryKey: ['admin-cliente-detalle', clienteId],
+        queryFn: () => api.clients.getClienteDetalleAdmin(clienteId),
+    });
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const { cliente, canjes, historialPuntos, serviciosAsignados, historialServicios, stats } = data || {};
+
+    const deleteMutation = useMutation({
+        mutationFn: api.services.eliminarServicioAsignado,
+        onSuccess: () => {
+            toast({ title: 'Beneficio eliminado' });
+            setDeleteService(null);
+            queryClient.invalidateQueries(['admin-cliente-detalle', clienteId]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    });
+
+    const handleDeleteService = () => {
+        if (!deleteService) return;
+        deleteMutation.mutate(deleteService.id);
+    };
+
+    if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
 
     const getEstadoInfo = (estado) => {
         const statuses = {
@@ -80,18 +80,6 @@ const AdminClienteDetalle = () => {
             'completado': { text: 'Completado', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500/10 text-green-600' },
         };
         return statuses[estado] || { text: estado, icon: <Hourglass className="w-3 h-3" />, color: 'bg-muted text-muted-foreground' };
-    };
-
-    const handleDeleteService = async () => {
-        if (!deleteService) return;
-        try {
-            await api.services.eliminarServicioAsignado(deleteService.id);
-            toast({ title: 'Beneficio eliminado' });
-            setDeleteService(null);
-            fetchData();
-        } catch (error) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        }
     };
 
     const formatCurrency = (amount) => {
@@ -514,29 +502,34 @@ const AdminClienteDetalle = () => {
 const AssignPointsModal = ({ open, onClose, cliente, onSuccess }) => {
     const [points, setPoints] = useState('');
     const [concept, setConcept] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
-    const handleSubmit = async (e) => {
+    const mutation = useMutation({
+        mutationFn: ({ telefono, puntos, concepto }) => api.clients.asignarPuntosManualmente(telefono, puntos, concepto),
+        onSuccess: (data, variables) => {
+            toast({ title: `${variables.puntos} puntos asignados a ${cliente.nombre}` });
+            setPoints('');
+            setConcept('');
+            onClose();
+            // Invalidate the query to refresh data
+            queryClient.invalidateQueries(['admin-cliente-detalle', cliente.id]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    });
+
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!points || !concept.trim()) {
             toast({ title: 'Completa todos los campos', variant: 'destructive' });
             return;
         }
-        setIsSubmitting(true);
-        try {
-            await api.clients.asignarPuntosManualmente(cliente.telefono, parseInt(points), concept);
-            toast({ title: `${points} puntos asignados a ${cliente.nombre}` });
-            setPoints('');
-            setConcept('');
-            onClose();
-            onSuccess();
-        } catch (error) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        mutation.mutate({ telefono: cliente.telefono, puntos: parseInt(points), concepto: concept });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -570,29 +563,33 @@ const AssignPointsModal = ({ open, onClose, cliente, onSuccess }) => {
 const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
-    const handleSubmit = async (e) => {
+    const mutation = useMutation({
+        mutationFn: api.services.crearServicioAsignado,
+        onSuccess: () => {
+            toast({ title: `Beneficio asignado a ${cliente.nombre}` });
+            setName('');
+            setDesc('');
+            onClose();
+            queryClient.invalidateQueries(['admin-cliente-detalle', cliente.id]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    });
+
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!name.trim()) {
             toast({ title: 'El nombre es requerido', variant: 'destructive' });
             return;
         }
-        setIsSubmitting(true);
-        try {
-            await api.services.crearServicioAsignado({ cliente_id: cliente.id, nombre: name, descripcion: desc });
-            toast({ title: `Beneficio asignado a ${cliente.nombre}` });
-            setName('');
-            setDesc('');
-            onClose();
-            onSuccess();
-        } catch (error) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        mutation.mutate({ cliente_id: cliente.id, nombre: name, descripcion: desc });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -625,31 +622,35 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
 
 const ChangeLevelModal = ({ open, onClose, cliente, onSuccess }) => {
     const [level, setLevel] = useState(cliente?.nivel || 'partner');
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (cliente) setLevel(cliente.nivel || 'partner');
     }, [cliente]);
 
-    const handleSubmit = async (e) => {
+    const mutation = useMutation({
+        mutationFn: ({ clienteId, nuevoNivel }) => api.clients.cambiarNivelCliente(clienteId, nuevoNivel),
+        onSuccess: (data, variables) => {
+            toast({ title: `${cliente.nombre} ahora es ${variables.nuevoNivel === 'vip' ? 'VIP' : 'Partner'}` });
+            onClose();
+            queryClient.invalidateQueries(['admin-cliente-detalle', cliente.id]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
+    });
+
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (level === cliente?.nivel) {
             onClose();
             return;
         }
-        setIsSubmitting(true);
-        try {
-            await api.clients.cambiarNivelCliente(cliente.id, level);
-            toast({ title: `${cliente.nombre} ahora es ${level === 'vip' ? 'VIP' : 'Partner'}` });
-            onClose();
-            onSuccess();
-        } catch (error) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        mutation.mutate({ clienteId: cliente.id, nuevoNivel: level });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>

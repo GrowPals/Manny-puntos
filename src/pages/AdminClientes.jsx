@@ -3,7 +3,8 @@ import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Search, PlusCircle, Edit, Loader2, Gift, Crown, ChevronRight } from 'lucide-react';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,9 +30,20 @@ import {
 const ClientForm = ({ client, onFinished }) => {
     const initialState = client ? { ...client } : { id: undefined, nombre: '', telefono: '', puntos_actuales: 0, nivel: 'partner' };
     const [formData, setFormData] = useState(initialState);
-    const { crearOActualizarCliente } = useSupabaseAPI();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: api.clients.crearOActualizarCliente,
+        onSuccess: () => {
+            toast({ title: client ? 'Cliente actualizado' : 'Cliente creado con éxito' });
+            queryClient.invalidateQueries(['admin-clientes']);
+            onFinished();
+        },
+        onError: (error) => {
+            toast({ title: 'Error al guardar', description: error.message, variant: 'destructive' });
+        }
+    });
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -40,30 +52,23 @@ const ClientForm = ({ client, onFinished }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            if (formData.nombre.trim().length < 3) {
-                toast({ title: 'Error de validación', description: 'El nombre es requerido.', variant: 'destructive' });
-                setIsSubmitting(false);
-                return;
-            }
-            if (!/^\d{10}$/.test(formData.telefono)) {
-                toast({ title: 'Error de validación', description: 'El teléfono debe tener 10 dígitos.', variant: 'destructive' });
-                setIsSubmitting(false);
-                return;
-            }
-            await crearOActualizarCliente({
-                ...formData,
-                puntos_actuales: Number(formData.puntos_actuales) || 0,
-            });
-            toast({ title: client ? 'Cliente actualizado' : 'Cliente creado con éxito' });
-            onFinished();
-        } catch(error) {
-            toast({ title: 'Error al guardar', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
+        
+        if (formData.nombre.trim().length < 3) {
+            toast({ title: 'Error de validación', description: 'El nombre es requerido.', variant: 'destructive' });
+            return;
         }
+        if (!/^\d{10}$/.test(formData.telefono)) {
+            toast({ title: 'Error de validación', description: 'El teléfono debe tener 10 dígitos.', variant: 'destructive' });
+            return;
+        }
+
+        mutation.mutate({
+            ...formData,
+            puntos_actuales: Number(formData.puntos_actuales) || 0,
+        });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <DialogContent className="bg-card border-border text-foreground">
@@ -115,37 +120,40 @@ const ClientForm = ({ client, onFinished }) => {
 const AssignPointsForm = ({ client, onFinished }) => {
     const [pointsToAdd, setPointsToAdd] = useState('');
     const [concept, setConcept] = useState('');
-    const { asignarPuntosManualmente } = useSupabaseAPI();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: ({ telefono, puntos, concepto }) => api.clients.asignarPuntosManualmente(telefono, puntos, concepto),
+        onSuccess: (data, variables) => {
+            toast({ title: "¡Puntos asignados!", description: `${variables.puntos} puntos agregados a ${client.nombre}` });
+            queryClient.invalidateQueries(['admin-clientes']);
+            onFinished();
+        },
+        onError: (error) => {
+            console.error("Error assigning points:", error);
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
 
     const handleAssignPoints = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            if (!client || !pointsToAdd || !concept.trim()) {
-                toast({ title: "Datos incompletos", description: "Completa todos los campos.", variant: "destructive" });
-                setIsSubmitting(false);
-                return;
-            }
-
-            const points = parseInt(pointsToAdd, 10);
-            if (isNaN(points)) {
-                toast({ title: "Dato inválido", description: "La cantidad de puntos debe ser un número.", variant: "destructive" });
-                setIsSubmitting(false);
-                return;
-            }
-
-            await asignarPuntosManualmente(client.telefono, points, concept);
-            toast({ title: "¡Puntos asignados!", description: `${points} puntos agregados a ${client.nombre}` });
-            onFinished();
-        } catch (error) {
-            console.error("Error assigning points:", error);
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
+        
+        if (!client || !pointsToAdd || !concept.trim()) {
+            toast({ title: "Datos incompletos", description: "Completa todos los campos.", variant: "destructive" });
+            return;
         }
+
+        const points = parseInt(pointsToAdd, 10);
+        if (isNaN(points)) {
+            toast({ title: "Dato inválido", description: "La cantidad de puntos debe ser un número.", variant: "destructive" });
+            return;
+        }
+
+        mutation.mutate({ telefono: client.telefono, puntos: points, concepto: concept });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <DialogContent className="bg-card border-border text-foreground">
@@ -181,35 +189,38 @@ const AssignPointsForm = ({ client, onFinished }) => {
 const AssignServiceForm = ({ client, onFinished }) => {
     const [serviceName, setServiceName] = useState('');
     const [serviceDesc, setServiceDesc] = useState('');
-    const { crearServicioAsignado } = useSupabaseAPI();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: api.services.crearServicioAsignado,
+        onSuccess: () => {
+            toast({ title: "¡Beneficio asignado!", description: `${serviceName} asignado a ${client.nombre}` });
+            queryClient.invalidateQueries(['admin-clientes']);
+            onFinished();
+        },
+        onError: (error) => {
+            console.error("Error assigning service:", error);
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            if (!serviceName.trim()) {
-                toast({ title: "Nombre requerido", description: "Ingresa el nombre del beneficio.", variant: "destructive" });
-                setIsSubmitting(false);
-                return;
-            }
-
-            await crearServicioAsignado({
-                cliente_id: client.id,
-                nombre: serviceName,
-                descripcion: serviceDesc
-            });
-
-            toast({ title: "¡Beneficio asignado!", description: `${serviceName} asignado a ${client.nombre}` });
-            onFinished();
-        } catch (error) {
-            console.error("Error assigning service:", error);
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
+        
+        if (!serviceName.trim()) {
+            toast({ title: "Nombre requerido", description: "Ingresa el nombre del beneficio.", variant: "destructive" });
+            return;
         }
+
+        mutation.mutate({
+            cliente_id: client.id,
+            nombre: serviceName,
+            descripcion: serviceDesc
+        });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <DialogContent className="bg-card border-border text-foreground">
@@ -256,26 +267,30 @@ const AssignServiceForm = ({ client, onFinished }) => {
 
 const ChangeLevelForm = ({ client, onFinished }) => {
     const [newLevel, setNewLevel] = useState(client?.nivel || 'partner');
-    const { cambiarNivelCliente } = useSupabaseAPI();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: ({ clienteId, nuevoNivel }) => api.clients.cambiarNivelCliente(clienteId, nuevoNivel),
+        onSuccess: (data, variables) => {
+            toast({
+                title: "Nivel actualizado",
+                description: `${client.nombre} ahora es ${variables.nuevoNivel === 'vip' ? 'VIP' : 'Partner'}`
+            });
+            queryClient.invalidateQueries(['admin-clientes']);
+            onFinished();
+        },
+        onError: (error) => {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await cambiarNivelCliente(client.id, newLevel);
-            toast({
-                title: "Nivel actualizado",
-                description: `${client.nombre} ahora es ${newLevel === 'vip' ? 'VIP' : 'Partner'}`
-            });
-            onFinished();
-        } catch (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
+        mutation.mutate({ clienteId: client.id, nuevoNivel: newLevel });
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <DialogContent className="bg-card border-border text-foreground">
@@ -321,30 +336,15 @@ const ChangeLevelForm = ({ client, onFinished }) => {
 };
 
 const AdminClientes = () => {
-    const api = useSupabaseAPI();
     const { toast } = useToast();
     const navigate = useNavigate();
-    const [clientes, setClientes] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [modalState, setModalState] = useState({ type: null, client: null });
 
-    const fetchClients = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await api.getTodosLosClientes();
-            setClientes(data.sort((a,b) => b.puntos_actuales - a.puntos_actuales));
-        } catch (error) {
-            console.error("Failed to fetch clients", error);
-            toast({ title: "Error", description: "No se pudieron cargar los clientes.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    }, [api, toast]);
-
-    useEffect(() => {
-        fetchClients();
-    }, [fetchClients]);
+    const { data: clientes = [], isLoading: loading } = useQuery({
+        queryKey: ['admin-clientes'],
+        queryFn: api.clients.getTodosLosClientes,
+    });
 
     const filteredClientes = useMemo(() => {
         if (!searchTerm) return clientes;
@@ -356,7 +356,6 @@ const AdminClientes = () => {
 
     const handleModalClose = () => {
         setModalState({ type: null, client: null });
-        fetchClients();
     };
 
     const getNivelBadge = (nivel) => {
