@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { ERROR_MESSAGES } from '@/constants/errors';
 
 export const getTodosLosCanjes = async () => {
     const { data, error } = await supabase
@@ -6,7 +7,7 @@ export const getTodosLosCanjes = async () => {
     .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`)
     .order('created_at', { ascending: false });
 
-    if (error) throw new Error('No se pudieron cargar los canjes.');
+    if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.LOAD_ERROR);
     
     return data?.map(c => ({
         ...c,
@@ -25,7 +26,7 @@ export const getCanjesPendientes = async () => {
         .in('estado', ['pendiente_entrega', 'en_lista'])
         .order('created_at', { ascending: true });
 
-    if (error) throw new Error('No se pudieron cargar los canjes pendientes.');
+    if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.LOAD_PENDING_ERROR);
     
     return data?.map(c => ({
         ...c,
@@ -43,7 +44,7 @@ export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
         .update({ estado: nuevoEstado })
         .eq('id', canjeId);
 
-    if (error) throw new Error('Error al actualizar el estado del canje.');
+    if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.UPDATE_STATUS_ERROR);
     return true;
 };
 
@@ -56,12 +57,12 @@ export const registrarCanje = async ({ cliente_id, producto_id }) => {
     if (error) {
         console.error('Error en RPC registrar_canje_atomico:', error);
         if (error.message.includes('Puntos insuficientes')) {
-            throw new Error('No tienes suficientes puntos para este canje.');
+            throw new Error(ERROR_MESSAGES.REDEMPTIONS.INSUFFICIENT_POINTS);
         }
         if (error.message.includes('Producto agotado')) {
-            throw new Error('Lo sentimos, este producto está agotado.');
+            throw new Error(ERROR_MESSAGES.REDEMPTIONS.OUT_OF_STOCK);
         }
-        throw new Error('No se pudo procesar el canje en este momento.');
+        throw new Error(ERROR_MESSAGES.REDEMPTIONS.PROCESS_ERROR);
     }
 
     // Fire and forget notifications

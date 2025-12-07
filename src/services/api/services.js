@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { ERROR_MESSAGES } from '@/constants/errors';
 
 // SERVICIOS ASIGNADOS (Para Partners/VIP)
 export const getServiciosCliente = async (clienteId) => {
@@ -8,7 +9,7 @@ export const getServiciosCliente = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
-    if (error) throw new Error('Error al cargar los servicios del cliente.');
+    if (error) throw new Error(ERROR_MESSAGES.SERVICES.LOAD_ERROR);
     return data || [];
 };
 
@@ -23,7 +24,7 @@ export const canjearServicioAsignado = async (servicioId) => {
         .select()
         .single();
 
-    if (error) throw new Error('Error al canjear el servicio.');
+    if (error) throw new Error(ERROR_MESSAGES.SERVICES.REDEEM_ERROR);
     return data;
 };
 
@@ -42,7 +43,7 @@ export const crearServicioAsignado = async (servicioData) => {
         .select()
         .single();
 
-    if (error) throw new Error('Error al crear el servicio asignado.');
+    if (error) throw new Error(ERROR_MESSAGES.SERVICES.CREATE_ERROR);
     return data;
 };
 
@@ -52,7 +53,7 @@ export const eliminarServicioAsignado = async (servicioId) => {
         .delete()
         .eq('id', servicioId);
 
-    if (error) throw new Error('Error al eliminar el servicio.');
+    if (error) throw new Error(ERROR_MESSAGES.SERVICES.DELETE_ERROR);
     return true;
 };
 
@@ -64,7 +65,7 @@ export const getHistorialServicios = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 
-    if (error) throw new Error('Error al cargar el historial de servicios.');
+    if (error) throw new Error(ERROR_MESSAGES.SERVICES.HISTORY_ERROR);
     return data || [];
 };
 

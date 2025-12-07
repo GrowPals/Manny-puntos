@@ -1,17 +1,18 @@
 import { supabase } from '@/lib/customSupabaseClient';
+import { ERROR_MESSAGES } from '@/constants/errors';
 
 export const getTodosLosClientes = async () => {
   const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
   if (error) {
     console.error("Error en getTodosLosClientes:", error);
-    throw new Error('No se pudieron cargar los clientes.');
+    throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_ERROR);
   }
   return data || [];
 };
 
 export const crearOActualizarCliente = async (clienteData) => {
-  if (!clienteData.nombre || clienteData.nombre.trim().length < 3) throw new Error("El nombre es requerido y debe tener al menos 3 caracteres.");
-  if (!clienteData.telefono || !/^[0-9]{10}$/.test(String(clienteData.telefono).replace(/\D/g, ''))) throw new Error("El teléfono es requerido y debe tener 10 dígitos.");
+  if (!clienteData.nombre || clienteData.nombre.trim().length < 3) throw new Error(ERROR_MESSAGES.CLIENTS.NAME_REQUIRED);
+  if (!clienteData.telefono || !/^[0-9]{10}$/.test(String(clienteData.telefono).replace(/\D/g, ''))) throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_REQUIRED);
 
   const upsertPayload = {
     ...clienteData,
@@ -23,19 +24,19 @@ export const crearOActualizarCliente = async (clienteData) => {
   if (error) {
     console.error("Error en crearOActualizarCliente:", error);
     if (error.code === '23505') {
-        throw new Error('El número de teléfono ya está registrado.');
+        throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_EXISTS);
     }
     if (error.message.includes('violates row-level security policy')) {
-            throw new Error('No tienes permiso para crear o actualizar clientes.');
+            throw new Error(ERROR_MESSAGES.CLIENTS.CREATE_PERMISSION_DENIED);
     }
-    throw new Error('Error al guardar el cliente.');
+    throw new Error(ERROR_MESSAGES.CLIENTS.SAVE_ERROR);
   }
   return data;
 };
 
 export const asignarPuntosManualmente = async (clienteTelefono, puntos, concepto) => {
-  if (!puntos || isNaN(Number(puntos))) throw new Error("La cantidad de puntos debe ser un número.");
-  if (!concepto || concepto.trim() === '') throw new Error("El concepto es requerido.");
+  if (!puntos || isNaN(Number(puntos))) throw new Error(ERROR_MESSAGES.CLIENTS.POINTS_INVALID);
+  if (!concepto || concepto.trim() === '') throw new Error(ERROR_MESSAGES.CLIENTS.CONCEPT_REQUIRED);
 
   const { data, error } = await supabase.rpc('asignar_puntos_atomico', {
     p_cliente_telefono: clienteTelefono,
@@ -45,7 +46,7 @@ export const asignarPuntosManualmente = async (clienteTelefono, puntos, concepto
 
   if (error) {
     console.error('Error en RPC asignar_puntos_atomico:', error);
-    throw new Error(error.message || 'Error al asignar puntos.');
+    throw new Error(error.message || ERROR_MESSAGES.CLIENTS.ASSIGN_POINTS_ERROR);
   }
   return data;
 };
@@ -57,7 +58,7 @@ export const getClienteHistorial = async (telefono) => {
         .eq('telefono', telefono)
         .maybeSingle();
 
-    if (error) throw new Error("Ocurrió un error al buscar tu historial.");
+    if (error) throw new Error(ERROR_MESSAGES.CLIENTS.HISTORY_ERROR);
 
     if (!data) return { canjes: [], historialPuntos: [] };
 
@@ -81,7 +82,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
         .eq('id', clienteId)
         .single();
 
-    if (clienteError) throw new Error('Cliente no encontrado.');
+    if (clienteError) throw new Error(ERROR_MESSAGES.CLIENTS.NOT_FOUND);
 
     const { data: canjes, error: canjesError } = await supabase
         .from('canjes')
@@ -89,7 +90,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
-    if (canjesError) throw new Error('Error al cargar canjes del cliente.');
+    if (canjesError) throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_REDEMPTIONS_ERROR);
 
     const { data: historialPuntos, error: historialError } = await supabase
         .from('historial_puntos')
@@ -97,7 +98,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
-    if (historialError) throw new Error('Error al cargar historial de puntos.');
+    if (historialError) throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_POINTS_ERROR);
 
     const { data: serviciosAsignados, error: serviciosError } = await supabase
         .from('servicios_asignados')
@@ -105,7 +106,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
-    if (serviciosError) throw new Error('Error al cargar servicios asignados.');
+    if (serviciosError) throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_SERVICES_ERROR);
 
     // Historial de servicios (trabajos realizados por Manny)
     const { data: historialServicios, error: histServError } = await supabase
@@ -114,7 +115,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 
-    if (histServError) throw new Error('Error al cargar historial de servicios.');
+    if (histServError) throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_HISTORY_SERVICES_ERROR);
 
     // Estadísticas calculadas
     const stats = {
@@ -143,7 +144,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
 
 export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
     if (nuevoNivel !== 'partner' && nuevoNivel !== 'vip') {
-        throw new Error('El nivel debe ser partner o vip.');
+        throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_INVALID);
     }
 
     const { data, error } = await supabase.functions.invoke('update-cliente-nivel', {
@@ -152,7 +153,7 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
 
     if (error) {
         console.error('Error en cambiarNivelCliente:', error);
-        throw new Error('Error al cambiar el nivel del cliente.');
+        throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_CHANGE_ERROR);
     }
 
     return data;
@@ -166,6 +167,6 @@ export const cambiarRolAdmin = async (clienteId, esAdmin) => {
         .select()
         .single();
 
-    if (error) throw new Error('Error al cambiar el rol del usuario.');
+    if (error) throw new Error(ERROR_MESSAGES.CLIENTS.ROLE_CHANGE_ERROR);
     return data;
 };

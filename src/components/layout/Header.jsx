@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { cn } from '@/lib/utils';
-import MannyLogo from '@/assets/images/manny-logo.svg';
+import MannyLogo from '@/assets/images/manny-logo-new.svg';
 
 const NavLink = React.memo(({ to, children, onClick, end = false, compact = false }) => {
     return (
@@ -121,7 +121,7 @@ const Header = () => {
             <nav className="container mx-auto px-4 h-14">
                 <div className="flex items-center justify-between h-full gap-4">
                     <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0" aria-label="Ir a la página principal">
-                        <img src={MannyLogo} alt="Manny Logo" className="h-10 w-auto transition-transform duration-300 group-hover:scale-105" />
+                        <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
                     </Link>
 
                     <div className="hidden lg:flex items-center gap-1">

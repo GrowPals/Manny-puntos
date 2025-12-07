@@ -25,6 +25,7 @@ const ProductForm = ({ product, onFinished }) => {
     const defaultState = { id: undefined, nombre: '', descripcion: '', tipo: 'producto', puntos_requeridos: '', stock: '', categoria: '', imagen_url: '', activo: true };
     const [formData, setFormData] = useState(product ? { ...product, puntos_requeridos: product.puntos_requeridos || '', stock: product.stock || '' } : defaultState);
     const [imagePreview, setImagePreview] = useState(product?.imagen_url || null);
+    const [isUploading, setIsUploading] = useState(false);
     const { toast } = useToast();
     const { isAdmin } = useAuth();
     const queryClient = useQueryClient();
@@ -58,7 +59,21 @@ const ProductForm = ({ product, onFinished }) => {
     };
 
     const handleFileChange = async (e) => {
-        toast({ title: 'Función no disponible', description: 'La carga de archivos de imagen no está implementada. Por favor, usa una URL de imagen por ahora.' });
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const publicUrl = await api.products.subirImagenProducto(file);
+            setFormData(prev => ({ ...prev, imagen_url: publicUrl }));
+            setImagePreview(publicUrl);
+            toast({ title: 'Imagen subida', description: 'La imagen se cargó correctamente.' });
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            toast({ title: 'Error al subir imagen', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsUploading(false);
+        }
     };
     
     const handleSubmit = async (e) => {
@@ -117,8 +132,31 @@ const ProductForm = ({ product, onFinished }) => {
                 <div className="space-y-2">
                     <Label>Imagen</Label>
                     {imagePreview && <img src={imagePreview} alt="preview" className="w-full h-32 object-contain rounded-lg bg-muted mb-2"/>}
-                    <Input name="imagen_url" value={formData.imagen_url || ''} onChange={handleChange} placeholder="URL de la imagen (la carga de archivos está deshabilitada)" className="h-12 text-base" />
-                    <Input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" disabled/>
+                    <div className="flex gap-2">
+                        <Input
+                            name="imagen_url"
+                            value={formData.imagen_url || ''}
+                            onChange={handleChange}
+                            placeholder="URL de la imagen"
+                            className="h-12 text-base flex-1"
+                        />
+                    </div>
+                    <div className="relative">
+                        <Input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            onChange={handleFileChange}
+                            className="text-sm cursor-pointer"
+                            disabled={isUploading}
+                        />
+                        {isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
+                                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                <span className="ml-2 text-sm">Subiendo...</span>
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Formatos: JPG, PNG, WebP, GIF. Máximo 5MB.</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -129,7 +167,7 @@ const ProductForm = ({ product, onFinished }) => {
                     <DialogClose asChild>
                         <Button type="button" variant="outline" disabled={isSubmitting}>Cancelar</Button>
                     </DialogClose>
-                    <Button type="submit" variant="investment" disabled={isSubmitting}>
+                    <Button type="submit" variant="investment" disabled={isSubmitting || isUploading}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {product ? 'Actualizar' : 'Crear'}
                     </Button>

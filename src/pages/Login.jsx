@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import SEOHelmet from '@/components/common/SEOHelmet';
-import MannyLogo from '@/assets/images/manny-logo-v2.svg';
+import MannyLogo from '@/assets/images/manny-logo-new.svg';
 
 const Login = () => {
   const [telefono, setTelefono] = useState('');

@@ -14,7 +14,7 @@ import ErrorBoundary from '@/components/common/ErrorBoundary';
 import SEOHelmet from '@/components/common/SEOHelmet';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import OnboardingModal from '@/components/features/OnboardingModal';
-import MannyLogo from '@/assets/images/manny-logo.svg';
+import MannyLogo from '@/assets/images/manny-logo-new.svg';
 
 // Lazy load pages
 const Login = React.lazy(() => import('@/pages/Login'));

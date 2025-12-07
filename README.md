@@ -1,140 +1,61 @@
 # Manny Rewards - Sistema de Lealtad
 
-Sistema de recompensas PWA para clientes de Manny. Acumula puntos por servicios de mantenimiento y canjea por productos reales.
+Aplicación web para la gestión de puntos y recompensas de clientes VIP y Partners de Manny.
 
-## Características
+## 🚀 Tecnologías
 
-- **Sistema de Puntos**: 5% del monto de cada servicio se convierte en puntos
-- **Niveles**: Partner (base) y VIP (premium)
-- **PWA**: Instalable en móviles con notificaciones push
-- **Integración Notion**: Sincronización bidireccional automática
-- **Panel Admin**: Gestión completa de clientes, productos y canjes
+- **Frontend:** React 18, Vite 5, Tailwind CSS 3
+- **Estado:** TanStack Query (Server State), React Context (Auth/Theme)
+- **Backend:** Supabase (PostgreSQL, Edge Functions, RPCs)
+- **UI:** Radix UI, Lucide Icons, Framer Motion
 
-## Stack Tecnológico
+## 🛠️ Configuración e Instalación
 
-| Capa | Tecnología |
-|------|------------|
-| Frontend | React 18, Vite 5, Tailwind CSS |
-| UI | Shadcn/ui, Framer Motion, Lucide Icons |
-| Backend | Supabase (PostgreSQL + Edge Functions) |
-| Operaciones | Notion (Contactos, Tickets, Rewards) |
-| PWA | VitePWA + Web Push API |
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone <repo-url>
+    cd manny-rewards
+    ```
 
-## Instalación
+2.  **Instalar dependencias:**
+    ```bash
+    npm install
+    ```
 
-```bash
-# Clonar e instalar
-git clone <repo-url>
-cd manny-rewards
-npm install
+3.  **Variables de Entorno:**
+    Crear un archivo `.env` en la raíz con:
+    ```env
+    VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+    VITE_SUPABASE_ANON_KEY=tu-anon-key
+    ```
 
-# Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus credenciales
+4.  **Correr en desarrollo:**
+    ```bash
+    npm run dev
+    ```
 
-# Desarrollo
-npm run dev
+## 🏗️ Arquitectura
 
-# Build producción
-npm run build
-```
+### Estructura de Directorios
+- `src/services/api/`: Módulos de servicio para interactuar con Supabase (Auth, Clientes, Productos, etc.).
+- `src/context/`: Contextos globales (AuthContext, ThemeContext).
+- `src/pages/`: Vistas de la aplicación (Lazy loaded).
+- `src/components/`: Componentes reutilizables (UI, Features, Layout).
 
-## Variables de Entorno
+### Seguridad (Audit 2025)
+- **Autenticación:** Basada en PIN (hasheado con bcrypt en BD).
+- **Verificación:** RPC `verify_client_pin` para validar credenciales sin exponer datos sensibles.
+- **Nota:** La aplicación utiliza un sistema de login personalizado. Se recomienda migrar a Supabase Auth para mayor seguridad en el futuro.
 
-```env
-# Frontend (.env)
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
-VITE_VAPID_PUBLIC_KEY=BNi...
+## 📝 Scripts Disponibles
 
-# Supabase Secrets (configurar en dashboard)
-NOTION_TOKEN=secret_xxx
-VAPID_PUBLIC_KEY=BNi...
-VAPID_PRIVATE_KEY=WZT...
-```
+- `npm run dev`: Inicia el servidor de desarrollo.
+- `npm run build`: Construye la aplicación para producción.
+- `npm run preview`: Vista previa del build de producción.
 
-## Estructura del Proyecto
-
-```
-manny-rewards/
-├── src/
-│   ├── components/      # Componentes React
-│   │   ├── ui/          # Primitivas (Button, Card, etc.)
-│   │   ├── common/      # ErrorBoundary, SEOHelmet
-│   │   ├── features/    # ServicesList, WhatsAppButton
-│   │   └── layout/      # Header, Footer
-│   ├── context/         # AuthContext, SupabaseContext
-│   ├── hooks/           # usePushNotifications, useProducts
-│   ├── pages/           # Dashboard, Admin, Login, etc.
-│   └── lib/             # Supabase client
-├── supabase/
-│   └── functions/       # 8 Edge Functions
-├── public/
-│   └── icons/           # isotipo.svg, logo.svg
-└── docs/                # Documentación técnica
-```
-
-## Edge Functions
-
-| Función | Propósito |
-|---------|-----------|
-| `notion-contact-webhook` | Nuevo contacto → Cliente |
-| `notion-ticket-completed` | Ticket pagado → Puntos |
-| `notion-canje-status-webhook` | Estado canje desde Notion |
-| `notion-cliente-sync` | Sync nivel/puntos desde Notion |
-| `sync-canje-to-notion` | Canje → Notion |
-| `update-canje-status-notion` | Estado canje → Notion |
-| `update-cliente-nivel` | Cambio nivel → Notion |
-| `send-push-notification` | Notificaciones push |
-
-## Base de Datos
-
-| Tabla | Descripción |
-|-------|-------------|
-| `clientes` | Usuarios, puntos, nivel, admin |
-| `productos` | Catálogo canjeable |
-| `canjes` | Registro de canjes |
-| `historial_puntos` | Movimientos de puntos |
-| `push_subscriptions` | Suscripciones push |
-| `notification_history` | Log de notificaciones |
-| `servicios_asignados` | Beneficios Partner |
-| `ticket_events` | Eventos webhooks |
-
-## Deploy en Vercel
-
-### Opción 1: CLI
-```bash
-npm i -g vercel
-vercel --prod
-```
-
-### Opción 2: GitHub
-1. Conecta tu repo en [vercel.com/new](https://vercel.com/new)
-2. Framework: Vite (se detecta automáticamente)
-3. Build Command: `npm run build`
-4. Output Directory: `dist`
-
-### Variables de Entorno en Vercel
-Configurar en Settings → Environment Variables:
-```
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
-VITE_VAPID_PUBLIC_KEY
-```
-
-### Configuración Incluida
-El archivo `vercel.json` ya incluye:
-- SPA rewrites para React Router
-- Headers de Service Worker para PWA
-- Cache optimizado para assets
-- Headers de seguridad
-
-## Documentación
-
-- [Arquitectura Técnica](docs/ARCHITECTURE.md)
-- [Sistema de Negocio](docs/MANNY_SYSTEM.md)
-- [Plan Maestro](docs/PLAN_MAESTRO_MANNY_REWARDS.md)
-
----
-
-Desarrollado para Manny
+## 🤝 Contribuir
+1.  Hacer fork del repositorio.
+2.  Crear una rama (`git checkout -b feature/nueva-feature`).
+3.  Commit de cambios (`git commit -m 'Add nueva feature'`).
+4.  Push a la rama (`git push origin feature/nueva-feature`).
+5.  Abrir un Pull Request.
