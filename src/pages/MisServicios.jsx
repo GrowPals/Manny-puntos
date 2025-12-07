@@ -11,47 +11,41 @@ import {
     FileText
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const MisServicios = () => {
     const { user } = useAuth();
-    const api = useSupabaseAPI();
     const { toast } = useToast();
-    const [servicios, setServicios] = useState([]);
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
 
-    const fetchData = useCallback(async () => {
-        if (!user?.id || !api) {
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
+    const { data: servicios = [], isLoading: loadingServicios, error: errorServicios } = useQuery({
+        queryKey: ['servicios', user?.id],
+        queryFn: () => api.services.getHistorialServicios(user.id),
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5,
+    });
 
-        try {
-            const [serviciosData, statsData] = await Promise.all([
-                api.getHistorialServicios(user.id),
-                api.getHistorialServiciosStats(user.id)
-            ]);
-            setServicios(serviciosData || []);
-            setStats(statsData);
-        } catch (error) {
-            console.error("Error al cargar historial de servicios:", error);
+    const { data: stats, isLoading: loadingStats } = useQuery({
+        queryKey: ['servicios-stats', user?.id],
+        queryFn: () => api.services.getHistorialServiciosStats(user.id),
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 10,
+    });
+
+    const loading = loadingServicios || loadingStats;
+
+    useEffect(() => {
+        if (errorServicios) {
+            console.error("Error al cargar historial de servicios:", errorServicios);
             toast({
                 title: "Error",
                 description: "No pudimos cargar tu historial de servicios.",
                 variant: "destructive"
             });
-        } finally {
-            setLoading(false);
         }
-    }, [user?.id, api, toast]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    }, [errorServicios, toast]);
 
     // Ordenar servicios por fecha (más reciente primero)
     const serviciosOrdenados = useMemo(() => {

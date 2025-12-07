@@ -3,43 +3,36 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Truck, Loader2, Wrench, Package, Calendar, CheckCircle, Hourglass, PackageCheck, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const AdminEntregas = () => {
     const { toast } = useToast();
-    const { getTodosLosCanjes, actualizarEstadoCanje } = useSupabaseAPI();
-    const [canjes, setCanjes] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState('productos');
     const [searchTerm, setSearchTerm] = useState('');
 
-    const loadCanjes = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await getTodosLosCanjes();
-            setCanjes(data);
-        } catch (error) {
-            toast({ title: 'Error al cargar canjes', description: error.message, variant: 'destructive' });
-        } finally {
-            setLoading(false);
-        }
-    }, [getTodosLosCanjes, toast]);
+    const { data: canjes = [], isLoading: loading } = useQuery({
+        queryKey: ['admin-canjes'],
+        queryFn: api.redemptions.getTodosLosCanjes,
+    });
 
-    useEffect(() => {
-        loadCanjes();
-    }, [loadCanjes]);
-
-    const handleEstadoChange = async (canjeId, nuevoEstado) => {
-        try {
-            await actualizarEstadoCanje(canjeId, nuevoEstado);
+    const mutation = useMutation({
+        mutationFn: ({ canjeId, nuevoEstado }) => api.redemptions.actualizarEstadoCanje(canjeId, nuevoEstado),
+        onSuccess: () => {
             toast({ title: '¡Estado actualizado!' });
-            loadCanjes();
-        } catch (error) {
+            queryClient.invalidateQueries(['admin-canjes']);
+        },
+        onError: (error) => {
             console.error("Error updating status:", error);
             toast({ title: 'Error al actualizar', description: error.message, variant: 'destructive' });
         }
+    });
+
+    const handleEstadoChange = (canjeId, nuevoEstado) => {
+        mutation.mutate({ canjeId, nuevoEstado });
     };
 
     const getStatusInfo = (estado) => {

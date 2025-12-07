@@ -10,12 +10,18 @@ import MannyLogo from '@/assets/images/manny-logo-v2.svg';
 
 const Login = () => {
   const [telefono, setTelefono] = useState('');
+  const [pin, setPin] = useState('');
   const { login, loading } = useAuth();
   const { toast } = useToast();
 
   const handlePhoneChange = (e) => {
     const formatted = e.target.value.replace(/\D/g, '').slice(0, 10);
     setTelefono(formatted);
+  };
+
+  const handlePinChange = (e) => {
+    const formatted = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(formatted);
   };
 
   const handleSubmit = async (e) => {
@@ -28,8 +34,16 @@ const Login = () => {
       });
       return;
     }
+    if (pin.length !== 4) {
+        toast({
+          title: "PIN incompleto",
+          description: "El PIN debe tener 4 dígitos.",
+          variant: "destructive"
+        });
+        return;
+      }
     try {
-      await login(telefono);
+      await login(telefono, pin);
       toast({
         title: "¡Bienvenido de vuelta!",
         description: "Accediendo a tu cuenta de recompensas Manny."
@@ -149,12 +163,58 @@ const Login = () => {
               </motion.div>
 
               <motion.div variants={itemVariants}>
+                <label htmlFor="phone-input" className="block text-sm font-medium text-muted-foreground mb-2">
+                  Tu número de teléfono (10 dígitos)
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 z-10" />
+                  <input 
+                    id="phone-input" 
+                    type="tel" 
+                    placeholder="Ej: 4621234567" 
+                    value={telefono} 
+                    onChange={handlePhoneChange} 
+                    className="w-full h-14 pl-12 pr-4 text-lg font-light tracking-wide rounded-xl bg-background border border-border text-muted-foreground focus:text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-300 placeholder:text-muted-foreground/40 disabled:opacity-50" 
+                    maxLength={10} 
+                    disabled={loading} 
+                    aria-label="Número de teléfono" 
+                    pattern="\d{10}" 
+                    title="El número debe tener 10 dígitos" 
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <label htmlFor="pin-input" className="block text-sm font-medium text-muted-foreground mb-2">
+                  PIN de seguridad (4 dígitos)
+                </label>
+                <div className="relative">
+                  <input 
+                    id="pin-input" 
+                    type="password" 
+                    placeholder="****" 
+                    value={pin} 
+                    onChange={handlePinChange} 
+                    className="w-full h-14 pl-4 pr-4 text-lg font-light tracking-wide rounded-xl bg-background border border-border text-muted-foreground focus:text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-300 placeholder:text-muted-foreground/40 disabled:opacity-50 text-center tracking-[0.5em]" 
+                    maxLength={4} 
+                    disabled={loading} 
+                    aria-label="PIN de seguridad" 
+                    pattern="\d{4}" 
+                    title="El PIN debe tener 4 dígitos" 
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground/60 mt-2 text-center">
+                  Por defecto son los últimos 4 dígitos de tu teléfono
+                </p>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
                 <Button 
                   type="submit" 
                   variant="investment" 
                   size="lg" 
                   className="w-full h-14 text-base" 
-                  disabled={loading || telefono.length !== 10}
+                  disabled={loading || telefono.length !== 10 || pin.length !== 4}
                 >
                   {loading ? <Loader2 className="animate-spin" /> : 'Consultar mis puntos'}
                 </Button>

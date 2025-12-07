@@ -3,8 +3,8 @@ import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { SupabaseProvider } from '@/context/SupabaseContext';
 import { ThemeProvider } from "@/context/ThemeContext";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import WhatsAppButton from '@/components/features/WhatsAppButton';
 import Footer from '@/components/layout/Footer';
 import Header from '@/components/layout/Header';
@@ -107,10 +107,12 @@ const AppRoutes = () => {
   );
 };
 
+const queryClient = new QueryClient();
+
 function App() {
   return (
     <ThemeProvider>
-      <SupabaseProvider>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ErrorBoundary>
             <AppRoutes />
@@ -120,7 +122,7 @@ function App() {
           <PWAInstallPrompt />
           <BottomNav />
         </AuthProvider>
-      </SupabaseProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

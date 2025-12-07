@@ -4,8 +4,9 @@ import { CheckCircle, Gift, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Dialog,
@@ -19,57 +20,46 @@ import {
 
 const ServicesList = () => {
   const { user } = useAuth();
-  const api = useSupabaseAPI();
   const { toast } = useToast();
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, service: null });
-  const [redeeming, setRedeeming] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchServices = async () => {
-    if (!user?.id) return;
-    try {
-      const data = await api.getServiciosCliente(user.id);
-      setServices(data || []);
-    } catch (error) {
-      console.error("Error fetching services:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: services = [], isLoading: loading } = useQuery({
+    queryKey: ['services', user?.id],
+    queryFn: () => api.services.getServiciosCliente(user.id),
+    enabled: !!user?.id,
+  });
 
-  useEffect(() => {
-    fetchServices();
-  }, [user?.id]);
-
-  const handleRedeem = async (service) => {
-    setRedeeming(true);
-    try {
-      await api.canjearServicioAsignado(service.id);
-
+  const redeemMutation = useMutation({
+    mutationFn: api.services.canjearServicioAsignado,
+    onSuccess: async (data, variables) => {
       toast({
         title: "¡Servicio canjeado!",
-        description: `Has canjeado: ${service.nombre}. Te contactaremos pronto.`,
+        description: `Has canjeado: ${variables.nombre}. Te contactaremos pronto.`,
       });
 
       // Abrir WhatsApp con mensaje pre-llenado
-      const message = `Hola, soy ${user.nombre} (Tel: ${user.telefono}). Acabo de canjear mi beneficio Partner: ${service.nombre}`;
+      const message = `Hola, soy ${user.nombre} (Tel: ${user.telefono}). Acabo de canjear mi beneficio Partner: ${variables.nombre}`;
       const whatsappUrl = `https://wa.me/5214624844148?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
 
-      // Recargar servicios
-      await fetchServices();
+      await queryClient.invalidateQueries(['services', user.id]);
       setConfirmDialog({ open: false, service: null });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: "Error al canjear",
         description: error.message,
         variant: "destructive"
       });
-    } finally {
-      setRedeeming(false);
     }
+  });
+
+  const handleRedeem = (service) => {
+    redeemMutation.mutate(service);
   };
+
+  const redeeming = redeemMutation.isPending;
 
   if (loading) {
     return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;

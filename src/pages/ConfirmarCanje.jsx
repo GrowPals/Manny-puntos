@@ -5,62 +5,48 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle, Loader2, AlertTriangle, Hammer, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const ConfirmarCanje = () => {
     const { productoId } = useParams();
     const navigate = useNavigate();
     const { user, updateUser } = useAuth();
-    const api = useSupabaseAPI();
     const { toast } = useToast();
 
-    const [producto, setProducto] = useState(null);
-    const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [canjeExitoso, setCanjeExitoso] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const [error, setError] = useState(null);
+    const [validationError, setValidationError] = useState(null);
     
-    useEffect(() => {
-        const fetchProduct = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const prod = await api.getProductoById(productoId);
-                if (!prod) {
-                    setError('Recompensa no encontrada.');
-                    return;
-                }
-                setProducto(prod);
-                if (user.puntos_actuales < prod.puntos_requeridos) {
-                    setError('No tienes puntos Manny suficientes para esta recompensa.');
-                } else if (!prod.activo || (prod.tipo === 'producto' && prod.stock <= 0)) {
-                    setError('Esta recompensa no está disponible actualmente.');
-                }
-            } catch (err) {
-                setError(err.message);
-                toast({ title: 'Error', description: 'No se pudo cargar la recompensa.', variant: 'destructive'});
-            } finally {
-                setLoading(false);
-            }
-        };
+    const { data: producto, isLoading: loading, error: queryError } = useQuery({
+        queryKey: ['producto', productoId],
+        queryFn: () => api.products.getProductoById(productoId),
+        enabled: !!productoId,
+    });
 
-        if(api && user?.puntos_actuales !== undefined) {
-            fetchProduct();
-        } else if (!api) {
-            setLoading(false);
-            setError("Servicio no disponible");
+    useEffect(() => {
+        if (producto && user) {
+            if (user.puntos_actuales < producto.puntos_requeridos) {
+                setValidationError('No tienes puntos Manny suficientes para esta recompensa.');
+            } else if (!producto.activo || (producto.tipo === 'producto' && producto.stock <= 0)) {
+                setValidationError('Esta recompensa no está disponible actualmente.');
+            } else {
+                setValidationError(null);
+            }
         }
-    }, [productoId, api, user?.puntos_actuales, toast]);
+    }, [producto, user]);
+
+    const error = queryError ? queryError.message : validationError;
 
     const handleConfirmarCanje = useCallback(async () => {
         if (!producto || error || !user?.id) return;
         
         setIsSubmitting(true);
         try {
-            const { nuevoSaldo, mensaje } = await api.registrarCanje({ cliente_id: user.id, producto_id: producto.id });
+            const { nuevoSaldo, mensaje } = await api.redemptions.registrarCanje({ cliente_id: user.id, producto_id: producto.id });
             updateUser({ puntos_actuales: nuevoSaldo });
             setSuccessMessage(mensaje);
             setCanjeExitoso(true);
@@ -74,11 +60,10 @@ const ConfirmarCanje = () => {
                 description: err.message,
                 variant: "destructive"
             });
-            setError(err.message);
         } finally {
             setIsSubmitting(false);
         }
-    }, [producto, error, api, user, updateUser, toast]);
+    }, [producto, error, user, updateUser, toast]);
 
     if (loading) {
         return <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;

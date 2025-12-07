@@ -5,7 +5,8 @@ import { Package, Plus, Edit, Trash2, Image as ImageIcon, Wrench, Loader2 } from
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import {
   Dialog,
   DialogContent,
@@ -24,10 +25,22 @@ const ProductForm = ({ product, onFinished }) => {
     const defaultState = { id: undefined, nombre: '', descripcion: '', tipo: 'producto', puntos_requeridos: '', stock: '', categoria: '', imagen_url: '', activo: true };
     const [formData, setFormData] = useState(product ? { ...product, puntos_requeridos: product.puntos_requeridos || '', stock: product.stock || '' } : defaultState);
     const [imagePreview, setImagePreview] = useState(product?.imagen_url || null);
-    const api = useSupabaseAPI();
     const { toast } = useToast();
     const { isAdmin } = useAuth();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const queryClient = useQueryClient();
+
+    const mutation = useMutation({
+        mutationFn: api.products.crearOActualizarProducto,
+        onSuccess: () => {
+            toast({ title: product ? 'Recompensa actualizada' : 'Recompensa creada con éxito' });
+            queryClient.invalidateQueries(['admin-productos']);
+            onFinished();
+        },
+        onError: (error) => {
+            console.error("Error submitting product:", error);
+            toast({ title: 'Error al guardar', description: error.message, variant: 'destructive' });
+        }
+    });
 
     useEffect(() => {
       setFormData(product ? { ...product, puntos_requeridos: product.puntos_requeridos || '', stock: product.stock || '' } : defaultState);
@@ -64,24 +77,16 @@ const ProductForm = ({ product, onFinished }) => {
             return;
         }
         
-        setIsSubmitting(true);
-        try {
-            const cleanData = {
-                ...formData,
-                puntos_requeridos: Number(formData.puntos_requeridos),
-                stock: formData.tipo === 'producto' ? Number(formData.stock) : null,
-            };
+        const cleanData = {
+            ...formData,
+            puntos_requeridos: Number(formData.puntos_requeridos),
+            stock: formData.tipo === 'producto' ? Number(formData.stock) : null,
+        };
 
-            await api.crearOActualizarProducto(cleanData);
-            toast({ title: product ? 'Recompensa actualizada' : 'Recompensa creada con éxito' });
-            onFinished();
-        } catch(error) {
-            console.error("Error submitting product:", error);
-            toast({ title: 'Error al guardar', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        mutation.mutate(cleanData);
     };
+
+    const isSubmitting = mutation.isPending;
 
     return (
         <DialogContent className="bg-card border-border text-foreground">
@@ -136,28 +141,28 @@ const ProductForm = ({ product, onFinished }) => {
 
 const AdminProductos = () => {
     const { toast } = useToast();
-    const { getAllProductosAdmin, eliminarProducto } = useSupabaseAPI();
-    const [productos, setProductos] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, producto: null });
 
-    const loadProductos = useCallback(async () => {
-        try {
-            setLoading(true);
-            const prods = await getAllProductosAdmin();
-            setProductos(prods);
-        } catch (error) {
-            toast({ title: "Error", description: "No se pudieron cargar las recompensas.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    }, [getAllProductosAdmin, toast]);
+    const { data: productos = [], isLoading: loading } = useQuery({
+        queryKey: ['admin-productos'],
+        queryFn: api.products.getAllProductosAdmin,
+    });
 
-    useEffect(() => {
-        loadProductos();
-    }, [loadProductos]);
+    const deleteMutation = useMutation({
+        mutationFn: api.products.eliminarProducto,
+        onSuccess: () => {
+            toast({ title: 'Recompensa eliminada' });
+            queryClient.invalidateQueries(['admin-productos']);
+            setDeleteConfirm({ open: false, producto: null });
+        },
+        onError: (error) => {
+            console.error("Error deleting product:", error);
+            toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
+        }
+    });
 
     const handleEdit = (producto) => {
         setEditingProduct(producto);
@@ -173,24 +178,14 @@ const AdminProductos = () => {
         setDeleteConfirm({ open: true, producto });
     };
 
-    const handleDeleteConfirm = async () => {
+    const handleDeleteConfirm = () => {
         if (!deleteConfirm.producto) return;
-        try {
-            await eliminarProducto(deleteConfirm.producto.id);
-            toast({ title: 'Recompensa eliminada' });
-            loadProductos();
-        } catch (error) {
-            console.error("Error deleting product:", error);
-            toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
-        } finally {
-            setDeleteConfirm({ open: false, producto: null });
-        }
+        deleteMutation.mutate(deleteConfirm.producto.id);
     };
 
     const handleFormFinished = () => {
         setShowForm(false);
         setEditingProduct(null);
-        loadProductos();
     }
 
     if (loading) {

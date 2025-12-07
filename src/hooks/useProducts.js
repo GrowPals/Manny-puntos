@@ -1,32 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 
 export const useProducts = () => {
-  const api = useSupabaseAPI();
-  const [productos, setProductos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchProductos = async () => {
-      setLoading(true);
-      try {
-        const prods = await api.getProductosCanje();
-        setProductos(prods);
-      } catch (err) {
-        console.error("Error fetching productos", err);
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (api) {
-      fetchProductos();
-    } else {
-      setLoading(false);
-    }
-  }, [api]);
+  const { data: productos = [], isLoading: loading, error } = useQuery({
+    queryKey: ['productos'],
+    queryFn: api.products.getProductosCanje,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   return { productos, loading, error };
 };

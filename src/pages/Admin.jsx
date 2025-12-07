@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, Gift, Truck, Loader2, Download, Upload, Database } from 'lucide-react';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,64 +32,52 @@ const AdminMetricCard = ({ icon, title, value, gradient, loading }) => (
 );
 
 const Admin = () => {
-    const api = useSupabaseAPI();
-    const [metrics, setMetrics] = useState({ clientes: 0, puntos: 0, productos: 0, canjes: 0 });
-    const [loading, setLoading] = useState(true);
-    const [entregas, setEntregas] = useState([]);
-    const [topClients, setTopClients] = useState([]);
     const { toast } = useToast();
     const fileInputRef = useRef(null);
     const [importData, setImportData] = useState(null);
     const [showImportConfirm, setShowImportConfirm] = useState(false);
 
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            if (!api || !api.getCanjesPendientes) {
-                toast({ title: 'Error de Carga', description: 'El sistema no está listo. Inténtalo más tarde.', variant: 'destructive' });
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            try {
-                const [clientesData, productosData, canjesPendientesData] = await Promise.all([
-                    api.getTodosLosClientes(),
-                    api.getProductosCanje(),
-                    api.getCanjesPendientes(),
-                ]);
-    
-                const totalPoints = clientesData.reduce((sum, c) => sum + (Number(c.puntos_actuales) || 0), 0);
-                const activeProducts = productosData.filter(p => p.activo).length;
-                const pendingRedemptionsCount = canjesPendientesData.length;
-                const recentPending = canjesPendientesData.slice(0, 5);
-    
-                setMetrics({
-                    clientes: clientesData.length || 0,
-                    puntos: totalPoints || 0,
-                    productos: activeProducts || 0,
-                    canjes: pendingRedemptionsCount || 0,
-                });
-    
-                setEntregas(recentPending);
-                const sortedClients = [...clientesData]
-                  .filter(c => !c.es_admin)
-                  .sort((a, b) => b.puntos_actuales - a.puntos_actuales);
-                setTopClients(sortedClients.slice(0, 5));
-    
-            } catch (error) {
-                console.error("Dashboard error:", error);
-                toast({ title: 'Error al cargar el dashboard', description: error.message, variant: 'destructive' });
-                setMetrics({ clientes: 0, puntos: 0, productos: 0, canjes: 0 });
-            } finally {
-                setLoading(false);
-            }
-        };
+    const { data: clientes = [], isLoading: loadingClientes } = useQuery({
+        queryKey: ['admin-clientes'],
+        queryFn: api.clients.getTodosLosClientes,
+    });
+
+    const { data: productos = [], isLoading: loadingProductos } = useQuery({
+        queryKey: ['admin-productos'],
+        queryFn: api.products.getProductosCanje,
+    });
+
+    const { data: canjesPendientes = [], isLoading: loadingCanjes } = useQuery({
+        queryKey: ['admin-canjes-pendientes'],
+        queryFn: api.redemptions.getCanjesPendientes,
+    });
+
+    const loading = loadingClientes || loadingProductos || loadingCanjes;
+
+    const metrics = React.useMemo(() => {
+        const totalPoints = clientes.reduce((sum, c) => sum + (Number(c.puntos_actuales) || 0), 0);
+        const activeProducts = productos.filter(p => p.activo).length;
         
-        fetchDashboardData();
-    }, [api, toast]);
+        return {
+            clientes: clientes.length || 0,
+            puntos: totalPoints || 0,
+            productos: activeProducts || 0,
+            canjes: canjesPendientes.length || 0,
+        };
+    }, [clientes, productos, canjesPendientes]);
+
+    const entregas = canjesPendientes.slice(0, 5);
+    
+    const topClients = React.useMemo(() => {
+        return [...clientes]
+          .filter(c => !c.es_admin)
+          .sort((a, b) => b.puntos_actuales - a.puntos_actuales)
+          .slice(0, 5);
+    }, [clientes]);
 
     const handleExport = async () => {
         try {
-            await api.exportMannyData();
+            await api.admin.exportMannyData();
             toast({ title: "Exportación iniciada", description: "El archivo de respaldo se está descargando." });
         } catch (error) {
             toast({ title: "Error de exportación", description: error.message, variant: "destructive" });
@@ -117,14 +106,14 @@ const Admin = () => {
     const handleImportConfirm = async () => {
         if (!importData) return;
         setShowImportConfirm(false);
-        setLoading(true);
+        // setLoading(true); // Loading is now derived from queries, but here we might want a local loading state or just rely on toast
         try {
-            await api.importMannyData(importData);
+            await api.admin.importMannyData(importData);
             toast({ title: "Importación exitosa", description: "Los datos se han importado correctamente. La página se recargará." });
             setTimeout(() => window.location.reload(), 2000);
         } catch (error) {
             toast({ title: "Error de importación", description: error.message, variant: "destructive" });
-            setLoading(false);
+            // setLoading(false);
         }
         setImportData(null);
     };

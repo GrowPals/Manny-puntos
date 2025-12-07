@@ -5,43 +5,33 @@ import { motion } from 'framer-motion';
 import { History, Loader2, ArrowLeft, PackageCheck, Hourglass, Wrench, Calendar, CheckCircle, Package, Coins } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const MisCanjes = () => {
     const { user } = useAuth();
-    const api = useSupabaseAPI();
     const { toast } = useToast();
-    const [historial, setHistorial] = useState({ canjes: [], historialPuntos: [] });
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('canjes');
 
-    const fetchHistorial = useCallback(async () => {
-        if (!user?.telefono || !api) {
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
+    const { data: historial = { canjes: [], historialPuntos: [] }, isLoading: loading, error } = useQuery({
+        queryKey: ['historial', user?.telefono],
+        queryFn: () => api.clients.getClienteHistorial(user.telefono),
+        enabled: !!user?.telefono,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
-        try {
-            const data = await api.getClienteHistorial(user.telefono);
-            setHistorial(data);
-        } catch (error) {
+    useEffect(() => {
+        if (error) {
             console.error("Error al cargar el historial:", error);
             toast({
                 title: "Error de Historial",
                 description: "No pudimos cargar tu historial.",
                 variant: "destructive"
             });
-        } finally {
-            setLoading(false);
         }
-    }, [user?.telefono, api, toast]);
-
-    useEffect(() => {
-        fetchHistorial();
-    }, [fetchHistorial]);
+    }, [error, toast]);
 
     const getEstadoInfo = (estado) => {
         const statuses = {

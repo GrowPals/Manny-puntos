@@ -6,14 +6,14 @@ import { motion } from 'framer-motion';
 import {
     ArrowLeft, User, Phone, Coins, Crown, Calendar, Gift, History,
     PlusCircle, Trash2, Loader2, Package, Wrench, CheckCircle,
-    Hourglass, PackageCheck
+    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { useSupabaseAPI } from '@/context/SupabaseContext';
+import { api } from '@/services/api';
 import {
     Dialog,
     DialogContent,
@@ -33,7 +33,6 @@ import {
 
 const AdminClienteDetalle = () => {
     const { clienteId } = useParams();
-    const api = useSupabaseAPI();
     const { toast } = useToast();
 
     const [loading, setLoading] = useState(true);
@@ -41,7 +40,9 @@ const AdminClienteDetalle = () => {
     const [canjes, setCanjes] = useState([]);
     const [historialPuntos, setHistorialPuntos] = useState([]);
     const [serviciosAsignados, setServiciosAsignados] = useState([]);
-    const [activeTab, setActiveTab] = useState('canjes');
+    const [historialServicios, setHistorialServicios] = useState([]);
+    const [stats, setStats] = useState(null);
+    const [activeTab, setActiveTab] = useState('historial');
 
     // Modal states
     const [showPointsModal, setShowPointsModal] = useState(false);
@@ -52,17 +53,19 @@ const AdminClienteDetalle = () => {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await api.getClienteDetalleAdmin(clienteId);
+            const data = await api.clients.getClienteDetalleAdmin(clienteId);
             setCliente(data.cliente);
             setCanjes(data.canjes);
             setHistorialPuntos(data.historialPuntos);
             setServiciosAsignados(data.serviciosAsignados);
+            setHistorialServicios(data.historialServicios);
+            setStats(data.stats);
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         } finally {
             setLoading(false);
         }
-    }, [clienteId, api, toast]);
+    }, [clienteId, toast]);
 
     useEffect(() => {
         fetchData();
@@ -82,13 +85,46 @@ const AdminClienteDetalle = () => {
     const handleDeleteService = async () => {
         if (!deleteService) return;
         try {
-            await api.eliminarServicioAsignado(deleteService.id);
+            await api.services.eliminarServicioAsignado(deleteService.id);
             toast({ title: 'Beneficio eliminado' });
             setDeleteService(null);
             fetchData();
         } catch (error) {
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
         }
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount || 0);
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('es-MX', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    };
+
+    const getTimeAgo = (dateString) => {
+        if (!dateString) return null;
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return 'Hoy';
+        if (diffDays === 1) return 'Ayer';
+        if (diffDays < 30) return `Hace ${diffDays} días`;
+        if (diffDays < 60) return 'Hace 1 mes';
+        if (diffDays < 365) return `Hace ${Math.floor(diffDays / 30)} meses`;
+        return `Hace ${Math.floor(diffDays / 365)} año(s)`;
     };
 
     if (loading) {
@@ -127,7 +163,7 @@ const AdminClienteDetalle = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-card rounded-2xl shadow-xl p-6 mb-8 border border-border"
+                    className="bg-card rounded-2xl shadow-xl p-6 mb-6 border border-border"
                 >
                     <div className="flex flex-col lg:flex-row justify-between gap-6">
                         <div className="flex items-start gap-4">
@@ -145,10 +181,15 @@ const AdminClienteDetalle = () => {
                                 </div>
                                 <div className="flex items-center gap-2 mt-1 text-muted-foreground text-sm">
                                     <Calendar className="w-4 h-4" />
-                                    <span>Registrado el {new Date(cliente.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                    <span>Cliente desde {formatDate(cliente.created_at)}</span>
                                 </div>
+                                {stats?.ultimo_servicio && (
+                                    <div className="flex items-center gap-2 mt-1 text-muted-foreground text-sm">
+                                        <Clock className="w-4 h-4" />
+                                        <span>Último servicio: {getTimeAgo(stats.ultimo_servicio)}</span>
+                                    </div>
+                                )}
                             </div>
-                            {/* Icon on the right for mobile, hidden on desktop */}
                             <div className="bg-primary/10 p-4 rounded-xl flex-shrink-0 lg:hidden">
                                 <User className="w-10 h-10 text-primary" />
                             </div>
@@ -181,28 +222,74 @@ const AdminClienteDetalle = () => {
                     </div>
                 </motion.div>
 
+                {/* Stats Cards */}
+                {stats && (stats.total_servicios > 0 || stats.total_canjes > 0) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"
+                    >
+                        <div className="bg-card rounded-xl p-4 border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Wrench className="w-4 h-4" />
+                                <span className="text-xs font-medium">Servicios</span>
+                            </div>
+                            <p className="text-2xl font-bold text-foreground">{stats.total_servicios}</p>
+                        </div>
+                        <div className="bg-card rounded-xl p-4 border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <DollarSign className="w-4 h-4" />
+                                <span className="text-xs font-medium">Invertido</span>
+                            </div>
+                            <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.total_invertido)}</p>
+                        </div>
+                        <div className="bg-card rounded-xl p-4 border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <TrendingUp className="w-4 h-4" />
+                                <span className="text-xs font-medium">Pts Generados</span>
+                            </div>
+                            <p className="text-2xl font-bold text-green-600">+{stats.total_puntos_generados?.toLocaleString('es-MX')}</p>
+                        </div>
+                        <div className="bg-card rounded-xl p-4 border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Package className="w-4 h-4" />
+                                <span className="text-xs font-medium">Canjes</span>
+                            </div>
+                            <p className="text-2xl font-bold text-foreground">{stats.total_canjes}</p>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* Tabs */}
-                <div className="flex border-b border-border mb-6">
+                <div className="flex border-b border-border mb-6 overflow-x-auto">
+                    <button
+                        onClick={() => setActiveTab('historial')}
+                        className={`flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'historial' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
+                    >
+                        <Wrench className="w-4 h-4 inline mr-1 sm:mr-2" />
+                        Historial ({historialServicios.length})
+                    </button>
                     <button
                         onClick={() => setActiveTab('canjes')}
-                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors ${activeTab === 'canjes' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
+                        className={`flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'canjes' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
                     >
                         <Package className="w-4 h-4 inline mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Canjes</span> ({canjes.length})
+                        Canjes ({canjes.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('puntos')}
-                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors ${activeTab === 'puntos' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
+                        className={`flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'puntos' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
                     >
                         <Coins className="w-4 h-4 inline mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Puntos</span> ({historialPuntos.length})
+                        Puntos ({historialPuntos.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('servicios')}
-                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors ${activeTab === 'servicios' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
+                        className={`flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'servicios' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
                     >
                         <Gift className="w-4 h-4 inline mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Beneficios</span> ({serviciosAsignados.length})
+                        Beneficios ({serviciosAsignados.length})
                     </button>
                 </div>
 
@@ -213,6 +300,56 @@ const AdminClienteDetalle = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
                 >
+                    {/* Historial de Servicios Tab */}
+                    {activeTab === 'historial' && (
+                        <div className="space-y-3">
+                            {historialServicios.length > 0 ? historialServicios.map((servicio) => {
+                                const hasMonto = servicio.monto && Number(servicio.monto) > 0;
+                                const hasPuntos = servicio.puntos_generados && servicio.puntos_generados > 0;
+                                return (
+                                    <div key={servicio.id} className="bg-card rounded-xl p-4 border border-border">
+                                        <div className="flex items-start gap-3">
+                                            <div className="p-2.5 rounded-lg flex-shrink-0 bg-primary/10">
+                                                <Wrench className="w-5 h-5 text-primary" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                {servicio.tipo_trabajo && (
+                                                    <span className="inline-block px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium rounded-md mb-1 uppercase tracking-wide">
+                                                        {servicio.tipo_trabajo}
+                                                    </span>
+                                                )}
+                                                <p className="font-semibold text-foreground">
+                                                    {servicio.titulo || `Ticket ${servicio.ticket_number}`}
+                                                </p>
+                                                {servicio.descripcion && (
+                                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                                        {servicio.descripcion}
+                                                    </p>
+                                                )}
+                                                <p className="text-xs text-muted-foreground mt-2">
+                                                    {formatDate(servicio.fecha_servicio)}
+                                                </p>
+                                            </div>
+                                            {hasMonto && (
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className="font-bold text-foreground">{formatCurrency(servicio.monto)}</p>
+                                                    {hasPuntos && (
+                                                        <p className="text-xs text-green-600 font-medium">+{servicio.puntos_generados} pts</p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
+                                <div className="text-center py-12 bg-card rounded-xl border border-border">
+                                    <Wrench className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                                    <p className="text-muted-foreground">No hay servicios registrados para este cliente.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Canjes Tab */}
                     {activeTab === 'canjes' && (
                         <div className="space-y-3">
@@ -222,21 +359,17 @@ const AdminClienteDetalle = () => {
                                 return (
                                     <div key={canje.id} className="bg-card rounded-xl p-4 border border-border">
                                         <div className="flex items-start gap-3">
-                                            {/* Icon */}
                                             <div className={`p-2.5 rounded-lg flex-shrink-0 ${isService ? 'bg-emerald-500/10' : 'bg-sky-500/10'}`}>
                                                 {isService ? <Wrench className="w-5 h-5 text-emerald-600" /> : <Package className="w-5 h-5 text-sky-600" />}
                                             </div>
-                                            {/* Info */}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-semibold text-foreground truncate">{canje.producto_nombre}</p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {new Date(canje.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    {formatDate(canje.created_at)}
                                                 </p>
                                             </div>
-                                            {/* Puntos */}
                                             <span className="font-mono font-bold text-red-500 flex-shrink-0">-{canje.puntos_usados}</span>
                                         </div>
-                                        {/* Status */}
                                         <div className="mt-3 pt-3 border-t border-border/50">
                                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${estadoInfo.color}`}>
                                                 {estadoInfo.icon}
@@ -262,18 +395,15 @@ const AdminClienteDetalle = () => {
                                 return (
                                     <div key={item.id} className="bg-card rounded-xl p-4 border border-border">
                                         <div className="flex items-start gap-3">
-                                            {/* Icon */}
                                             <div className={`p-2.5 rounded-lg flex-shrink-0 ${isPositive ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                                                 <Coins className={`w-5 h-5 ${isPositive ? 'text-green-600' : 'text-red-500'}`} />
                                             </div>
-                                            {/* Info */}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-semibold text-foreground truncate">{item.concepto}</p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {new Date(item.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    {formatDate(item.created_at)}
                                                 </p>
                                             </div>
-                                            {/* Puntos */}
                                             <span className={`font-mono font-bold flex-shrink-0 ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
                                                 {isPositive ? '+' : ''}{item.puntos}
                                             </span>
@@ -297,19 +427,16 @@ const AdminClienteDetalle = () => {
                                 return (
                                     <div key={servicio.id} className="bg-card rounded-xl p-4 border border-border">
                                         <div className="flex items-start gap-3">
-                                            {/* Icon */}
                                             <div className={`p-2.5 rounded-lg flex-shrink-0 ${isAvailable ? 'bg-primary/10' : 'bg-muted'}`}>
                                                 <Gift className={`w-5 h-5 ${isAvailable ? 'text-primary' : 'text-muted-foreground'}`} />
                                             </div>
-                                            {/* Info */}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-semibold text-foreground truncate">{servicio.nombre}</p>
                                                 {servicio.descripcion && <p className="text-sm text-muted-foreground truncate">{servicio.descripcion}</p>}
                                                 <p className="text-xs text-muted-foreground mt-1">
-                                                    {new Date(servicio.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                                    {formatDate(servicio.created_at)}
                                                 </p>
                                             </div>
-                                            {/* Actions */}
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${isAvailable ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
                                                     {isAvailable ? 'Activo' : 'Usado'}
@@ -388,7 +515,6 @@ const AssignPointsModal = ({ open, onClose, cliente, onSuccess }) => {
     const [points, setPoints] = useState('');
     const [concept, setConcept] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { asignarPuntosManualmente } = useSupabaseAPI();
     const { toast } = useToast();
 
     const handleSubmit = async (e) => {
@@ -399,7 +525,7 @@ const AssignPointsModal = ({ open, onClose, cliente, onSuccess }) => {
         }
         setIsSubmitting(true);
         try {
-            await asignarPuntosManualmente(cliente.telefono, parseInt(points), concept);
+            await api.clients.asignarPuntosManualmente(cliente.telefono, parseInt(points), concept);
             toast({ title: `${points} puntos asignados a ${cliente.nombre}` });
             setPoints('');
             setConcept('');
@@ -430,7 +556,7 @@ const AssignPointsModal = ({ open, onClose, cliente, onSuccess }) => {
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                        <Button type="submit" variant="investment" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Asignar
                         </Button>
@@ -445,7 +571,6 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { crearServicioAsignado } = useSupabaseAPI();
     const { toast } = useToast();
 
     const handleSubmit = async (e) => {
@@ -456,7 +581,7 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
         }
         setIsSubmitting(true);
         try {
-            await crearServicioAsignado({ cliente_id: cliente.id, nombre: name, descripcion: desc });
+            await api.services.crearServicioAsignado({ cliente_id: cliente.id, nombre: name, descripcion: desc });
             toast({ title: `Beneficio asignado a ${cliente.nombre}` });
             setName('');
             setDesc('');
@@ -487,7 +612,7 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                        <Button type="submit" variant="investment" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Asignar
                         </Button>
@@ -501,7 +626,6 @@ const AssignServiceModal = ({ open, onClose, cliente, onSuccess }) => {
 const ChangeLevelModal = ({ open, onClose, cliente, onSuccess }) => {
     const [level, setLevel] = useState(cliente?.nivel || 'partner');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { cambiarNivelCliente } = useSupabaseAPI();
     const { toast } = useToast();
 
     useEffect(() => {
@@ -516,7 +640,7 @@ const ChangeLevelModal = ({ open, onClose, cliente, onSuccess }) => {
         }
         setIsSubmitting(true);
         try {
-            await cambiarNivelCliente(cliente.id, level);
+            await api.clients.cambiarNivelCliente(cliente.id, level);
             toast({ title: `${cliente.nombre} ahora es ${level === 'vip' ? 'VIP' : 'Partner'}` });
             onClose();
             onSuccess();
@@ -553,7 +677,7 @@ const ChangeLevelModal = ({ open, onClose, cliente, onSuccess }) => {
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                        <Button type="submit" variant="investment" disabled={isSubmitting || level === cliente?.nivel}>
+                        <Button type="submit" disabled={isSubmitting || level === cliente?.nivel}>
                             {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Confirmar
                         </Button>
