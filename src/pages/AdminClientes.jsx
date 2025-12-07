@@ -34,8 +34,8 @@ import {
 const StatCard = ({ icon: Icon, label, value, color = "primary", trend }) => (
     <div className="bg-card rounded-xl p-4 border border-border">
         <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${color}/10`}>
-                <Icon className={`w-5 h-5 text-${color}`} />
+            <div className="text-primary">
+                <Icon className="w-6 h-6" />
             </div>
             <div className="flex-1">
                 <p className="text-sm text-muted-foreground">{label}</p>

@@ -32,6 +32,13 @@ const MisServicios = React.lazy(() => import('@/pages/MisServicios'));
 
 const AccesoDenegado = React.lazy(() => import('@/pages/AccesoDenegado'));
 
+// Referidos y Regalos
+const MisReferidos = React.lazy(() => import('@/pages/MisReferidos'));
+const ReferralLanding = React.lazy(() => import('@/pages/ReferralLanding'));
+const GiftLanding = React.lazy(() => import('@/pages/GiftLanding'));
+const AdminReferidos = React.lazy(() => import('@/pages/AdminReferidos'));
+const AdminRegalos = React.lazy(() => import('@/pages/AdminRegalos'));
+
 const LoadingFallback = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-background text-foreground z-[200]">
     <div className="flex flex-col items-center gap-4">
@@ -87,11 +94,16 @@ const AppRoutes = () => {
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
 
+          {/* Rutas públicas de referidos y regalos */}
+          <Route path="/r/:codigo" element={<ReferralLanding />} />
+          <Route path="/g/:codigo" element={<GiftLanding />} />
+
           <Route path="/dashboard" element={<ProtectedRoute><PageLayout seoTitle="Mis Recompensas"><Dashboard /></PageLayout></ProtectedRoute>} />
 
           <Route path="/canjear/:productoId" element={<ProtectedRoute><PageLayout seoTitle="Confirmar Canje"><ConfirmarCanje /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-canjes" element={<ProtectedRoute><PageLayout seoTitle="Mi Historial"><MisCanjes /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-servicios" element={<ProtectedRoute><PageLayout seoTitle="Mis Servicios"><MisServicios /></PageLayout></ProtectedRoute>} />
+          <Route path="/mis-referidos" element={<ProtectedRoute><PageLayout seoTitle="Mis Referidos"><MisReferidos /></PageLayout></ProtectedRoute>} />
 
           <Route path="/admin" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Panel de Administrador" isAdminRoute><Admin /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/productos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Productos" isAdminRoute><AdminProductos /></PageLayout></ProtectedRoute>} />
@@ -100,6 +112,8 @@ const AppRoutes = () => {
           <Route path="/admin/entregas" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Entregas" isAdminRoute><AdminEntregas /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/gestion" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Importar/Exportar" isAdminRoute><AdminGestion /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/recordatorios" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Recordatorios" isAdminRoute><AdminRecordatorios /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/referidos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Programa de Referidos" isAdminRoute><AdminReferidos /></PageLayout></ProtectedRoute>} />
+          <Route path="/admin/regalos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Links de Regalo" isAdminRoute><AdminRegalos /></PageLayout></ProtectedRoute>} />
           
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

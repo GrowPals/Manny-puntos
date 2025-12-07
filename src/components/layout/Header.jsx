@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,6 +77,8 @@ const Header = () => {
             <NavLink to="/admin/clientes" compact><Users className="w-4 h-4 mr-1.5" />Clientes</NavLink>
             <NavLink to="/admin/entregas" compact><Truck className="w-4 h-4 mr-1.5" />Canjes</NavLink>
             <NavLink to="/admin/recordatorios" compact><Bell className="w-4 h-4 mr-1.5" />Recordatorios</NavLink>
+            <NavLink to="/admin/referidos" compact><UserPlus className="w-4 h-4 mr-1.5" />Referidos</NavLink>
+            <NavLink to="/admin/regalos" compact><Gift className="w-4 h-4 mr-1.5" />Regalos</NavLink>
             <div className="w-px h-6 bg-border mx-1" />
             <NavLink to="/dashboard" end compact><Shield className="w-4 h-4 mr-1.5" />Cliente</NavLink>
         </>
@@ -90,6 +92,8 @@ const Header = () => {
             <NavLink to="/admin/clientes" onClick={onClick}><Users className="w-5 h-5 mr-3" />Clientes</NavLink>
             <NavLink to="/admin/entregas" onClick={onClick}><Truck className="w-5 h-5 mr-3" />Canjes</NavLink>
             <NavLink to="/admin/recordatorios" onClick={onClick}><Bell className="w-5 h-5 mr-3" />Recordatorios</NavLink>
+            <NavLink to="/admin/referidos" onClick={onClick}><UserPlus className="w-5 h-5 mr-3" />Referidos</NavLink>
+            <NavLink to="/admin/regalos" onClick={onClick}><Gift className="w-5 h-5 mr-3" />Regalos</NavLink>
             <NavLink to="/admin/gestion" onClick={onClick}><ShieldCheck className="w-5 h-5 mr-3" />Admins</NavLink>
             <hr className="my-2 border-border" />
             <NavLink to="/dashboard" end onClick={onClick}><Shield className="w-5 h-5 mr-3" />Vista Cliente</NavLink>

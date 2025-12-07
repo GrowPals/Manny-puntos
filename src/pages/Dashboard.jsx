@@ -9,6 +9,8 @@ import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/features/ProductCard';
 import ServicesList from '@/components/features/ServicesList';
 import NotificationSettings from '@/components/NotificationSettings';
+import ReferralCard from '@/components/features/ReferralCard';
+import MisBeneficiosCard from '@/components/features/MisBeneficiosCard';
 import { useProducts } from '@/hooks/useProducts';
 
 const Dashboard = () => {
@@ -89,6 +91,14 @@ const Dashboard = () => {
         </motion.div>
 
         {showServices && <ServicesList />}
+
+        {/* Mis Beneficios (regalos canjeados) */}
+        <MisBeneficiosCard />
+
+        {/* Tarjeta de referidos */}
+        <div className="px-4 md:px-0">
+          <ReferralCard />
+        </div>
 
         <div className="mb-6 px-4 md:px-0 flex justify-between items-center">
           <h2 className="text-2xl flex items-center gap-2">

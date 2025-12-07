@@ -13,6 +13,7 @@ export default defineConfig({
 			includeAssets: ['icon.png', 'icons/logo.svg'],
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
 				importScripts: ['/sw-custom.js'],
 				runtimeCaching: [
 					{

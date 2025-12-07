@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import {
     ArrowLeft, User, Phone, Coins, Crown, Calendar, Gift, History,
     PlusCircle, Trash2, Loader2, Package, Wrench, CheckCircle,
-    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock, KeyRound
+    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock, KeyRound,
+    Sparkles, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,7 @@ const AdminClienteDetalle = () => {
     const [showLevelModal, setShowLevelModal] = useState(false);
     const [showResetPinModal, setShowResetPinModal] = useState(false);
     const [deleteService, setDeleteService] = useState(null);
+    const [markingBeneficioId, setMarkingBeneficioId] = useState(null);
 
     const { data, isLoading: loading, error } = useQuery({
         queryKey: ['admin-cliente-detalle', clienteId],
@@ -50,6 +52,27 @@ const AdminClienteDetalle = () => {
     });
 
     const { cliente, canjes, historialPuntos, serviciosAsignados, historialServicios, stats } = data || {};
+
+    // Obtener beneficios de regalos/campañas
+    const { data: beneficiosRegalo = [], isLoading: loadingBeneficios } = useQuery({
+        queryKey: ['cliente-beneficios-regalo', clienteId],
+        queryFn: () => api.gifts.getClienteBeneficios(clienteId),
+        enabled: !!clienteId,
+    });
+
+    // Mutation para marcar beneficio como usado
+    const marcarUsadoMutation = useMutation({
+        mutationFn: ({ beneficioId, adminId }) => api.gifts.marcarBeneficioUsado(beneficioId, adminId),
+        onSuccess: () => {
+            toast({ title: 'Beneficio marcado como usado' });
+            setMarkingBeneficioId(null);
+            queryClient.invalidateQueries(['cliente-beneficios-regalo', clienteId]);
+        },
+        onError: (error) => {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+            setMarkingBeneficioId(null);
+        }
+    });
 
     const deleteMutation = useMutation({
         mutationFn: api.services.eliminarServicioAsignado,
@@ -284,6 +307,13 @@ const AdminClienteDetalle = () => {
                         <Gift className="w-4 h-4 inline mr-1 sm:mr-2" />
                         Beneficios ({serviciosAsignados.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('regalos')}
+                        className={`flex-none px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${activeTab === 'regalos' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}
+                    >
+                        <Sparkles className="w-4 h-4 inline mr-1 sm:mr-2" />
+                        Regalos ({beneficiosRegalo.length})
+                    </button>
                 </div>
 
                 {/* Tab Content */}
@@ -451,6 +481,108 @@ const AdminClienteDetalle = () => {
                                         <PlusCircle className="w-4 h-4 mr-2" />
                                         Asignar Beneficio
                                     </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Regalos/Campañas Tab */}
+                    {activeTab === 'regalos' && (
+                        <div className="space-y-3">
+                            {loadingBeneficios ? (
+                                <div className="flex justify-center py-12">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                </div>
+                            ) : beneficiosRegalo.length > 0 ? beneficiosRegalo.map((beneficio) => {
+                                const isActive = beneficio.estado === 'activo';
+                                const isUsed = beneficio.estado === 'usado';
+                                const isExpired = beneficio.estado === 'expirado';
+                                const isMarking = markingBeneficioId === beneficio.id;
+
+                                // Calcular días restantes
+                                const daysRemaining = beneficio.fecha_expiracion
+                                    ? Math.ceil((new Date(beneficio.fecha_expiracion) - new Date()) / (1000 * 60 * 60 * 24))
+                                    : null;
+                                const isExpiringSoon = daysRemaining !== null && daysRemaining <= 30 && daysRemaining > 0;
+
+                                return (
+                                    <div key={beneficio.id} className="bg-card rounded-xl p-4 border border-border">
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2.5 rounded-lg flex-shrink-0 ${
+                                                isActive ? 'bg-purple-500/10' : isUsed ? 'bg-blue-500/10' : 'bg-muted'
+                                            }`}>
+                                                <Sparkles className={`w-5 h-5 ${
+                                                    isActive ? 'text-purple-500' : isUsed ? 'text-blue-500' : 'text-muted-foreground'
+                                                }`} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <p className="font-semibold text-foreground">{beneficio.nombre_beneficio}</p>
+                                                    {beneficio.link?.nombre_campana && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-medium bg-purple-500/10 text-purple-500 rounded-full">
+                                                            {beneficio.link.nombre_campana}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {beneficio.descripcion && (
+                                                    <p className="text-sm text-muted-foreground mt-1">{beneficio.descripcion}</p>
+                                                )}
+                                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                                                    <span>Canjeado: {formatDate(beneficio.fecha_canje)}</span>
+                                                    {beneficio.fecha_expiracion && (
+                                                        <span className={isExpiringSoon ? 'text-orange-500 flex items-center gap-1' : ''}>
+                                                            {isExpiringSoon && <AlertTriangle className="w-3 h-3" />}
+                                                            Expira: {formatDate(beneficio.fecha_expiracion)}
+                                                            {isExpiringSoon && ` (${daysRemaining}d)`}
+                                                        </span>
+                                                    )}
+                                                    {isUsed && beneficio.fecha_uso && (
+                                                        <span className="text-blue-500">Usado: {formatDate(beneficio.fecha_uso)}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                    isActive ? 'bg-green-500/10 text-green-600' :
+                                                    isUsed ? 'bg-blue-500/10 text-blue-600' :
+                                                    'bg-red-500/10 text-red-500'
+                                                }`}>
+                                                    {isActive ? 'Activo' : isUsed ? 'Usado' : 'Expirado'}
+                                                </span>
+                                                {isActive && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={isMarking || marcarUsadoMutation.isPending}
+                                                        onClick={() => {
+                                                            setMarkingBeneficioId(beneficio.id);
+                                                            marcarUsadoMutation.mutate({
+                                                                beneficioId: beneficio.id,
+                                                                adminId: cliente.id // Use client ID for now
+                                                            });
+                                                        }}
+                                                    >
+                                                        {isMarking ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <>
+                                                                <CheckCircle className="w-4 h-4 mr-1" />
+                                                                Marcar usado
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
+                                <div className="text-center py-12 bg-card rounded-xl border border-border">
+                                    <Sparkles className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                                    <p className="text-muted-foreground">Este cliente no ha canjeado regalos de campañas.</p>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Los regalos aparecen aquí cuando el cliente canjea un link de regalo.
+                                    </p>
                                 </div>
                             )}
                         </div>

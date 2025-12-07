@@ -110,12 +110,14 @@ const AdminRecordatorios = () => {
     });
 
     const [localConfig, setLocalConfig] = useState(null);
+    const [configInitialized, setConfigInitialized] = useState(false);
 
     useEffect(() => {
-        if (config) {
+        if (config && !configInitialized) {
             setLocalConfig(config);
+            setConfigInitialized(true);
         }
-    }, [config]);
+    }, [config, configInitialized]);
 
     const handleToggleActive = (checked) => {
         const newConfig = { ...localConfig, activo: checked };

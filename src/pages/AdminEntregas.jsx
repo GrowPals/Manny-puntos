@@ -73,8 +73,8 @@ const AdminEntregas = () => {
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="bg-card rounded-2xl shadow-sm border border-border p-4 flex flex-col gap-3">
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className={`p-2.5 rounded-lg flex-shrink-0 ${canje.tipo === 'servicio' ? 'bg-emerald-500/10' : 'bg-sky-500/10'}`}>
-                        {canje.tipo === 'servicio' ? <Wrench className="w-5 h-5 text-emerald-600"/> : <Package className="w-5 h-5 text-sky-600"/>}
+                    <div className="text-primary">
+                        {canje.tipo === 'servicio' ? <Wrench className="w-6 h-6"/> : <Package className="w-6 h-6"/>}
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">

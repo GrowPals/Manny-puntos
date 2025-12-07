@@ -4,6 +4,8 @@ import * as clients from './clients';
 import * as redemptions from './redemptions';
 import * as services from './services';
 import * as admin from './admin';
+import * as referrals from './referrals';
+import * as gifts from './gifts';
 
 export const api = {
   auth,
@@ -11,5 +13,7 @@ export const api = {
   clients,
   redemptions,
   services,
-  admin
+  admin,
+  referrals,
+  gifts
 };

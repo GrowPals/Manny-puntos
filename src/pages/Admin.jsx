@@ -34,35 +34,35 @@ const NIVEL_COLORS = {
     vip: '#8b5cf6'
 };
 
-const AdminMetricCard = ({ icon, title, value, subtitle, gradient, loading, trend }) => (
+const AdminMetricCard = ({ icon, title, value, subtitle, loading, trend }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`card p-5 ${gradient} text-white relative overflow-hidden`}
+        className="bg-card rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200"
     >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16" />
-        <div className="relative">
-            <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center`}>
-                    {React.cloneElement(icon, { className: `w-5 h-5` })}
-                </div>
-                {trend && (
-                    <div className={`flex items-center gap-1 text-xs ${trend > 0 ? 'text-green-200' : 'text-red-200'}`}>
-                        {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {Math.abs(trend)}%
-                    </div>
-                )}
+        <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <div className="text-primary">
+                {React.cloneElement(icon, { className: "w-6 h-6" })}
             </div>
-            <p className="text-white/70 text-sm font-medium mb-1">{title}</p>
-            {loading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-            ) : (
-                <>
-                    <p className="text-3xl font-bold">{value}</p>
-                    {subtitle && <p className="text-xs text-white/60 mt-1">{subtitle}</p>}
-                </>
-            )}
         </div>
+        
+        {loading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        ) : (
+            <div className="space-y-1">
+                <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+                <div className="flex items-center gap-2">
+                     {trend && (
+                        <span className={`text-xs font-medium flex items-center ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+                            {Math.abs(trend)}%
+                        </span>
+                    )}
+                    {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                </div>
+            </div>
+        )}
     </motion.div>
 );
 
@@ -224,14 +224,12 @@ const Admin = () => {
                     title="Clientes"
                     value={stats?.resumen?.totalClientes || 0}
                     subtitle={`+${stats?.resumen?.clientesNuevosMes || 0} este mes`}
-                    gradient="bg-gradient-to-br from-blue-500 to-blue-600"
                     loading={loading}
                 />
                 <AdminMetricCard
                     icon={<TrendingUp />}
                     title="Puntos Totales"
                     value={(stats?.resumen?.totalPuntos || 0).toLocaleString('es-MX')}
-                    gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
                     loading={loading}
                 />
                 <AdminMetricCard
@@ -239,14 +237,12 @@ const Admin = () => {
                     title="Ingresos"
                     value={`$${((stats?.resumen?.totalIngresos || 0) / 1000).toFixed(0)}k`}
                     subtitle="Total acumulado"
-                    gradient="bg-gradient-to-br from-green-500 to-green-600"
                     loading={loading}
                 />
                 <AdminMetricCard
                     icon={<Wrench />}
                     title="Servicios"
                     value={stats?.resumen?.totalServicios || 0}
-                    gradient="bg-gradient-to-br from-orange-500 to-orange-600"
                     loading={loading}
                 />
                 <AdminMetricCard
@@ -254,7 +250,6 @@ const Admin = () => {
                     title="Recompensas"
                     value={stats?.productosActivos || 0}
                     subtitle="Productos activos"
-                    gradient="bg-gradient-to-br from-purple-500 to-purple-600"
                     loading={loading}
                 />
                 <AdminMetricCard
@@ -262,7 +257,6 @@ const Admin = () => {
                     title="Pendientes"
                     value={stats?.canjesStats?.pendientes || 0}
                     subtitle={`${stats?.canjesStats?.total || 0} canjes total`}
-                    gradient="bg-manny-gradient"
                     loading={loading}
                 />
             </div>
@@ -444,8 +438,8 @@ const Admin = () => {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                    <ShoppingBag className="w-5 h-5 text-blue-500" />
+                                <div className="text-primary">
+                                    <ShoppingBag className="w-6 h-6" />
                                 </div>
                                 <span className="text-sm text-muted-foreground">Total Canjes</span>
                             </div>
@@ -453,21 +447,21 @@ const Admin = () => {
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                                    <Gift className="w-5 h-5 text-green-500" />
+                                <div className="text-primary">
+                                    <Gift className="w-6 h-6" />
                                 </div>
                                 <span className="text-sm text-muted-foreground">Entregados</span>
                             </div>
-                            <span className="text-xl font-bold text-green-500">{stats?.canjesStats?.entregados || 0}</span>
+                            <span className="text-xl font-bold text-primary">{stats?.canjesStats?.entregados || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                                    <Truck className="w-5 h-5 text-orange-500" />
+                                <div className="text-primary">
+                                    <Truck className="w-6 h-6" />
                                 </div>
                                 <span className="text-sm text-muted-foreground">Pendientes</span>
                             </div>
-                            <span className="text-xl font-bold text-orange-500">{stats?.canjesStats?.pendientes || 0}</span>
+                            <span className="text-xl font-bold text-primary">{stats?.canjesStats?.pendientes || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl">
                             <div className="flex items-center gap-3">
