@@ -265,10 +265,11 @@ const Admin = () => {
         queryFn: api.clients.getTodosLosClientes,
     });
 
-    const { data: canjesPendientes = [], isLoading: loadingCanjes } = useQuery({
+    const { data: canjesResponse, isLoading: loadingCanjes } = useQuery({
         queryKey: ['admin-canjes-pendientes'],
         queryFn: api.redemptions.getCanjesPendientes,
     });
+    const canjesPendientes = canjesResponse?.data || [];
 
     const loading = loadingStats || loadingClientes || loadingCanjes;
 

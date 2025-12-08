@@ -16,10 +16,11 @@ const AdminEntregas = () => {
     const [activeTab, setActiveTab] = useState('productos');
     const [searchTerm, setSearchTerm] = useState('');
 
-    const { data: canjes = [], isLoading: loading } = useQuery({
+    const { data: canjesResponse, isLoading: loading } = useQuery({
         queryKey: ['admin-canjes'],
         queryFn: api.redemptions.getTodosLosCanjes,
     });
+    const canjes = canjesResponse?.data || [];
 
     const mutation = useMutation({
         mutationFn: ({ canjeId, nuevoEstado }) => api.redemptions.actualizarEstadoCanje(canjeId, nuevoEstado),
