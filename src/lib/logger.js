@@ -16,8 +16,6 @@ const LogLevel = {
 export const EventType = {
   // Sync events - actively used
   SYNC_QUEUED: 'sync.queued',
-  SYNC_COMPLETED: 'sync.completed',
-  SYNC_FAILED: 'sync.failed',
 
   // Gift events - used
   GIFT_CLAIMED: 'gift.claimed',

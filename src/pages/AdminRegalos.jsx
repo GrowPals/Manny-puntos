@@ -31,6 +31,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { VALIDATION } from '@/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import useWhatsAppShare from '@/hooks/useWhatsAppShare';
 import {
     Dialog,
     DialogContent,
@@ -47,6 +48,7 @@ import StateBadge from '@/components/common/StateBadge';
 const AdminRegalos = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const { shareViaWhatsApp, buildGiftMessage } = useWhatsAppShare();
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showDetailsDialog, setShowDetailsDialog] = useState(false);
     const [showBeneficiariosDialog, setShowBeneficiariosDialog] = useState(false);
@@ -333,29 +335,8 @@ const AdminRegalos = () => {
     };
 
     const handleShareWhatsApp = (link) => {
-        const url = `${window.location.origin}/g/${link.codigo}`;
-
-        let message;
-        if (link.es_campana) {
-            // Mensaje para campañas - más elaborado
-            const beneficio = link.tipo === 'puntos'
-                ? `${link.puntos_regalo?.toLocaleString()} puntos`
-                : link.nombre_beneficio;
-
-            message = link.mensaje_personalizado
-                ? `${link.mensaje_personalizado}\n\n👉 ${url}`
-                : `🎁 *${link.nombre_campana || 'Regalo especial'}*\n\n` +
-                  `Te comparto: ${beneficio}\n\n` +
-                  `Reclámalo aquí:\n👉 ${url}`;
-        } else {
-            // Mensaje para links individuales
-            message = link.mensaje_personalizado
-                ? `${link.mensaje_personalizado}\n\n👉 ${url}`
-                : `🎁 Tienes un regalo de Manny Rewards\n\n` +
-                  `Reclámalo aquí:\n👉 ${url}`;
-        }
-
-        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+        const message = buildGiftMessage(link, window.location.origin);
+        shareViaWhatsApp(message);
     };
 
     const handleExpire = (linkId) => {

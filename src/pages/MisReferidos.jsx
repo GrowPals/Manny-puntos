@@ -10,11 +10,13 @@ import { useAuth } from '@/context/AuthContext';
 import StatCard from '@/components/common/StatCard';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import StateBadge from '@/components/common/StateBadge';
+import useWhatsAppShare from '@/hooks/useWhatsAppShare';
 import { logger } from '@/lib/logger';
 
 const MisReferidos = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { shareWithFallback } = useWhatsAppShare();
   const [copied, setCopied] = useState(false);
 
   const { data: stats, isLoading: loadingStats, error: statsError } = useQuery({
@@ -69,30 +71,12 @@ const MisReferidos = () => {
   const handleShare = async () => {
     if (!referralLink || !config) return;
 
-    const shareData = {
+    await shareWithFallback({
       title: 'Manny Rewards',
       text: config.mensaje_compartir,
       url: referralLink,
-    };
-
-    if (navigator.share && navigator.canShare?.(shareData)) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          openWhatsApp();
-        }
-      }
-    } else {
-      openWhatsApp();
-    }
-  };
-
-  const openWhatsApp = () => {
-    const message = encodeURIComponent(
-      `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`
-    );
-    window.open(`https://wa.me/?text=${message}`, '_blank');
+      whatsappMessage: `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`,
+    });
   };
 
 

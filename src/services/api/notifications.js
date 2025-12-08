@@ -166,16 +166,6 @@ export const notifyClienteNivelCambiado = (clienteId, nuevoNivel) => {
 };
 
 /**
- * Notify referidor when their referido is activated and they receive bonus points
- */
-export const notifyReferidorReferidoActivado = (referidorId, referidoNombre, puntosGanados) => {
-  fireAndForget(
-    sendPushToClient('referido_activado', referidorId, { referido: referidoNombre, puntos: puntosGanados }, '/mis-referidos'),
-    { trigger: 'referido_activado', referidorId, referidoNombre }
-  );
-};
-
-/**
  * Notify client when their benefit has been marked as used
  */
 export const notifyClienteBeneficioUsado = (clienteId) => {
@@ -196,6 +186,5 @@ export default {
   notifyClienteBeneficioReclamado,
   notifyAdminsNuevoBeneficio,
   notifyClienteNivelCambiado,
-  notifyReferidorReferidoActivado,
   notifyClienteBeneficioUsado
 };

@@ -7,13 +7,13 @@ import {
     Calendar,
     Coins
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import EmptyState from '@/components/common/EmptyState';
 
 const MisServicios = () => {
     const { user } = useAuth();
@@ -152,27 +152,6 @@ const MisServicios = () => {
         );
     });
 
-    // Estado vacío
-    const EmptyState = () => (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-12 bg-card rounded-xl shadow-sm border border-border"
-        >
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                <Wrench className="w-8 h-8 text-muted-foreground/50" />
-            </div>
-            <h2 className="text-lg font-semibold text-foreground">Sin servicios registrados</h2>
-            <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">
-                Aquí aparecerá tu historial de servicios con Manny.
-            </p>
-            <Link to="/dashboard">
-                <button className="mt-5 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:opacity-90 transition-opacity">
-                    Volver al Dashboard
-                </button>
-            </Link>
-        </motion.div>
-    );
 
     return (
         <>
@@ -208,7 +187,13 @@ const MisServicios = () => {
                     </div>
                 </>
             ) : (
-                <EmptyState />
+                <EmptyState
+                    icon={Wrench}
+                    title="Sin servicios registrados"
+                    description="Aquí aparecerá tu historial de servicios con Manny."
+                    actionLabel="Volver al Dashboard"
+                    actionTo="/dashboard"
+                />
             )}
         </>
     );
