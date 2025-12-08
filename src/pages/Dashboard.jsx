@@ -97,10 +97,8 @@ const Dashboard = () => {
             </p>
           </div>
 
-          {/* Notification settings */}
-          <div className="px-4 pb-4">
-            <NotificationSettings clienteId={user?.id} />
-          </div>
+          {/* Notification settings - el componente se auto-oculta cuando ya están activadas */}
+          <NotificationSettings clienteId={user?.id} />
         </motion.section>
 
         {/* Services for Partner/VIP */}

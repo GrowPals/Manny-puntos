@@ -2,6 +2,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone, normalizePhone } from '@/config';
 import { enqueueSyncOperation } from './sync';
+import { notifyClienteNivelCambiado } from './notifications';
 
 export const getTodosLosClientes = async () => {
   const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
@@ -160,6 +161,9 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
         console.error('Error en cambiarNivelCliente:', error);
         throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_CHANGE_ERROR);
     }
+
+    // Fire and forget: Notify client about level change
+    notifyClienteNivelCambiado(clienteId, nuevoNivel);
 
     return data;
 };

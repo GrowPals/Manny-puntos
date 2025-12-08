@@ -10,11 +10,19 @@ export default defineConfig({
 		react(),
 		VitePWA({
 			registerType: 'autoUpdate',
-			includeAssets: ['icon.png', 'icons/logo.svg'],
+			includeAssets: ['icon.png', 'icons/logo.svg', 'sw-custom.js'],
+			devOptions: {
+				enabled: true, // Enable SW in development
+				type: 'module',
+				navigateFallback: 'index.html',
+			},
 			workbox: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
 				importScripts: ['/sw-custom.js'],
+				// Skip waiting and claim clients immediately
+				skipWaiting: true,
+				clientsClaim: true,
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/kuftyqupibyjliaukpxn\.supabase\.co\/.*/i,

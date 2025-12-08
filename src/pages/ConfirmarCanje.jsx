@@ -46,7 +46,13 @@ const ConfirmarCanje = () => {
         
         setIsSubmitting(true);
         try {
-            const { nuevoSaldo, mensaje } = await api.redemptions.registrarCanje({ cliente_id: user.id, producto_id: producto.id });
+            const { nuevoSaldo, mensaje } = await api.redemptions.registrarCanje({
+                cliente_id: user.id,
+                producto_id: producto.id,
+                cliente_nombre: user.nombre,
+                producto_nombre: producto.nombre,
+                puntos_producto: producto.puntos_requeridos
+            });
             updateUser({ puntos_actuales: nuevoSaldo });
             setSuccessMessage(mensaje);
             setCanjeExitoso(true);

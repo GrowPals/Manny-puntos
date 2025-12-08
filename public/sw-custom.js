@@ -1,91 +1,181 @@
-// Custom Service Worker handlers for push notifications
+/**
+ * Manny Rewards - Custom Service Worker
+ * Handles push notifications with proper error handling and logging
+ */
 
-// Handle push notifications
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push received:', event);
+const SW_VERSION = '1.0.0';
+const APP_NAME = 'Manny Rewards';
 
-  let data = {
-    title: 'Manny Rewards',
-    body: 'Tienes una nueva notificación',
-    icon: '/icons/isotipo.svg',
-    badge: '/icons/isotipo.svg',
-    data: { url: '/dashboard' }
-  };
-
-  try {
-    if (event.data) {
-      data = { ...data, ...event.data.json() };
-    }
-  } catch (e) {
-    console.warn('[SW] Could not parse push data:', e);
+// Logging utility
+const log = (message, data = null) => {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[SW ${SW_VERSION}] ${timestamp} - ${message}`, data);
+  } else {
+    console.log(`[SW ${SW_VERSION}] ${timestamp} - ${message}`);
   }
+};
 
-  const options = {
-    body: data.body,
-    icon: data.icon || '/icons/isotipo.svg',
-    badge: data.badge || '/icons/isotipo.svg',
-    vibrate: data.vibrate || [200, 100, 200],
-    tag: data.tag || 'manny-notification',
-    renotify: true,
-    requireInteraction: data.requireInteraction || false,
-    data: data.data || { url: '/' },
-    actions: data.actions || []
+// Default notification options
+const DEFAULT_NOTIFICATION = {
+  title: APP_NAME,
+  body: 'Tienes una nueva notificacion',
+  icon: '/icon.png',
+  badge: '/icon.png',
+  vibrate: [200, 100, 200],
+  tag: 'manny-notification',
+  renotify: true,
+  requireInteraction: false,
+  data: { url: '/dashboard' }
+};
+
+/**
+ * Handle incoming push notifications
+ */
+self.addEventListener('push', (event) => {
+  log('Push event received');
+
+  const handlePush = async () => {
+    let notificationData = { ...DEFAULT_NOTIFICATION };
+
+    try {
+      if (event.data) {
+        const payload = event.data.json();
+        log('Push payload:', payload);
+
+        notificationData = {
+          ...notificationData,
+          title: payload.title || notificationData.title,
+          body: payload.body || notificationData.body,
+          icon: payload.icon || notificationData.icon,
+          badge: payload.badge || notificationData.badge,
+          vibrate: payload.vibrate || notificationData.vibrate,
+          tag: payload.tag || notificationData.tag,
+          renotify: payload.renotify ?? notificationData.renotify,
+          requireInteraction: payload.requireInteraction ?? notificationData.requireInteraction,
+          actions: payload.actions || [],
+          data: {
+            ...notificationData.data,
+            ...payload.data
+          }
+        };
+      }
+    } catch (error) {
+      log('Error parsing push data:', error.message);
+    }
+
+    try {
+      await self.registration.showNotification(notificationData.title, {
+        body: notificationData.body,
+        icon: notificationData.icon,
+        badge: notificationData.badge,
+        vibrate: notificationData.vibrate,
+        tag: notificationData.tag,
+        renotify: notificationData.renotify,
+        requireInteraction: notificationData.requireInteraction,
+        actions: notificationData.actions,
+        data: notificationData.data
+      });
+      log('Notification displayed successfully');
+    } catch (error) {
+      log('Error showing notification:', error.message);
+    }
   };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  event.waitUntil(handlePush());
 });
 
-// Handle notification click (general click or action button click)
+/**
+ * Handle notification clicks
+ */
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
-  console.log('[SW] Action:', event.action);
-  console.log('[SW] Notification data:', event.notification.data);
+  log('Notification click event', { action: event.action });
 
   event.notification.close();
 
   const notificationData = event.notification.data || {};
 
-  // Handle specific actions
-  if (event.action === 'whatsapp') {
-    // Open WhatsApp with the pre-filled message
-    const whatsappUrl = notificationData.whatsapp_url;
-    if (whatsappUrl) {
-      event.waitUntil(
-        clients.openWindow(whatsappUrl)
-      );
+  const handleClick = async () => {
+    // Handle specific actions
+    if (event.action === 'whatsapp' && notificationData.whatsapp_url) {
+      log('Opening WhatsApp');
+      await clients.openWindow(notificationData.whatsapp_url);
       return;
     }
-  }
 
-  if (event.action === 'dismiss') {
-    // Just close the notification, already done above
-    return;
-  }
+    if (event.action === 'dismiss') {
+      log('Notification dismissed');
+      return;
+    }
 
-  // Default action: open the app at the specified URL
-  const urlToOpen = notificationData.url || '/dashboard';
+    // Default: focus existing window or open new one
+    const urlToOpen = new URL(notificationData.url || '/dashboard', self.location.origin).href;
+    log('Opening URL:', urlToOpen);
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((windowClients) => {
-        // Check if there's already a window open
-        for (const client of windowClients) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
-            client.navigate(urlToOpen);
-            return client.focus();
+    try {
+      const windowClients = await clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      });
+
+      // Try to focus an existing window
+      for (const client of windowClients) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          await client.focus();
+          if ('navigate' in client) {
+            await client.navigate(urlToOpen);
           }
+          return;
         }
-        // If no window is open, open a new one
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
-      })
-  );
+      }
+
+      // Open new window if none exists
+      if (clients.openWindow) {
+        await clients.openWindow(urlToOpen);
+      }
+    } catch (error) {
+      log('Error handling notification click:', error.message);
+    }
+  };
+
+  event.waitUntil(handleClick());
 });
 
-// Handle notification close
+/**
+ * Handle notification close
+ */
 self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed:', event);
+  log('Notification closed', { tag: event.notification.tag });
 });
+
+/**
+ * Handle push subscription change
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+  log('Push subscription changed');
+
+  const handleSubscriptionChange = async () => {
+    try {
+      // Re-subscribe with the same options
+      const subscription = await self.registration.pushManager.subscribe(
+        event.oldSubscription.options
+      );
+      log('Re-subscribed successfully');
+
+      // Notify the app about the new subscription
+      const allClients = await clients.matchAll({ type: 'window' });
+      for (const client of allClients) {
+        client.postMessage({
+          type: 'PUSH_SUBSCRIPTION_CHANGED',
+          subscription: subscription.toJSON()
+        });
+      }
+    } catch (error) {
+      log('Error re-subscribing:', error.message);
+    }
+  };
+
+  event.waitUntil(handleSubscriptionChange());
+});
+
+log('Custom Service Worker loaded');

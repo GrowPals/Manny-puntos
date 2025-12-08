@@ -3,6 +3,11 @@ import { withRetry } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone } from '@/config';
 import { enqueueSyncOperation } from './sync';
+import {
+  notifyClienteBeneficioReclamado,
+  notifyAdminsNuevoBeneficio,
+  notifyClienteBeneficioUsado
+} from './notifications';
 
 // ==================== PÚBLICO ====================
 
@@ -97,6 +102,24 @@ export const claimGift = async (codigo, telefono) => {
         const businessError = new Error(data?.error || 'No se pudo canjear el regalo');
         businessError.isBusinessError = true;
         throw businessError;
+      }
+
+      // Fire and forget: Send notifications
+      if (data.cliente_id && data.nombre_beneficio) {
+        notifyClienteBeneficioReclamado(data.cliente_id, data.nombre_beneficio);
+
+        // Get client name for admin notification
+        supabase
+          .from('clientes')
+          .select('nombre')
+          .eq('id', data.cliente_id)
+          .single()
+          .then(({ data: cliente }) => {
+            if (cliente?.nombre) {
+              notifyAdminsNuevoBeneficio(cliente.nombre, data.nombre_beneficio);
+            }
+          })
+          .catch(() => {}); // Silent fail
       }
 
       return data;
@@ -301,6 +324,13 @@ export const getClienteBeneficios = async (clienteId) => {
  * Marca un beneficio como usado
  */
 export const marcarBeneficioUsado = async (beneficioId, adminId, notas = null) => {
+  // Get beneficio info before marking for notification
+  const { data: beneficioInfo } = await supabase
+    .from('beneficios_cliente')
+    .select('cliente_id, nombre_beneficio')
+    .eq('id', beneficioId)
+    .single();
+
   const { data, error } = await supabase.rpc('marcar_beneficio_usado', {
     p_beneficio_id: beneficioId,
     p_admin_id: adminId,
@@ -314,6 +344,11 @@ export const marcarBeneficioUsado = async (beneficioId, adminId, notas = null) =
 
   if (!data.success) {
     throw new Error(data.error || 'No se pudo marcar el beneficio');
+  }
+
+  // Fire and forget: Notify client that their benefit was used
+  if (beneficioInfo?.cliente_id) {
+    notifyClienteBeneficioUsado(beneficioInfo.cliente_id);
   }
 
   return data;

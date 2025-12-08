@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { withRetry } from '@/lib/utils';
+import {
+    notifyClienteCanjeListoParaRecoger,
+    notifyClienteCanjeEntregado,
+    notifyAdminsNuevoCanje
+} from './notifications';
 
 export const getTodosLosCanjes = async () => {
     const { data, error } = await supabase
@@ -40,12 +45,28 @@ export const getCanjesPendientes = async () => {
 };
 
 export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
+    // Get canje data before updating for notification
+    const { data: canjeData } = await supabase
+        .from('canjes')
+        .select('cliente_id, productos(nombre)')
+        .eq('id', canjeId)
+        .single();
+
     const { error } = await supabase
         .from('canjes')
         .update({ estado: nuevoEstado })
         .eq('id', canjeId);
 
     if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.UPDATE_STATUS_ERROR);
+
+    // Send push notifications based on new state (fire and forget)
+    if (canjeData?.cliente_id) {
+        if (nuevoEstado === 'pendiente_entrega') {
+            notifyClienteCanjeListoParaRecoger(canjeData.cliente_id, canjeData.productos?.nombre || 'tu producto');
+        } else if (nuevoEstado === 'entregado') {
+            notifyClienteCanjeEntregado(canjeData.cliente_id);
+        }
+    }
 
     // Sync status change to Notion (fire and forget)
     try {
@@ -57,7 +78,7 @@ export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
     return true;
 };
 
-export const registrarCanje = async ({ cliente_id, producto_id }) => {
+export const registrarCanje = async ({ cliente_id, producto_id, cliente_nombre, producto_nombre, puntos_producto }) => {
     // Use retry logic for the critical redemption operation
     const data = await withRetry(
         async () => {
@@ -88,6 +109,11 @@ export const registrarCanje = async ({ cliente_id, producto_id }) => {
             shouldRetry: (error) => !error.isBusinessError
         }
     );
+
+    // Fire and forget: Notify admins about new redemption
+    if (cliente_nombre && producto_nombre) {
+        notifyAdminsNuevoCanje(cliente_nombre, producto_nombre, puntos_producto || 0);
+    }
 
     // Fire and forget: Crear ticket en Notion Tickets Manny
     try {

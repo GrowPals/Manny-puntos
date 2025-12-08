@@ -12,39 +12,64 @@ const NOTIFICATION_TEMPLATES = {
   bienvenida: {
     title: '¡Bienvenido a Manny Rewards!',
     body: 'Ya puedes acumular puntos y canjear recompensas exclusivas.',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
   },
   puntos_recibidos: {
     title: '¡Ganaste {puntos} puntos!',
     body: 'Tu servicio "{concepto}" ha sido registrado. Saldo actual: {saldo} puntos.',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
   },
   canje_listo: {
     title: '¡Tu {producto} está listo!',
     body: 'Pasa a recoger tu recompensa. ¡Te esperamos!',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
   },
   canje_completado: {
     title: 'Canje entregado',
     body: '¡Gracias por ser parte de Manny Rewards! Sigue acumulando puntos.',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
   },
   recordatorio_puntos: {
     title: '¡Tienes {puntos} puntos esperándote!',
     body: 'No olvides canjear tus recompensas. ¡Hay productos increíbles!',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
+  },
+  beneficio_reclamado: {
+    title: '¡Beneficio activado!',
+    body: 'Tu beneficio "{nombre}" está listo para usar. ¡Disfrútalo!',
+    icon: '/icon.png',
+  },
+  beneficio_usado: {
+    title: 'Beneficio utilizado',
+    body: 'Tu beneficio ha sido marcado como usado. ¡Gracias por confiar en Manny!',
+    icon: '/icon.png',
+  },
+  nivel_cambiado: {
+    title: '¡Felicidades! Subiste a nivel {nivel}',
+    body: 'Ahora tienes acceso a beneficios exclusivos. ¡Gracias por ser parte de Manny!',
+    icon: '/icon.png',
+  },
+  referido_activado: {
+    title: '¡Tu referido fue activado!',
+    body: '{referido} ya es cliente Manny. Ganaste {puntos} puntos de bonificación.',
+    icon: '/icon.png',
   },
 
   // Para admins
   nuevo_canje: {
     title: 'Nuevo canje: {producto}',
     body: '{cliente} canjeó {puntos} puntos. Preparar para entrega.',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
+  },
+  nuevo_beneficio: {
+    title: 'Nuevo beneficio reclamado',
+    body: '{cliente} reclamó: {beneficio}',
+    icon: '/icon.png',
   },
   resumen_diario: {
     title: 'Resumen del día',
     body: '{canjes} canjes pendientes de entrega.',
-    icon: '/icons/isotipo.svg',
+    icon: '/icon.png',
   },
 };
 
@@ -77,7 +102,7 @@ async function sendWebPush(
       title: payload.title,
       body: payload.body,
       icon: payload.icon,
-      badge: '/icons/isotipo.svg',
+      badge: '/icon.png',
       vibrate: [200, 100, 200],
       tag: 'manny-notification',
       renotify: true,

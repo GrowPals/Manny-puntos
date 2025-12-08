@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
+import NotificationBell from '@/components/layout/NotificationBell';
 import { cn } from '@/lib/utils';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
 
@@ -141,6 +142,10 @@ const Header = () => {
                                 <Coins className="w-4 h-4" />
                                 {user.puntos_actuales?.toLocaleString('es-MX')}
                             </div>
+                        )}
+                        {/* Notification bell for all logged in users */}
+                        {user && (
+                            <NotificationBell clienteId={user?.id} isAdmin={isAdmin} />
                         )}
                         <ThemeToggle />
                         {user && (
