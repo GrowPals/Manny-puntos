@@ -381,6 +381,49 @@ export const expireGiftLink = async (linkId) => {
 };
 
 /**
+ * Actualiza un link de regalo existente (solo campos editables)
+ */
+export const updateGiftLink = async (linkId, updates) => {
+  // Solo permitir actualizar ciertos campos
+  const allowedFields = [
+    'nombre_beneficio',
+    'descripcion_beneficio',
+    'mensaje_personalizado',
+    'nombre_campana',
+    'terminos_condiciones',
+    'instrucciones_uso',
+    'imagen_banner',
+    'color_tema',
+    'max_canjes'
+  ];
+
+  const filteredUpdates = {};
+  for (const key of allowedFields) {
+    if (updates[key] !== undefined) {
+      filteredUpdates[key] = updates[key];
+    }
+  }
+
+  if (Object.keys(filteredUpdates).length === 0) {
+    throw new Error('No hay campos válidos para actualizar');
+  }
+
+  const { data, error } = await supabase
+    .from('links_regalo')
+    .update(filteredUpdates)
+    .eq('id', linkId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('Error actualizando link de regalo', { error: error.message, linkId });
+    throw new Error('Error al actualizar el link de regalo');
+  }
+
+  return data;
+};
+
+/**
  * Elimina un link de regalo (solo si no tiene canjes)
  */
 export const deleteGiftLink = async (linkId) => {

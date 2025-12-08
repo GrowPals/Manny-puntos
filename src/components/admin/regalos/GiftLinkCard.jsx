@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from './utils';
@@ -29,6 +30,7 @@ const GiftLinkCard = ({
   onCopyLink,
   onShareWhatsApp,
   onViewBeneficiarios,
+  onEdit,
   onExpire,
   onDelete
 }) => {
@@ -172,6 +174,19 @@ const GiftLinkCard = ({
             >
               <Users className="w-4 h-4 mr-1" />
               <span className="text-xs">Ver</span>
+            </Button>
+          )}
+
+          {/* Botón editar - siempre visible para links activos */}
+          {link.estado === 'pendiente' && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => onEdit(link)}
+              title="Editar"
+              className="h-8 w-8"
+            >
+              <Pencil className="w-4 h-4" />
             </Button>
           )}
 

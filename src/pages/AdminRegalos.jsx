@@ -20,6 +20,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 // Extracted components
 import {
   CreateGiftDialog,
+  EditGiftDialog,
   GiftDetailsDialog,
   BeneficiariosDialog,
   GiftPreviewDialog,
@@ -35,9 +36,15 @@ const AdminRegalos = () => {
 
   // Dialog states
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showBeneficiariosDialog, setShowBeneficiariosDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+
+  // Edit states
+  const [editingLink, setEditingLink] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [uploadingEditBanner, setUploadingEditBanner] = useState(false);
 
   // Selection and UI states
   const [selectedLink, setSelectedLink] = useState(null);
@@ -299,6 +306,44 @@ const AdminRegalos = () => {
     }
   };
 
+  const handleEdit = (link) => {
+    setEditingLink(link);
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async (formData, bannerFile) => {
+    if (!editingLink) return;
+
+    try {
+      setSavingEdit(true);
+      let updates = { ...formData };
+
+      // Upload new banner if provided
+      if (bannerFile) {
+        setUploadingEditBanner(true);
+        const bannerUrl = await api.gifts.subirImagenBanner(bannerFile);
+        updates.imagen_banner = bannerUrl;
+        setUploadingEditBanner(false);
+      }
+
+      await api.gifts.updateGiftLink(editingLink.id, updates);
+
+      toast({ title: "Link actualizado" });
+      queryClient.invalidateQueries(['admin-regalos-list']);
+      setShowEditDialog(false);
+      setEditingLink(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSavingEdit(false);
+      setUploadingEditBanner(false);
+    }
+  };
+
   // ============================================================================
   // RENDER
   // ============================================================================
@@ -353,6 +398,15 @@ const AdminRegalos = () => {
         onCreate={handleCreate}
         isCreating={createMutation.isPending}
         isUploadingBanner={uploadingBanner}
+      />
+
+      <EditGiftDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        link={editingLink}
+        onSave={handleSaveEdit}
+        isSaving={savingEdit}
+        isUploadingBanner={uploadingEditBanner}
       />
 
       {/* Header */}
@@ -454,6 +508,7 @@ const AdminRegalos = () => {
                 onCopyLink={handleCopyLink}
                 onShareWhatsApp={handleShareWhatsApp}
                 onViewBeneficiarios={() => handleLoadBeneficiarios(link)}
+                onEdit={handleEdit}
                 onExpire={handleExpire}
                 onDelete={handleDelete}
               />
