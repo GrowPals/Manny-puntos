@@ -1,10 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Dominios permitidos para CORS
+const ALLOWED_ORIGINS = [
+  'https://recompensas.manny.mx',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 // Tipos de notificación y sus mensajes predefinidos
 const NOTIFICATION_TEMPLATES = {
@@ -183,6 +194,9 @@ async function sendWebPush(
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -202,9 +216,37 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // =====================================================
+    // VALIDACIÓN DE CALLER - Debe ser un cliente autenticado
+    // =====================================================
+    const callerClienteId = req.headers.get('x-cliente-id');
+
+    if (!callerClienteId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing client ID' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar que el caller existe en la base de datos
+    const { data: caller, error: callerError } = await supabase
+      .from('clientes')
+      .select('id, es_admin')
+      .eq('id', callerClienteId)
+      .single();
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid client' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // =====================================================
+
     const payload: PushPayload = await req.json();
 
-    console.log('Push notification request:', payload);
+    console.log('Push notification request:', { tipo: payload.tipo, to_admins: payload.to_admins });
 
     const { tipo, cliente_id, to_admins, data = {}, url } = payload;
 

@@ -1,10 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Dominios permitidos para CORS
+const ALLOWED_ORIGINS = [
+  'https://recompensas.manny.mx',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+function getCorsHeaders(origin: string | null) {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 const MANNY_REWARDS_DATABASE_ID = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
 
@@ -61,6 +72,9 @@ async function updateMannyRewardNivel(rewardId: string, nuevoNivel: string, noti
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -79,8 +93,36 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // =====================================================
+    // VALIDACIÓN DE ADMIN - Solo admins pueden cambiar niveles
+    // =====================================================
+    const callerClienteId = req.headers.get('x-cliente-id');
+
+    if (!callerClienteId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing client ID' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar que el caller sea admin
+    const { data: caller, error: callerError } = await supabase
+      .from('clientes')
+      .select('id, es_admin')
+      .eq('id', callerClienteId)
+      .single();
+
+    if (callerError || !caller || !caller.es_admin) {
+      console.warn(`Unauthorized attempt to change nivel by ${callerClienteId}`);
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // =====================================================
+
     const { cliente_id, nuevo_nivel }: UpdateNivelData = await req.json();
-    console.log('Update cliente nivel:', cliente_id, nuevo_nivel);
+    console.log('Update cliente nivel:', cliente_id, nuevo_nivel, 'by admin:', callerClienteId);
 
     if (!cliente_id || !nuevo_nivel) {
       return new Response(JSON.stringify({ error: 'cliente_id and nuevo_nivel are required' }), {
