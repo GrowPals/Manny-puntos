@@ -1,14 +1,26 @@
 import { supabase } from '@/lib/customSupabaseClient';
-import { withRetry } from '@/lib/utils';
+import { withRetry, callEdgeFunction } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone } from '@/config';
 import { enqueueSyncOperation } from './sync';
 import { logger } from '@/lib/logger';
+import { uploadImage } from '@/lib/storage';
 import {
   notifyClienteBeneficioReclamado,
   notifyAdminsNuevoBeneficio,
   notifyClienteBeneficioUsado
 } from './notifications';
+
+// ==================== STORAGE ====================
+
+/**
+ * Sube una imagen de banner para campañas de regalo
+ * @param {File} file - Archivo de imagen a subir
+ * @returns {Promise<string>} URL pública de la imagen
+ */
+export const subirImagenBanner = async (file) => {
+  return uploadImage(file, 'regalos/banners', { context: 'banner de campaña' });
+};
 
 // ==================== PÚBLICO ====================
 
@@ -403,13 +415,10 @@ export const deleteGiftLink = async (linkId) => {
  */
 export const createBenefitTicket = async (beneficioId) => {
   try {
-    const { data, error } = await supabase.functions.invoke('create-reward-ticket', {
-      body: { tipo: 'beneficio', id: beneficioId }
-    });
-
-    if (error) {
-      throw error;
-    }
+    const data = await callEdgeFunction(supabase, 'create-reward-ticket', {
+      tipo: 'beneficio',
+      id: beneficioId
+    }, { timeout: 30000, retries: 1 });
 
     return data;
   } catch (error) {

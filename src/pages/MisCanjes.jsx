@@ -1,15 +1,15 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { History, Loader2, PackageCheck, Hourglass, Wrench, Calendar, CheckCircle, Package, Coins } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { History, Wrench, Package, Coins } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { logger } from '@/lib/logger';
+import EmptyState from '@/components/common/EmptyState';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import StateBadge from '@/components/common/StateBadge';
 
 const MisCanjes = () => {
     const { user } = useAuth();
@@ -34,21 +34,8 @@ const MisCanjes = () => {
         }
     }, [error, toast]);
 
-    const getEstadoInfo = (estado) => {
-        const statuses = {
-            'pendiente_entrega': { text: 'Próximo servicio', icon: <Hourglass className="w-4 h-4" />, bg: 'bg-yellow-500/10', text_color: 'text-yellow-600' },
-            'entregado': { text: 'Entregado', icon: <PackageCheck className="w-4 h-4" />, bg: 'bg-green-500/10', text_color: 'text-green-600' },
-            'en_lista': { text: 'Te contactaremos', icon: <Hourglass className="w-4 h-4" />, bg: 'bg-blue-500/10', text_color: 'text-blue-600' },
-            'agendado': { text: 'Agendado', icon: <Calendar className="w-4 h-4" />, bg: 'bg-purple-500/10', text_color: 'text-purple-600' },
-            'completado': { text: 'Completado', icon: <CheckCircle className="w-4 h-4" />, bg: 'bg-green-500/10', text_color: 'text-green-600' },
-        };
-        return statuses[estado] || { text: 'Pendiente', icon: <Hourglass className="w-4 h-4" />, bg: 'bg-muted', text_color: 'text-muted-foreground' };
-    };
-
     const CanjeCard = React.memo(({ canje, index }) => {
-        const estadoInfo = getEstadoInfo(canje.estado);
         const IconoTipo = canje.tipo === 'servicio' ? Wrench : Package;
-        const isService = canje.tipo === 'servicio';
 
         return (
             <motion.div
@@ -59,7 +46,7 @@ const MisCanjes = () => {
             >
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${isService ? 'bg-primary/10' : 'bg-primary/10'}`}>
+                    <div className="p-2 rounded-lg flex-shrink-0 bg-primary/10">
                         <IconoTipo className="w-4 h-4 text-primary" />
                     </div>
                     {/* Info */}
@@ -74,10 +61,7 @@ const MisCanjes = () => {
                 </div>
                 {/* Status */}
                 <div className="mt-3 pt-3 border-t border-border">
-                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium ${estadoInfo.bg} ${estadoInfo.text_color}`}>
-                        {estadoInfo.icon}
-                        <span>{estadoInfo.text}</span>
-                    </div>
+                    <StateBadge estado={canje.estado} type="canje" size="sm" />
                 </div>
             </motion.div>
         );
@@ -157,9 +141,7 @@ const MisCanjes = () => {
             </div>
 
             {loading ? (
-                <div className="text-center py-12">
-                    <Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" />
-                </div>
+                <LoadingSpinner size="lg" />
             ) : (
                 <motion.div
                     key={activeTab}
@@ -174,9 +156,11 @@ const MisCanjes = () => {
                             </div>
                         ) : (
                             <EmptyState
-                                icon={<Package className="w-12 h-12" />}
+                                icon={Package}
                                 title="Sin canjes"
                                 description="Aún no has canjeado ninguna recompensa."
+                                actionLabel="Ver Catálogo"
+                                actionTo="/dashboard"
                             />
                         )
                     )}
@@ -188,7 +172,7 @@ const MisCanjes = () => {
                             </div>
                         ) : (
                             <EmptyState
-                                icon={<Coins className="w-12 h-12" />}
+                                icon={Coins}
                                 title="Sin movimientos"
                                 description="Aún no tienes movimientos de puntos registrados."
                             />
@@ -199,22 +183,5 @@ const MisCanjes = () => {
         </>
     );
 };
-
-const EmptyState = ({ icon, title, description }) => (
-    <motion.div
-        initial={{opacity: 0, scale: 0.98}}
-        animate={{opacity: 1, scale: 1}}
-        className="text-center py-12 bg-card rounded-xl shadow-sm border border-border"
-    >
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center text-muted-foreground/50">
-            {icon}
-        </div>
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">{description}</p>
-        <Link to="/dashboard">
-           <Button className="mt-5" size="sm">Ver Catálogo</Button>
-        </Link>
-    </motion.div>
-);
 
 export default MisCanjes;

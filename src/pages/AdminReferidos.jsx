@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +8,6 @@ import {
     Save,
     CheckCircle2,
     Clock,
-    XCircle,
     TrendingUp,
     Gift,
     Target,
@@ -36,6 +35,7 @@ import {
 import { formatDate } from '@/lib/utils';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
+import StateBadge from '@/components/common/StateBadge';
 
 const AdminReferidos = () => {
     const { toast } = useToast();
@@ -63,14 +63,15 @@ const AdminReferidos = () => {
 
     const loading = loadingStats || loadingReferidos || loadingConfig;
 
-    // Estado local para editar config
+    // Local editable state - synced from server config
     const [localConfig, setLocalConfig] = useState(null);
 
-    React.useEffect(() => {
-        if (config && !localConfig) {
+    // Sync local state when server config loads
+    useEffect(() => {
+        if (config && JSON.stringify(config) !== JSON.stringify(localConfig)) {
             setLocalConfig(config);
         }
-    }, [config, localConfig]);
+    }, [config]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Mutation para actualizar config
     const configMutation = useMutation({
@@ -117,22 +118,6 @@ const AdminReferidos = () => {
         acc[referidorId].referidos.push(ref);
         return acc;
     }, {});
-
-    const getEstadoBadge = (estado) => {
-        const badges = {
-            pendiente: { color: 'bg-yellow-500/10 text-yellow-500', icon: Clock, label: 'Pendiente' },
-            activo: { color: 'bg-green-500/10 text-green-500', icon: CheckCircle2, label: 'Activo' },
-            expirado: { color: 'bg-red-500/10 text-red-500', icon: XCircle, label: 'Expirado' },
-        };
-        const badge = badges[estado] || badges.pendiente;
-        const Icon = badge.icon;
-        return (
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.color}`}>
-                <Icon className="w-3 h-3" />
-                {badge.label}
-            </span>
-        );
-    };
 
     if (loading && !localConfig) {
         return <LoadingSpinner size="md" />;
@@ -578,7 +563,7 @@ const AdminReferidos = () => {
                                                             +{ref.puntos_referidor} / +{ref.puntos_referido} pts
                                                         </span>
                                                     )}
-                                                    {getEstadoBadge(ref.estado)}
+                                                    <StateBadge estado={ref.estado} type="referral" size="sm" />
                                                 </div>
                                             </div>
                                         ))}

@@ -1,11 +1,11 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Gift, Lock, XCircle, Wrench, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { logger } from '@/lib/logger';
+import CanjeModal from './CanjeModal';
 
 const ProductCard = memo(({ producto, userPoints = 0 }) => {
-  const navigate = useNavigate();
+  const [showCanjeModal, setShowCanjeModal] = useState(false);
 
   if (!producto || typeof userPoints !== 'number') {
     logger.error('ProductCard: Invalid props received', { producto, userPoints });
@@ -19,9 +19,9 @@ const ProductCard = memo(({ producto, userPoints = 0 }) => {
 
   const handleClick = useCallback(() => {
     if (canRedeem) {
-      navigate(`/canjear/${producto.id}`);
+      setShowCanjeModal(true);
     }
-  }, [canRedeem, navigate, producto.id]);
+  }, [canRedeem]);
 
   const getButtonState = () => {
     if (!isAvailable) {
@@ -37,6 +37,12 @@ const ProductCard = memo(({ producto, userPoints = 0 }) => {
   const buttonState = getButtonState();
 
   return (
+    <>
+    <CanjeModal
+      producto={producto}
+      open={showCanjeModal}
+      onOpenChange={setShowCanjeModal}
+    />
     <div
       onClick={handleClick}
       className={`bg-card rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-border group ${
@@ -123,6 +129,7 @@ const ProductCard = memo(({ producto, userPoints = 0 }) => {
         </Button>
       </div>
     </div>
+    </>
   );
 });
 

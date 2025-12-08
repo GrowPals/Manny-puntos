@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,6 +12,7 @@ import { VALIDATION, UI_CONFIG, isValidPhone } from '@/config';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { logger } from '@/lib/logger';
 import AppDownloadStep from '@/components/AppDownloadStep';
+import FormattedText from '@/components/common/FormattedText';
 
 // Pre-generate particle data to avoid re-renders with Math.random()
 const FLOATING_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
@@ -342,16 +343,32 @@ const GiftLanding = () => {
               {/* Banner de campaña si existe */}
               {giftData?.imagen_banner && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 rounded-2xl overflow-hidden border border-border shadow-lg"
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 100 }}
+                  className="mb-8 rounded-2xl overflow-hidden shadow-2xl relative"
+                  style={{
+                    boxShadow: `0 25px 50px -12px ${giftData.color_tema || '#E91E63'}40`
+                  }}
                 >
+                  {/* Glow effect */}
+                  <div
+                    className="absolute inset-0 blur-3xl opacity-30"
+                    style={{ backgroundColor: giftData.color_tema || '#E91E63' }}
+                  />
                   <img
                     src={giftData.imagen_banner}
-                    alt="Promoción"
-                    className="w-full h-40 object-cover"
-                    loading="lazy"
+                    alt={giftData.nombre_campana || 'Promoción'}
+                    className="w-full h-48 object-cover relative z-10"
+                    loading="eager"
                     decoding="async"
+                  />
+                  {/* Overlay gradient */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-16 z-20"
+                    style={{
+                      background: `linear-gradient(to top, ${giftData.color_tema || '#E91E63'}30, transparent)`
+                    }}
                   />
                 </motion.div>
               )}
@@ -605,40 +622,51 @@ const GiftLanding = () => {
               {/* Términos y Condiciones */}
               {giftData.terminos_condiciones && (
                 <div className="mb-4 p-4 rounded-xl border border-orange-500/20 bg-orange-500/5">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    <p className="font-medium text-sm text-orange-600">Condiciones importantes</p>
+                    <p className="font-medium text-sm text-orange-600 dark:text-orange-400">Condiciones importantes</p>
                   </div>
-                  <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {giftData.terminos_condiciones}
-                  </div>
+                  <FormattedText
+                    text={giftData.terminos_condiciones}
+                    className="text-foreground"
+                  />
                 </div>
               )}
 
               {/* Instrucciones de uso */}
               {giftData.instrucciones_uso && (
                 <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <Info className="w-4 h-4 text-blue-500" />
-                    <p className="font-medium text-sm text-blue-600">¿Cómo usarlo?</p>
+                    <p className="font-medium text-sm text-blue-600 dark:text-blue-400">¿Cómo usarlo?</p>
                   </div>
-                  <p className="text-sm text-foreground">
-                    {giftData.instrucciones_uso}
-                  </p>
+                  <FormattedText
+                    text={giftData.instrucciones_uso}
+                    className="text-foreground"
+                  />
                 </div>
               )}
 
               {/* Vigencia */}
               {giftData.vigencia_beneficio && (
-                <div className="mb-6 text-center text-sm text-muted-foreground">
-                  <span>Vigencia del beneficio: </span>
-                  <span className="font-medium text-foreground">
-                    {giftData.vigencia_beneficio === 365
-                      ? '1 año'
-                      : `${giftData.vigencia_beneficio} días`
-                    }
-                  </span>
-                  <span> después de reclamarlo</span>
+                <div className="mb-6 p-3 rounded-xl bg-muted/30 border border-border">
+                  <div className="flex items-center justify-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-primary" />
+                      <span className="text-muted-foreground">Vigencia:</span>
+                      <span className="font-medium text-foreground">
+                        {giftData.vigencia_beneficio === 365
+                          ? '1 año'
+                          : giftData.vigencia_beneficio === 30
+                            ? '1 mes'
+                            : `${giftData.vigencia_beneficio} días`
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    A partir del momento en que lo reclames
+                  </p>
                 </div>
               )}
 

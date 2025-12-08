@@ -54,6 +54,24 @@ const LoadingFallback = () => (
   </div>
 );
 
+// Fallback for page-level errors
+const PageErrorFallback = () => (
+  <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+    <div className="bg-card p-6 rounded-2xl shadow-lg border border-destructive/30 max-w-md">
+      <h2 className="text-xl font-bold text-destructive mb-2">Error en la página</h2>
+      <p className="text-muted-foreground mb-4">
+        Algo salió mal al cargar esta sección. Intenta recargar.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+      >
+        Recargar página
+      </button>
+    </div>
+  </div>
+);
+
 const PageLayout = ({ children, seoTitle, seoDescription, isAdminRoute = false }) => {
   // Add bottom padding for bottom nav on mobile/tablet (only for non-admin users)
   const mainPadding = isAdminRoute ? "py-6 lg:py-8" : "py-6 lg:py-8 pb-24 lg:pb-8";
@@ -63,7 +81,9 @@ const PageLayout = ({ children, seoTitle, seoDescription, isAdminRoute = false }
       <SEOHelmet title={seoTitle} description={seoDescription} />
       <Header />
       <main className={`flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${mainPadding} flex flex-col`}>
-        {children}
+        <ErrorBoundary fallback={<PageErrorFallback />}>
+          {children}
+        </ErrorBoundary>
       </main>
       <Footer />
     </div>

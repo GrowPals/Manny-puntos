@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
 /**
- * Niveles de log
+ * Niveles de log (uso interno)
  */
-export const LogLevel = {
+const LogLevel = {
   DEBUG: 'debug',
   INFO: 'info',
   WARN: 'warn',
@@ -11,32 +11,16 @@ export const LogLevel = {
 };
 
 /**
- * Tipos de eventos para auditoría
+ * Tipos de eventos para auditoría (solo los que se usan realmente)
  */
 export const EventType = {
-  // Auth events
-  LOGIN_SUCCESS: 'auth.login_success',
-  LOGIN_FAILED: 'auth.login_failed',
-  LOGOUT: 'auth.logout',
-  PIN_REGISTERED: 'auth.pin_registered',
-
-  // Gift events
-  GIFT_VIEWED: 'gift.viewed',
-  GIFT_CLAIMED: 'gift.claimed',
-  GIFT_CLAIM_FAILED: 'gift.claim_failed',
-
-  // Referral events
-  REFERRAL_APPLIED: 'referral.applied',
-  REFERRAL_FAILED: 'referral.failed',
-
-  // Sync events
+  // Sync events - actively used
   SYNC_QUEUED: 'sync.queued',
   SYNC_COMPLETED: 'sync.completed',
   SYNC_FAILED: 'sync.failed',
 
-  // Redemption events
-  REDEMPTION_SUCCESS: 'redemption.success',
-  REDEMPTION_FAILED: 'redemption.failed',
+  // Gift events - used
+  GIFT_CLAIMED: 'gift.claimed',
 };
 
 /**
@@ -158,7 +142,7 @@ class Logger {
   }
 
   /**
-   * Helpers para eventos comunes
+   * Helper para eventos de gift (usado)
    */
   giftClaimed(giftId, clienteId, details = {}) {
     this.audit({
@@ -172,31 +156,9 @@ class Logger {
     });
   }
 
-  giftClaimFailed(giftId, clienteId, error, details = {}) {
-    this.audit({
-      eventType: EventType.GIFT_CLAIM_FAILED,
-      entityType: 'gift',
-      entityId: giftId,
-      action: 'Gift claim failed',
-      details,
-      clienteId,
-      success: false,
-      errorMessage: error,
-    });
-  }
-
-  referralApplied(referralId, clienteId, details = {}) {
-    this.audit({
-      eventType: EventType.REFERRAL_APPLIED,
-      entityType: 'referral',
-      entityId: referralId,
-      action: 'Referral code applied',
-      details,
-      clienteId,
-      success: true,
-    });
-  }
-
+  /**
+   * Helper para sync queued (usado)
+   */
   syncQueued(resourceId, operationType, details = {}) {
     this.audit({
       eventType: EventType.SYNC_QUEUED,
@@ -205,18 +167,6 @@ class Logger {
       action: `Sync queued: ${operationType}`,
       details,
       success: true,
-    });
-  }
-
-  syncFailed(resourceId, operationType, error, details = {}) {
-    this.audit({
-      eventType: EventType.SYNC_FAILED,
-      entityType: 'sync',
-      entityId: resourceId,
-      action: `Sync failed: ${operationType}`,
-      details,
-      success: false,
-      errorMessage: error,
     });
   }
 }

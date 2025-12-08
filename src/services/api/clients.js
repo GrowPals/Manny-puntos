@@ -1,21 +1,27 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
-import { isValidPhone, normalizePhone } from '@/config';
+import { isValidPhone, normalizePhone, isValidName } from '@/config';
 import { enqueueSyncOperation } from './sync';
 import { notifyClienteNivelCambiado, notifyClientePuntosRecibidos } from './notifications';
 import { logger } from '@/lib/logger';
+import { callEdgeFunction } from '@/lib/utils';
 
-export const getTodosLosClientes = async () => {
-  const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
+export const getTodosLosClientes = async ({ limit = 100, offset = 0 } = {}) => {
+  const { data, error, count } = await supabase
+    .from('clientes')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
   if (error) {
     logger.error('Error obteniendo todos los clientes', { error: error.message });
     throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_ERROR);
   }
-  return data || [];
+  return { data: data || [], count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
 export const crearOActualizarCliente = async (clienteData) => {
-  if (!clienteData.nombre || clienteData.nombre.trim().length < 3) throw new Error(ERROR_MESSAGES.CLIENTS.NAME_REQUIRED);
+  if (!isValidName(clienteData.nombre)) throw new Error(ERROR_MESSAGES.CLIENTS.NAME_REQUIRED);
   if (!clienteData.telefono || !isValidPhone(clienteData.telefono)) throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_REQUIRED);
 
   // Normalize phone number
@@ -160,19 +166,20 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
         throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_INVALID);
     }
 
-    const { data, error } = await supabase.functions.invoke('update-cliente-nivel', {
-        body: { cliente_id: clienteId, nuevo_nivel: nuevoNivel }
-    });
+    try {
+        const data = await callEdgeFunction(supabase, 'update-cliente-nivel', {
+            cliente_id: clienteId,
+            nuevo_nivel: nuevoNivel
+        }, { timeout: 15000, retries: 2 });
 
-    if (error) {
+        // Fire and forget: Notify client about level change
+        notifyClienteNivelCambiado(clienteId, nuevoNivel);
+
+        return data;
+    } catch (error) {
         logger.error('Error cambiando nivel de cliente', { error: error.message, clienteId, nuevoNivel });
         throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_CHANGE_ERROR);
     }
-
-    // Fire and forget: Notify client about level change
-    notifyClienteNivelCambiado(clienteId, nuevoNivel);
-
-    return data;
 };
 
 export const cambiarRolAdmin = async (clienteId, esAdmin, changedById) => {
@@ -206,13 +213,9 @@ export const cambiarRolAdmin = async (clienteId, esAdmin, changedById) => {
  */
 export const syncToNotion = async (clienteId) => {
     try {
-        const { data, error } = await supabase.functions.invoke('sync-cliente-to-notion', {
-            body: { cliente_id: clienteId }
-        });
-
-        if (error) {
-            throw error;
-        }
+        const data = await callEdgeFunction(supabase, 'sync-cliente-to-notion', {
+            cliente_id: clienteId
+        }, { timeout: 30000, retries: 1 });
 
         return data;
     } catch (error) {

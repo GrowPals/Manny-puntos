@@ -50,25 +50,16 @@ export const waitForServiceWorker = async (timeout = SW_TIMEOUT) => {
 };
 
 /**
- * Check if push notifications are supported
- */
-export const isPushSupported = () => {
-  return 'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window;
-};
-
-/**
- * Get or create a push subscription
+ * Get or create a push subscription from a service worker registration
+ * @param {ServiceWorkerRegistration} registration
+ * @returns {Promise<PushSubscription>}
  */
 export const getOrCreateSubscription = async (registration) => {
-  if (!VAPID_PUBLIC_KEY) {
-    throw new Error('VAPID public key not configured');
-  }
-
+  // Check for existing subscription first
   let subscription = await registration.pushManager.getSubscription();
 
-  if (!subscription) {
+  if (!subscription && VAPID_PUBLIC_KEY) {
+    // Subscribe to push notifications
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -79,9 +70,15 @@ export const getOrCreateSubscription = async (registration) => {
 };
 
 /**
- * Extract subscription keys for storage
+ * Extract keys from a push subscription for storage
+ * @param {PushSubscription} subscription
+ * @returns {{ endpoint: string, p256dh: string, auth: string }}
  */
 export const extractSubscriptionKeys = (subscription) => {
+  if (!subscription) {
+    return { endpoint: null, p256dh: null, auth: null };
+  }
+
   const p256dhKey = subscription.getKey('p256dh');
   const authKey = subscription.getKey('auth');
 

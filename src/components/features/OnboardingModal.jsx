@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Lock, Check, Loader2, Coins, Gift, Sparkles,
-  ChevronRight, PartyPopper, Star
+  ChevronRight, PartyPopper, Star, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,8 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+const DISMISS_KEY = 'onboarding_dismissed_until';
 
 const TOTAL_STEPS = 4;
 
@@ -103,6 +105,31 @@ const OnboardingModal = () => {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState(0); // 0: welcome, 1: points reveal, 2: create pin, 3: confirm pin
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // Check if user has temporarily dismissed the modal
+  useEffect(() => {
+    const dismissedUntil = localStorage.getItem(DISMISS_KEY);
+    if (dismissedUntil) {
+      const dismissTime = parseInt(dismissedUntil, 10);
+      if (Date.now() < dismissTime) {
+        setIsDismissed(true);
+      } else {
+        localStorage.removeItem(DISMISS_KEY);
+      }
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    // Dismiss for 24 hours
+    const dismissUntil = Date.now() + 24 * 60 * 60 * 1000;
+    localStorage.setItem(DISMISS_KEY, dismissUntil.toString());
+    setIsDismissed(true);
+    toast({
+      title: "Te recordaremos después",
+      description: "Recuerda crear tu PIN para proteger tu cuenta."
+    });
+  };
 
   const handlePinChange = (e, setter) => {
     const formatted = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -157,7 +184,8 @@ const OnboardingModal = () => {
   );
   const featuredProduct = affordableProduct || cheapestProduct;
 
-  if (!needsOnboarding) return null;
+  // Don't show if user doesn't need onboarding or has dismissed temporarily
+  if (!needsOnboarding || isDismissed) return null;
 
   const slideVariants = {
     enter: (direction) => ({
@@ -175,13 +203,23 @@ const OnboardingModal = () => {
   };
 
   return (
-    <Dialog open={needsOnboarding} onOpenChange={() => {}}>
+    <Dialog open={needsOnboarding && !isDismissed} onOpenChange={(open) => !open && handleDismiss()}>
       <DialogContent
         className="sm:max-w-md bg-card border-border overflow-hidden p-0"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogTitle className="sr-only">Configuración inicial de cuenta</DialogTitle>
+
+        {/* Close button - only show on steps 0 and 1 */}
+        {step < 2 && (
+          <button
+            onClick={handleDismiss}
+            className="absolute right-4 top-4 p-1.5 rounded-full hover:bg-muted transition-colors z-10"
+            aria-label="Cerrar y recordar después"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
+
         <div className="p-6 pb-8">
           <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} />
 
@@ -273,6 +311,14 @@ const OnboardingModal = () => {
                   Descubrir mis puntos
                   <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
+
+                <button
+                  type="button"
+                  onClick={handleDismiss}
+                  className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Recordarme después
+                </button>
               </motion.div>
             )}
 

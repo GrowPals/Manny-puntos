@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Gift, Loader2 } from 'lucide-react';
+import { CheckCircle, ExternalLink, Gift, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ const ServicesList = () => {
 
   const redeemMutation = useMutation({
     mutationFn: api.services.canjearServicioAsignado,
-    onSuccess: async (data, variables) => {
+    onSuccess: async (_, variables) => {
       toast({
         title: "¡Servicio canjeado!",
         description: `Has canjeado: ${variables.nombre}. Te contactaremos pronto.`,

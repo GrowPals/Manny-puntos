@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { validateClientForm } from '@/config';
 
 // Avatar Component with gradient background
 const ClientAvatar = ({ nombre, nivel, size = 'md' }) => {
@@ -165,12 +166,10 @@ const ClientForm = ({ client, onFinished }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (formData.nombre.trim().length < 3) {
-            toast({ title: 'Error de validación', description: 'El nombre es requerido.', variant: 'destructive' });
-            return;
-        }
-        if (!/^\d{10}$/.test(formData.telefono)) {
-            toast({ title: 'Error de validación', description: 'El teléfono debe tener 10 dígitos.', variant: 'destructive' });
+        const { valid, errors } = validateClientForm(formData);
+        if (!valid) {
+            const firstError = Object.values(errors)[0];
+            toast({ title: 'Error de validación', description: firstError, variant: 'destructive' });
             return;
         }
 

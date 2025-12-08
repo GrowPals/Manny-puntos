@@ -5,6 +5,7 @@ import { Package, Plus, Edit, Trash2, Image as ImageIcon, Wrench, Loader2, Chevr
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/ui/form-field';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/lib/logger';
+import { validateProductForm } from '@/config';
 
 
 const ProductForm = ({ product, onFinished }) => {
@@ -25,6 +27,7 @@ const ProductForm = ({ product, onFinished }) => {
     const [formData, setFormData] = useState(product ? { ...product, puntos_requeridos: product.puntos_requeridos || '', stock: product.stock || '' } : defaultState);
     const [imagePreview, setImagePreview] = useState(product?.imagen_url || null);
     const [isUploading, setIsUploading] = useState(false);
+    const [errors, setErrors] = useState({});
     const { toast } = useToast();
     const { isAdmin } = useAuth();
     const queryClient = useQueryClient();
@@ -45,12 +48,17 @@ const ProductForm = ({ product, onFinished }) => {
     useEffect(() => {
       setFormData(product ? { ...product, puntos_requeridos: product.puntos_requeridos || '', stock: product.stock || '' } : defaultState);
       setImagePreview(product?.imagen_url || null);
+      setErrors({});
     }, [product]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         const finalValue = type === 'checkbox' ? checked : value;
         setFormData(prev => ({ ...prev, [name]: finalValue }));
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     const handleTypeChange = (value) => {
@@ -74,23 +82,25 @@ const ProductForm = ({ product, onFinished }) => {
             setIsUploading(false);
         }
     };
-    
+
+    const validateForm = () => {
+        const { valid, errors: validationErrors } = validateProductForm(formData);
+        setErrors(validationErrors);
+        return valid;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!isAdmin) {
              toast({ title: 'Acción no permitida', description: 'No tienes permisos de administrador.', variant: 'destructive' });
              return;
         }
-        if (formData.nombre.trim().length < 3) {
-            toast({ title: 'Error de validación', description: 'El nombre es requerido.', variant: 'destructive' });
+
+        if (!validateForm()) {
             return;
         }
-        if (Number(formData.puntos_requeridos) <= 0) {
-            toast({ title: 'Error de validación', description: 'Los puntos deben ser un número positivo.', variant: 'destructive' });
-            return;
-        }
-        
+
         const cleanData = {
             ...formData,
             puntos_requeridos: Number(formData.puntos_requeridos),
@@ -137,42 +147,55 @@ const ProductForm = ({ product, onFinished }) => {
                 </div>
 
                 {/* Nombre */}
-                <Input
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleChange}
-                    placeholder="Nombre de la recompensa *"
-                    required
-                />
+                <FormField label="Nombre" error={errors.nombre} required htmlFor="nombre">
+                    <Input
+                        id="nombre"
+                        name="nombre"
+                        value={formData.nombre}
+                        onChange={handleChange}
+                        placeholder="Nombre de la recompensa"
+                        error={!!errors.nombre}
+                        aria-describedby={errors.nombre ? "nombre-error" : undefined}
+                    />
+                </FormField>
 
                 {/* Puntos y Stock/Categoría en grid */}
                 <div className="grid grid-cols-2 gap-3">
-                    <Input
-                        name="puntos_requeridos"
-                        type="number"
-                        value={formData.puntos_requeridos}
-                        onChange={handleChange}
-                        placeholder="Puntos requeridos *"
-                        required
-                        min="1"
-                    />
-                    {formData.tipo === 'producto' ? (
+                    <FormField label="Puntos" error={errors.puntos_requeridos} required htmlFor="puntos_requeridos">
                         <Input
-                            name="stock"
+                            id="puntos_requeridos"
+                            name="puntos_requeridos"
                             type="number"
-                            value={formData.stock || ''}
+                            value={formData.puntos_requeridos}
                             onChange={handleChange}
-                            placeholder="Stock disponible *"
-                            required
-                            min="0"
+                            placeholder="Ej: 500"
+                            min="1"
+                            error={!!errors.puntos_requeridos}
                         />
+                    </FormField>
+                    {formData.tipo === 'producto' ? (
+                        <FormField label="Stock" error={errors.stock} required htmlFor="stock">
+                            <Input
+                                id="stock"
+                                name="stock"
+                                type="number"
+                                value={formData.stock || ''}
+                                onChange={handleChange}
+                                placeholder="Ej: 10"
+                                min="0"
+                                error={!!errors.stock}
+                            />
+                        </FormField>
                     ) : (
-                        <Input
-                            name="categoria"
-                            value={formData.categoria || ''}
-                            onChange={handleChange}
-                            placeholder="Categoría"
-                        />
+                        <FormField label="Categoría" htmlFor="categoria">
+                            <Input
+                                id="categoria"
+                                name="categoria"
+                                value={formData.categoria || ''}
+                                onChange={handleChange}
+                                placeholder="Ej: Detailing"
+                            />
+                        </FormField>
                     )}
                 </div>
 
@@ -282,10 +305,11 @@ const AdminProductos = () => {
     const [editingProduct, setEditingProduct] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, producto: null });
 
-    const { data: productos = [], isLoading: loading } = useQuery({
+    const { data: productosResponse, isLoading: loading } = useQuery({
         queryKey: ['admin-productos'],
         queryFn: api.products.getAllProductosAdmin,
     });
+    const productos = productosResponse?.data || [];
 
     const deleteMutation = useMutation({
         mutationFn: api.products.eliminarProducto,

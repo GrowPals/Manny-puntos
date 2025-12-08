@@ -127,3 +127,66 @@ export const safeStorage = {
     }
   },
 };
+
+/**
+ * Fetch with timeout using AbortController
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds (default: 30000)
+ * @returns {Promise<Response>}
+ */
+export async function fetchWithTimeout(url, options = {}, timeout = 30000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Call a Supabase edge function with timeout and retry
+ * @param {Object} supabase - Supabase client
+ * @param {string} functionName - Name of the edge function
+ * @param {Object} body - Request body
+ * @param {Object} options - Options (timeout, retries)
+ * @returns {Promise<Object>} - Response data
+ */
+export async function callEdgeFunction(supabase, functionName, body = {}, options = {}) {
+  const { timeout = 30000, retries = 2 } = options;
+
+  const invokeWithTimeout = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body,
+        signal: controller.signal,
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Edge function '${functionName}' timeout after ${timeout}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
+  return withRetry(invokeWithTimeout, { maxAttempts: retries });
+}

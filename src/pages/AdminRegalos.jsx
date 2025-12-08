@@ -19,7 +19,11 @@ import {
     Users,
     Megaphone,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    ImagePlus,
+    X,
+    Smartphone,
+    Sparkles
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -38,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
+import StateBadge from '@/components/common/StateBadge';
 
 const AdminRegalos = () => {
     const { toast } = useToast();
@@ -45,6 +50,7 @@ const AdminRegalos = () => {
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showDetailsDialog, setShowDetailsDialog] = useState(false);
     const [showBeneficiariosDialog, setShowBeneficiariosDialog] = useState(false);
+    const [showPreviewDialog, setShowPreviewDialog] = useState(false);
     const [selectedLink, setSelectedLink] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
     const [expandedLinkId, setExpandedLinkId] = useState(null);
@@ -91,6 +97,11 @@ const AdminRegalos = () => {
     // Beneficiarios de campaña seleccionada
     const [beneficiarios, setBeneficiarios] = useState([]);
     const [loadingBeneficiarios, setLoadingBeneficiarios] = useState(false);
+
+    // Estado para imagen de banner
+    const [bannerFile, setBannerFile] = useState(null);
+    const [bannerPreview, setBannerPreview] = useState(null);
+    const [uploadingBanner, setUploadingBanner] = useState(false);
 
     // Stats
     const { data: stats = {}, isLoading: loadingStats } = useQuery({
@@ -183,6 +194,49 @@ const AdminRegalos = () => {
             imagen_banner: '',
             color_tema: configDefaults.color_tema
         });
+        // Limpiar estado del banner
+        setBannerFile(null);
+        setBannerPreview(null);
+    };
+
+    // Manejar selección de archivo de banner
+    const handleBannerSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validar tipo
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            toast({
+                title: "Tipo de archivo no válido",
+                description: "Usa JPG, PNG, WebP o GIF",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        // Validar tamaño (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            toast({
+                title: "Archivo muy grande",
+                description: "El tamaño máximo es 5MB",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setBannerFile(file);
+        // Crear preview
+        const reader = new FileReader();
+        reader.onload = (e) => setBannerPreview(e.target.result);
+        reader.readAsDataURL(file);
+    };
+
+    // Eliminar banner seleccionado
+    const handleRemoveBanner = () => {
+        setBannerFile(null);
+        setBannerPreview(null);
+        setNewLink({ ...newLink, imagen_banner: '' });
     };
 
     // Cargar beneficiarios de una campaña
@@ -204,7 +258,7 @@ const AdminRegalos = () => {
         }
     };
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
         // Validaciones según tipo
         if (newLink.tipo === 'servicio' && !newLink.nombre_beneficio.trim()) {
             toast({
@@ -243,7 +297,27 @@ const AdminRegalos = () => {
             }
         }
 
-        createMutation.mutate(newLink);
+        // Si hay banner seleccionado, subirlo primero
+        let linkData = { ...newLink };
+        if (bannerFile) {
+            try {
+                setUploadingBanner(true);
+                const bannerUrl = await api.gifts.subirImagenBanner(bannerFile);
+                linkData.imagen_banner = bannerUrl;
+            } catch (error) {
+                toast({
+                    title: "Error al subir imagen",
+                    description: error.message,
+                    variant: "destructive"
+                });
+                setUploadingBanner(false);
+                return;
+            } finally {
+                setUploadingBanner(false);
+            }
+        }
+
+        createMutation.mutate(linkData);
     };
 
     const handleCopyLink = async (link) => {
@@ -260,9 +334,27 @@ const AdminRegalos = () => {
 
     const handleShareWhatsApp = (link) => {
         const url = `${window.location.origin}/g/${link.codigo}`;
-        const message = link.mensaje_personalizado
-            ? `${link.mensaje_personalizado}\n\n${url}`
-            : `Te envío un regalo de Manny Rewards.\n\n${url}`;
+
+        let message;
+        if (link.es_campana) {
+            // Mensaje para campañas - más elaborado
+            const beneficio = link.tipo === 'puntos'
+                ? `${link.puntos_regalo?.toLocaleString()} puntos`
+                : link.nombre_beneficio;
+
+            message = link.mensaje_personalizado
+                ? `${link.mensaje_personalizado}\n\n👉 ${url}`
+                : `🎁 *${link.nombre_campana || 'Regalo especial'}*\n\n` +
+                  `Te comparto: ${beneficio}\n\n` +
+                  `Reclámalo aquí:\n👉 ${url}`;
+        } else {
+            // Mensaje para links individuales
+            message = link.mensaje_personalizado
+                ? `${link.mensaje_personalizado}\n\n👉 ${url}`
+                : `🎁 Tienes un regalo de Manny Rewards\n\n` +
+                  `Reclámalo aquí:\n👉 ${url}`;
+        }
+
         window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     };
 
@@ -554,6 +646,42 @@ const AdminRegalos = () => {
                                                 ))}
                                             </div>
                                         </div>
+
+                                        {/* Banner de campaña */}
+                                        <div>
+                                            <label className="text-xs text-muted-foreground mb-1.5 block">Banner de campaña</label>
+                                            {bannerPreview ? (
+                                                <div className="relative">
+                                                    <img
+                                                        src={bannerPreview}
+                                                        alt="Preview del banner"
+                                                        className="w-full h-32 object-cover rounded-lg border border-border"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRemoveBanner}
+                                                        className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                                                    <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
+                                                    <span className="text-xs text-muted-foreground">Clic para subir imagen</span>
+                                                    <span className="text-xs text-muted-foreground/70">JPG, PNG, WebP o GIF (máx 5MB)</span>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                                        onChange={handleBannerSelect}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                            )}
+                                            <p className="text-xs text-muted-foreground/70 mt-1">
+                                                Se mostrará en la página del regalo
+                                            </p>
+                                        </div>
                                     </>
                                 )}
                             </div>
@@ -564,13 +692,24 @@ const AdminRegalos = () => {
                         <DialogClose asChild>
                             <Button variant="outline" size="sm">Cancelar</Button>
                         </DialogClose>
+                        {/* Botón de vista previa solo para campañas */}
+                        {newLink.es_campana && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowPreviewDialog(true)}
+                            >
+                                <Eye className="w-4 h-4 mr-1.5" />
+                                Vista previa
+                            </Button>
+                        )}
                         <Button
                             onClick={handleCreate}
-                            disabled={createMutation.isPending}
+                            disabled={createMutation.isPending || uploadingBanner}
                             size="sm"
                         >
-                            {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
-                            {newLink.es_campana ? 'Crear Campaña' : 'Crear Link'}
+                            {(createMutation.isPending || uploadingBanner) && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+                            {uploadingBanner ? 'Subiendo imagen...' : newLink.es_campana ? 'Crear Campaña' : 'Crear Link'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -667,15 +806,7 @@ const AdminRegalos = () => {
                                                 <p className="font-medium">{b.cliente?.nombre || 'Sin nombre'}</p>
                                                 <p className="text-sm text-muted-foreground">{b.cliente?.telefono}</p>
                                             </div>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                b.estado === 'activo'
-                                                    ? 'bg-green-500/10 text-green-500'
-                                                    : b.estado === 'usado'
-                                                    ? 'bg-blue-500/10 text-blue-500'
-                                                    : 'bg-red-500/10 text-red-500'
-                                            }`}>
-                                                {b.estado === 'activo' ? 'Activo' : b.estado === 'usado' ? 'Usado' : 'Expirado'}
-                                            </span>
+                                            <StateBadge estado={b.estado} type="beneficio" size="sm" />
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">
                                             Canjeado: {formatDateTime(b.fecha_canje)}
@@ -695,6 +826,115 @@ const AdminRegalos = () => {
                         <DialogClose asChild>
                             <Button variant="outline">Cerrar</Button>
                         </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog de preview de campaña (simulación móvil) */}
+            <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+                <DialogContent className="bg-card border-border text-foreground sm:max-w-md p-0 overflow-hidden">
+                    <DialogHeader className="p-4 border-b border-border">
+                        <DialogTitle className="text-lg flex items-center gap-2">
+                            <Smartphone className="w-5 h-5 text-primary" />
+                            Vista previa
+                        </DialogTitle>
+                        <DialogDescription>
+                            Así se verá tu campaña en el celular
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Simulación de pantalla móvil */}
+                    <div className="bg-gradient-to-br from-background via-background to-primary/5 p-6 max-h-[60vh] overflow-y-auto">
+                        <div className="text-center">
+                            {/* Banner preview */}
+                            {bannerPreview ? (
+                                <div className="mb-6 rounded-2xl overflow-hidden shadow-xl">
+                                    <img
+                                        src={bannerPreview}
+                                        alt="Preview"
+                                        className="w-full h-40 object-cover"
+                                    />
+                                </div>
+                            ) : (
+                                <div
+                                    className="mb-6 w-32 h-32 mx-auto rounded-3xl flex items-center justify-center"
+                                    style={{
+                                        background: `linear-gradient(to bottom right, ${newLink.color_tema || '#E91E63'}, #9C27B0)`
+                                    }}
+                                >
+                                    <Gift className="w-16 h-16 text-white" />
+                                </div>
+                            )}
+
+                            {/* Título */}
+                            <h2 className="text-2xl font-bold mb-2">
+                                {newLink.es_campana && newLink.nombre_campana
+                                    ? newLink.nombre_campana
+                                    : '¡Tienes un regalo!'}
+                            </h2>
+
+                            {/* Mensaje */}
+                            <p className="text-muted-foreground mb-6">
+                                {newLink.mensaje_personalizado || 'Alguien especial te envió algo...'}
+                            </p>
+
+                            {/* Beneficio */}
+                            <div
+                                className="rounded-xl p-4 mb-4 border"
+                                style={{
+                                    background: `linear-gradient(to right, ${newLink.color_tema || '#E91E63'}15, #9C27B015)`,
+                                    borderColor: `${newLink.color_tema || '#E91E63'}30`
+                                }}
+                            >
+                                {newLink.tipo === 'puntos' ? (
+                                    <>
+                                        <p className="text-3xl font-black" style={{ color: newLink.color_tema || '#E91E63' }}>
+                                            {newLink.puntos_regalo?.toLocaleString() || '0'}
+                                        </p>
+                                        <p className="text-sm text-foreground">Puntos Manny</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="font-bold text-foreground">
+                                            {newLink.nombre_beneficio || 'Nombre del servicio'}
+                                        </p>
+                                        {newLink.descripcion_beneficio && (
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {newLink.descripcion_beneficio}
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Botón simulado */}
+                            <div
+                                className="py-3 px-6 rounded-xl text-white font-medium"
+                                style={{
+                                    background: `linear-gradient(to right, ${newLink.color_tema || '#E91E63'}, #9C27B0)`
+                                }}
+                            >
+                                <Sparkles className="w-4 h-4 inline mr-2" />
+                                {newLink.es_campana ? 'Ver mi regalo' : 'Abrir regalo'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-4 border-t border-border">
+                        <DialogClose asChild>
+                            <Button variant="outline" size="sm">Cerrar</Button>
+                        </DialogClose>
+                        <Button
+                            size="sm"
+                            onClick={() => {
+                                setShowPreviewDialog(false);
+                                handleCreate();
+                            }}
+                            disabled={createMutation.isPending || uploadingBanner}
+                        >
+                            {(createMutation.isPending || uploadingBanner) && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+                            Crear campaña
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

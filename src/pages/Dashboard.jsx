@@ -74,32 +74,32 @@ const Dashboard = () => {
                 </div>
               </div>
               {/* Desktop navigation */}
-              <div className="hidden lg:flex items-center gap-2">
-                <Link to="/mis-servicios">
+              <nav className="hidden lg:flex items-center gap-2" aria-label="Navegación principal">
+                <Link to="/mis-servicios" aria-label="Ver historial de servicios">
                   <Button variant="outline" size="sm">
-                    <Wrench className="w-4 h-4 mr-1.5" />
+                    <Wrench className="w-4 h-4 mr-1.5" aria-hidden="true" />
                     Servicios
                   </Button>
                 </Link>
-                <Link to="/mis-canjes">
+                <Link to="/mis-canjes" aria-label="Ver historial de canjes">
                   <Button variant="outline" size="sm">
-                    <History className="w-4 h-4 mr-1.5" />
+                    <History className="w-4 h-4 mr-1.5" aria-hidden="true" />
                     Canjes
                   </Button>
                 </Link>
-                <Button onClick={logout} variant="destructive" size="sm">
-                  <LogOut className="w-4 h-4 mr-1.5" />
+                <Button onClick={logout} variant="destructive" size="sm" aria-label="Cerrar sesión">
+                  <LogOut className="w-4 h-4 mr-1.5" aria-hidden="true" />
                   Salir
                 </Button>
-              </div>
+              </nav>
             </div>
           </div>
 
           {/* Points display - Compact gradient card */}
-          <div className="hero mx-4 mb-4 rounded-xl p-4 text-white">
+          <div className="hero mx-4 mb-4 rounded-xl p-4 text-white" role="region" aria-label="Resumen de puntos">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Coins className="w-5 h-5 opacity-90" />
+                <Coins className="w-5 h-5 opacity-90" aria-hidden="true" />
                 <span className="text-sm opacity-90">Tus puntos Manny</span>
               </div>
               {user?.ultimo_servicio && (
@@ -108,8 +108,8 @@ const Dashboard = () => {
                 </span>
               )}
             </div>
-            <p className="text-4xl md:text-5xl font-black mt-1">
-              {user?.puntos_actuales !== undefined ? user.puntos_actuales.toLocaleString('es-MX') : <Loader2 className="w-8 h-8 animate-spin" />}
+            <p className="text-4xl md:text-5xl font-black mt-1" aria-live="polite">
+              {user?.puntos_actuales !== undefined ? user.puntos_actuales.toLocaleString('es-MX') : <Loader2 className="w-8 h-8 animate-spin" aria-label="Cargando puntos" />}
             </p>
           </div>
 
@@ -129,10 +129,10 @@ const Dashboard = () => {
         <ReferralCard />
 
         {/* Rewards Catalog */}
-        <section>
+        <section aria-labelledby="catalog-heading">
           <div className="flex items-center gap-2 mb-3">
-            <Gift className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold">Catálogo de Recompensas</h2>
+            <Gift className="w-5 h-5 text-primary" aria-hidden="true" />
+            <h2 id="catalog-heading" className="text-lg font-bold">Catálogo de Recompensas</h2>
           </div>
 
           {loading ? (

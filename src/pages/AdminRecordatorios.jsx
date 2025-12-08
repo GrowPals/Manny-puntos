@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
@@ -109,15 +109,15 @@ const AdminRecordatorios = () => {
         }
     });
 
+    // Local editable state - synced from server config
     const [localConfig, setLocalConfig] = useState(null);
-    const [configInitialized, setConfigInitialized] = useState(false);
 
+    // Sync local state when server config loads (only once per fetch)
     useEffect(() => {
-        if (config && !configInitialized) {
+        if (config && JSON.stringify(config) !== JSON.stringify(localConfig)) {
             setLocalConfig(config);
-            setConfigInitialized(true);
         }
-    }, [config, configInitialized]);
+    }, [config]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleToggleActive = (checked) => {
         const newConfig = { ...localConfig, activo: checked };

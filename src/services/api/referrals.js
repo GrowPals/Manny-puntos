@@ -70,8 +70,8 @@ export const getReferralStats = async (clienteId) => {
 /**
  * Obtiene la lista de referidos de un cliente
  */
-export const getMisReferidos = async (clienteId) => {
-  const { data, error } = await supabase
+export const getMisReferidos = async (clienteId, { limit = 50, offset = 0 } = {}) => {
+  const { data, error, count } = await supabase
     .from('referidos')
     .select(`
       id,
@@ -85,16 +85,17 @@ export const getMisReferidos = async (clienteId) => {
         nombre,
         telefono
       )
-    `)
+    `, { count: 'exact' })
     .eq('referidor_id', clienteId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     logger.error('Error obteniendo mis referidos', { error: error.message, clienteId });
     throw new Error(ERROR_MESSAGES.REFERRALS.LOAD_ERROR);
   }
 
-  return data || [];
+  return { data: data || [], count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
 /**
@@ -258,22 +259,23 @@ export const getAdminReferralStats = async () => {
 /**
  * Obtiene todos los referidos (admin)
  */
-export const getAllReferidos = async () => {
-  const { data, error } = await supabase
+export const getAllReferidos = async ({ limit = 100, offset = 0 } = {}) => {
+  const { data, error, count } = await supabase
     .from('referidos')
     .select(`
       *,
       referidor:referidor_id (id, nombre, telefono),
       referido:referido_id (id, nombre, telefono)
-    `)
-    .order('created_at', { ascending: false });
+    `, { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     logger.error('Error obteniendo todos los referidos (admin)', { error: error.message });
     throw new Error(ERROR_MESSAGES.REFERRALS.ALL_LOAD_ERROR);
   }
 
-  return data || [];
+  return { data: data || [], count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
 /**

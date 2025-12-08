@@ -6,8 +6,9 @@ import { Loader2 } from 'lucide-react';
  * @param {string} size - Size variant: 'sm' | 'md' | 'lg' (default: 'md')
  * @param {boolean} fullPage - If true, centers in viewport with more padding
  * @param {string} className - Additional classes to apply
+ * @param {string} label - Accessible label for screen readers (default: 'Cargando')
  */
-const LoadingSpinner = ({ size = 'md', fullPage = false, className = '' }) => {
+const LoadingSpinner = ({ size = 'md', fullPage = false, className = '', label = 'Cargando' }) => {
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-8 h-8',
@@ -25,10 +26,12 @@ const LoadingSpinner = ({ size = 'md', fullPage = false, className = '' }) => {
     : `text-center ${paddingClasses[size]}`;
 
   return (
-    <div className={`${containerClass} ${className}`}>
+    <div className={`${containerClass} ${className}`} role="status" aria-live="polite">
       <Loader2
         className={`${sizeClasses[size]} animate-spin text-primary mx-auto`}
+        aria-hidden="true"
       />
+      <span className="sr-only">{label}</span>
     </div>
   );
 };

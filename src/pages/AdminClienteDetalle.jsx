@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import {
     ArrowLeft, User, Phone, Coins, Crown, Calendar, Gift, History,
     PlusCircle, Trash2, Loader2, Package, Wrench, CheckCircle,
-    Hourglass, PackageCheck, DollarSign, TrendingUp, Clock, KeyRound,
+    DollarSign, TrendingUp, Clock, KeyRound,
     Sparkles, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from '@/lib/utils';
+import StateBadge from '@/components/common/StateBadge';
 
 const AdminClienteDetalle = () => {
     const { clienteId } = useParams();
@@ -95,17 +96,6 @@ const AdminClienteDetalle = () => {
     if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
-
-    const getEstadoInfo = (estado) => {
-        const statuses = {
-            'pendiente_entrega': { text: 'Pendiente', icon: <Hourglass className="w-3 h-3" />, color: 'bg-yellow-500/10 text-yellow-600' },
-            'entregado': { text: 'Entregado', icon: <PackageCheck className="w-3 h-3" />, color: 'bg-green-500/10 text-green-600' },
-            'en_lista': { text: 'En Lista', icon: <Hourglass className="w-3 h-3" />, color: 'bg-blue-500/10 text-blue-600' },
-            'agendado': { text: 'Agendado', icon: <Calendar className="w-3 h-3" />, color: 'bg-purple-500/10 text-purple-600' },
-            'completado': { text: 'Completado', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500/10 text-green-600' },
-        };
-        return statuses[estado] || { text: estado, icon: <Hourglass className="w-3 h-3" />, color: 'bg-muted text-muted-foreground' };
-    };
 
     const getTimeAgo = (dateString) => {
         if (!dateString) return null;
@@ -360,7 +350,6 @@ const AdminClienteDetalle = () => {
                     {activeTab === 'canjes' && (
                         <div className="space-y-3">
                             {canjes.length > 0 ? canjes.map((canje) => {
-                                const estadoInfo = getEstadoInfo(canje.estado);
                                 const isService = canje.tipo === 'servicio';
                                 return (
                                     <div key={canje.id} className="bg-card rounded-xl p-4 border border-border">
@@ -377,10 +366,7 @@ const AdminClienteDetalle = () => {
                                             <span className="font-mono font-bold text-red-500 flex-shrink-0">-{canje.puntos_usados}</span>
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-border/50">
-                                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${estadoInfo.color}`}>
-                                                {estadoInfo.icon}
-                                                {estadoInfo.text}
-                                            </span>
+                                            <StateBadge estado={canje.estado} type="canje" size="sm" />
                                         </div>
                                     </div>
                                 );

@@ -9,15 +9,16 @@ import {
     notifyClienteCanjeRegistrado
 } from './notifications';
 
-export const getTodosLosCanjes = async () => {
-    const { data, error } = await supabase
-    .from('canjes')
-    .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`)
-    .order('created_at', { ascending: false });
+export const getTodosLosCanjes = async ({ limit = 100, offset = 0 } = {}) => {
+    const { data, error, count } = await supabase
+        .from('canjes')
+        .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
     if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.LOAD_ERROR);
-    
-    return data?.map(c => ({
+
+    const mappedData = data?.map(c => ({
         ...c,
         fecha: c.created_at,
         cliente_nombre: c.clientes?.nombre || 'N/A',
@@ -25,18 +26,21 @@ export const getTodosLosCanjes = async () => {
         producto_nombre: c.productos?.nombre || 'Producto Eliminado',
         tipo: c.productos?.tipo || c.tipo_producto_original,
     })) || [];
+
+    return { data: mappedData, count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
-export const getCanjesPendientes = async () => {
-    const { data, error } = await supabase
+export const getCanjesPendientes = async ({ limit = 50, offset = 0 } = {}) => {
+    const { data, error, count } = await supabase
         .from('canjes')
-        .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`)
+        .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`, { count: 'exact' })
         .in('estado', ['pendiente_entrega', 'en_lista'])
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1);
 
     if (error) throw new Error(ERROR_MESSAGES.REDEMPTIONS.LOAD_PENDING_ERROR);
-    
-    return data?.map(c => ({
+
+    const mappedData = data?.map(c => ({
         ...c,
         fecha: c.created_at,
         cliente_nombre: c.clientes?.nombre || 'N/A',
@@ -44,6 +48,8 @@ export const getCanjesPendientes = async () => {
         producto_nombre: c.productos?.nombre || 'Producto Eliminado',
         tipo: c.productos?.tipo || c.tipo_producto_original,
     })) || [];
+
+    return { data: mappedData, count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
 export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {

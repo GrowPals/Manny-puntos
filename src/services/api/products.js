@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { logger } from '@/lib/logger';
+import { uploadImage } from '@/lib/storage';
 
 export const getProductosCanje = async () => {
   const { data, error } = await supabase
@@ -13,14 +14,15 @@ export const getProductosCanje = async () => {
   return data || [];
 };
 
-export const getAllProductosAdmin = async () => {
-  const { data, error } = await supabase
+export const getAllProductosAdmin = async ({ limit = 100, offset = 0 } = {}) => {
+  const { data, error, count } = await supabase
     .from('productos')
-    .select('*')
-    .order('created_at', { ascending: false });
-    
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
   if (error) throw new Error(ERROR_MESSAGES.PRODUCTS.LOAD_ERROR);
-  return data || [];
+  return { data: data || [], count: count || 0, hasMore: (offset + limit) < (count || 0) };
 };
 
 export const getProductoById = async (id) => {
@@ -56,41 +58,5 @@ export const eliminarProducto = async (productoId) => {
 };
 
 export const subirImagenProducto = async (file) => {
-  if (!file) throw new Error('No se seleccionó ningún archivo');
-
-  // Validar tipo de archivo
-  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  if (!validTypes.includes(file.type)) {
-    throw new Error('Tipo de archivo no válido. Usa JPG, PNG, WebP o GIF.');
-  }
-
-  // Validar tamaño (max 5MB)
-  const maxSize = 5 * 1024 * 1024;
-  if (file.size > maxSize) {
-    throw new Error('El archivo es muy grande. Máximo 5MB.');
-  }
-
-  // Generar nombre único
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-  const filePath = `productos/${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('recompensas')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
-    });
-
-  if (uploadError) {
-    logger.error('Error subiendo imagen de producto', { error: uploadError.message, fileName });
-    throw new Error('Error al subir la imagen. Inténtalo de nuevo.');
-  }
-
-  // Obtener URL pública
-  const { data: { publicUrl } } = supabase.storage
-    .from('recompensas')
-    .getPublicUrl(filePath);
-
-  return publicUrl;
+  return uploadImage(file, 'productos', { context: 'imagen de producto' });
 };

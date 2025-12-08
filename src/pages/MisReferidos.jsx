@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import {
-  Users, Gift, Copy, Share2, Check, Loader2, Clock, CheckCircle,
-  XCircle, Coins
-} from 'lucide-react';
+import { Users, Gift, Copy, Share2, Check, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
@@ -12,6 +9,7 @@ import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import StatCard from '@/components/common/StatCard';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import StateBadge from '@/components/common/StateBadge';
 import { logger } from '@/lib/logger';
 
 const MisReferidos = () => {
@@ -97,30 +95,6 @@ const MisReferidos = () => {
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
-  const getEstadoBadge = (estado) => {
-    switch (estado) {
-      case 'activo':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600">
-            <CheckCircle className="w-3 h-3" /> Activo
-          </span>
-        );
-      case 'pendiente':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600">
-            <Clock className="w-3 h-3" /> Pendiente
-          </span>
-        );
-      case 'expirado':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-600">
-            <XCircle className="w-3 h-3" /> Expirado
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
 
   const progressPercent = stats?.limite_mensual
     ? Math.min((stats.puntos_este_mes / stats.limite_mensual) * 100, 100)
@@ -317,7 +291,7 @@ const MisReferidos = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      {getEstadoBadge(ref.estado)}
+                      <StateBadge estado={ref.estado} type="referral" size="sm" />
                       {ref.estado === 'activo' && ref.puntos_referidor > 0 && (
                         <p className="text-xs text-green-600 mt-1">
                           +{ref.puntos_referidor} pts

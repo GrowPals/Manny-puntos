@@ -37,7 +37,7 @@ export const CACHE_CONFIG = {
   STALE_TIME: 15 * 60 * 1000, // 15 minutes - data doesn't change frequently
   GC_TIME: 30 * 60 * 1000, // 30 minutes garbage collection
   REFETCH_ON_WINDOW_FOCUS: false, // Prevent unnecessary refetches on tab switch
-  REFETCH_ON_MOUNT: 'always', // Only refetch if data is stale
+  REFETCH_ON_MOUNT: 'stale', // Only refetch if data is stale (valid values: false, true, 'stale')
 
   // Specific cache times for different data types
   PRODUCTS_STALE_TIME: 60 * 60 * 1000, // 1 hour - products rarely change
@@ -72,6 +72,15 @@ export const VALIDATION = {
   PIN: {
     LENGTH: 4,
     PATTERN: /^\d{4}$/,
+  },
+  NAME: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 100,
+  },
+  PRODUCT: {
+    NAME_MIN_LENGTH: 3,
+    MIN_POINTS: 1,
+    MIN_STOCK: 0,
   },
   REFERRAL_CODE: {
     MIN_LENGTH: 6,
@@ -137,51 +146,6 @@ export const UI_CONFIG = {
 };
 
 // ============================================
-// NOTION INTEGRATION
-// ============================================
-export const NOTION_CONFIG = {
-  DATABASE_IDS: {
-    MANNY_REWARDS: '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01',
-    CONTACTOS: '17ac6cfd-8c1e-8068-8bc0-d32488189164',
-    TICKETS: '17ac6cfd-8c1e-8162-b724-d4047a7e7635',
-  },
-  SYNC_BATCH_SIZE: 50,
-  SYNC_DELAY_MS: 350, // Delay between API calls to avoid rate limits
-};
-
-// ============================================
-// ERROR CODES (for structured error handling)
-// ============================================
-export const ERROR_CODES = {
-  // Auth errors
-  INVALID_CREDENTIALS: 'AUTH_001',
-  RATE_LIMITED: 'AUTH_002',
-  SESSION_EXPIRED: 'AUTH_003',
-
-  // Gift errors
-  GIFT_NOT_FOUND: 'GIFT_001',
-  GIFT_EXPIRED: 'GIFT_002',
-  GIFT_ALREADY_CLAIMED: 'GIFT_003',
-  GIFT_CAMPAIGN_FULL: 'GIFT_004',
-  GIFT_WRONG_RECIPIENT: 'GIFT_005',
-
-  // Referral errors
-  REFERRAL_NOT_FOUND: 'REF_001',
-  REFERRAL_EXPIRED: 'REF_002',
-  REFERRAL_SELF_REFERRAL: 'REF_003',
-  REFERRAL_ALREADY_REFERRED: 'REF_004',
-  REFERRAL_LIMIT_REACHED: 'REF_005',
-
-  // Redemption errors
-  INSUFFICIENT_POINTS: 'REDEEM_001',
-  PRODUCT_UNAVAILABLE: 'REDEEM_002',
-
-  // Network errors
-  NETWORK_ERROR: 'NET_001',
-  TIMEOUT: 'NET_002',
-};
-
-// ============================================
 // FEATURE FLAGS
 // ============================================
 export const FEATURES = {
@@ -234,18 +198,51 @@ export const isValidPin = (pin) => {
   return VALIDATION.PIN.PATTERN.test(String(pin));
 };
 
-export default {
-  API_CONFIG,
-  CACHE_CONFIG,
-  STORAGE_CONFIG,
-  VALIDATION,
-  BUSINESS_RULES,
-  UI_CONFIG,
-  NOTION_CONFIG,
-  ERROR_CODES,
-  FEATURES,
-  ENV,
-  isValidPhone,
-  normalizePhone,
-  isValidPin,
+/**
+ * Validates a name (minimum 3 characters)
+ */
+export const isValidName = (name) => {
+  const trimmed = String(name || '').trim();
+  return trimmed.length >= VALIDATION.NAME.MIN_LENGTH && trimmed.length <= VALIDATION.NAME.MAX_LENGTH;
 };
+
+/**
+ * Validates product form data
+ * @returns {{ valid: boolean, errors: Object }}
+ */
+export const validateProductForm = (formData) => {
+  const errors = {};
+
+  if (!formData.nombre || formData.nombre.trim().length < VALIDATION.PRODUCT.NAME_MIN_LENGTH) {
+    errors.nombre = `El nombre debe tener al menos ${VALIDATION.PRODUCT.NAME_MIN_LENGTH} caracteres`;
+  }
+
+  if (!formData.puntos_requeridos || Number(formData.puntos_requeridos) < VALIDATION.PRODUCT.MIN_POINTS) {
+    errors.puntos_requeridos = 'Ingresa un número mayor a 0';
+  }
+
+  if (formData.tipo === 'producto' && (formData.stock === '' || formData.stock === null || Number(formData.stock) < VALIDATION.PRODUCT.MIN_STOCK)) {
+    errors.stock = 'Ingresa el stock disponible';
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors };
+};
+
+/**
+ * Validates client form data
+ * @returns {{ valid: boolean, errors: Object }}
+ */
+export const validateClientForm = (formData) => {
+  const errors = {};
+
+  if (!isValidName(formData.nombre)) {
+    errors.nombre = `El nombre debe tener al menos ${VALIDATION.NAME.MIN_LENGTH} caracteres`;
+  }
+
+  if (!formData.telefono || !isValidPhone(formData.telefono)) {
+    errors.telefono = 'Ingresa un teléfono válido de 10 dígitos';
+  }
+
+  return { valid: Object.keys(errors).length === 0, errors };
+};
+
