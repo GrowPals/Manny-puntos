@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getGiftByCode, claimGift, createBenefitTicket, enqueueSyncOperation } from './gifts';
+import { getGiftByCode, claimGift, createBenefitTicket } from './gifts';
+import { enqueueSyncOperation } from './sync';
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 
@@ -178,18 +179,18 @@ describe('Gifts Service', () => {
     });
   });
 
-  describe('enqueueSyncOperation', () => {
+  describe('enqueueSyncOperation (from sync module)', () => {
     it('should enqueue operation successfully', async () => {
       supabase.rpc.mockResolvedValue({ data: 'queue-id-123', error: null });
 
-      const result = await enqueueSyncOperation('sync_cliente', 'client-123', { test: true });
+      const result = await enqueueSyncOperation('sync_cliente', 'client-123', { test: true }, 'test_source');
 
       expect(result).toBe('queue-id-123');
       expect(supabase.rpc).toHaveBeenCalledWith('enqueue_sync_operation', {
         p_operation_type: 'sync_cliente',
         p_resource_id: 'client-123',
         p_payload: { test: true },
-        p_source: 'gifts_service',
+        p_source: 'test_source',
         p_source_context: expect.objectContaining({ timestamp: expect.any(String) }),
       });
     });
@@ -197,7 +198,7 @@ describe('Gifts Service', () => {
     it('should return null and not throw on enqueue failure', async () => {
       supabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
 
-      const result = await enqueueSyncOperation('sync_cliente', 'client-123');
+      const result = await enqueueSyncOperation('sync_cliente', 'client-123', {}, 'test_source');
 
       expect(result).toBeNull();
       // Should not throw

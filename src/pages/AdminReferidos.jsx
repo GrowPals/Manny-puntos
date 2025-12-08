@@ -34,6 +34,7 @@ import {
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
+import { formatDate } from '@/lib/utils';
 
 const AdminReferidos = () => {
     const { toast } = useToast();
@@ -121,15 +122,6 @@ const AdminReferidos = () => {
                 {badge.label}
             </span>
         );
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('es-MX', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
     };
 
     if (loading && !localConfig) {

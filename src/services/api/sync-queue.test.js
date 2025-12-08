@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncToNotion, enqueueSyncOperation } from './clients';
+import { syncToNotion } from './clients';
+import { enqueueSyncOperation } from './sync';
 import { supabase } from '@/lib/customSupabaseClient';
 
 vi.mock('@/lib/customSupabaseClient', () => ({
@@ -73,14 +74,14 @@ describe('Sync Queue Integration', () => {
 
       const result = await enqueueSyncOperation('sync_cliente', 'resource-123', {
         extra_data: 'test',
-      });
+      }, 'test_service');
 
       expect(result).toBe('queue-id-456');
       expect(supabase.rpc).toHaveBeenCalledWith('enqueue_sync_operation', {
         p_operation_type: 'sync_cliente',
         p_resource_id: 'resource-123',
         p_payload: { extra_data: 'test' },
-        p_source: 'clients_service',
+        p_source: 'test_service',
         p_source_context: expect.objectContaining({
           timestamp: expect.any(String),
         }),

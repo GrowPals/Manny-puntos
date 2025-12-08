@@ -2,6 +2,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { withRetry } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone } from '@/config';
+import { enqueueSyncOperation } from './sync';
 
 // ==================== PÚBLICO ====================
 
@@ -388,7 +389,7 @@ export const createBenefitTicket = async (beneficioId) => {
     // Queue for retry instead of failing silently
     await enqueueSyncOperation('create_benefit_ticket', beneficioId, {
       original_error: error.message
-    });
+    }, 'gifts_service');
 
     // Return a pending status so the caller knows it's queued
     return {
@@ -399,26 +400,3 @@ export const createBenefitTicket = async (beneficioId) => {
   }
 };
 
-/**
- * Encola una operación de sincronización para procesamiento con reintentos
- * @param {string} operationType - Tipo de operación ('sync_cliente', 'create_benefit_ticket', etc.)
- * @param {string} resourceId - ID del recurso relacionado
- * @param {object} payload - Datos adicionales
- */
-export const enqueueSyncOperation = async (operationType, resourceId, payload = {}) => {
-  const { data, error } = await supabase.rpc('enqueue_sync_operation', {
-    p_operation_type: operationType,
-    p_resource_id: resourceId,
-    p_payload: payload,
-    p_source: 'gifts_service',
-    p_source_context: { timestamp: new Date().toISOString() }
-  });
-
-  if (error) {
-    console.error('Failed to enqueue sync operation:', error);
-    // Don't throw - this is a fallback mechanism
-    return null;
-  }
-
-  return data;
-};

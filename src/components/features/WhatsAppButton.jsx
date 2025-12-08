@@ -1,33 +1,37 @@
 
 import React from 'react';
-import { MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from 'react-router-dom';
+import WhatsAppIcon from '@/assets/images/icons8-whatsapp.gif';
 
 const WhatsAppButton = () => {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
 
-  const handleClick = () => {
-    const whatsappUrl = 'https://wa.me/5214625905222?text=%C2%A1Hola%21+manny+necesito+ayuda+con+mi+sistema+de+puntos+vip';
-    window.open(whatsappUrl, '_blank');
-  };
+  // Don't show on login page
+  if (location.pathname === '/login') {
+    return null;
+  }
 
-  // Calculate bottom position: higher on mobile for clients (above bottom nav)
-  const isClientMobile = user && !isAdmin && location.pathname !== '/login';
+  // Calculate bottom position: always above bottom nav on mobile when user is logged in
+  const hasBottomNav = user && location.pathname !== '/login';
 
   return (
-    <motion.button
-      onClick={handleClick}
-      className={`fixed right-4 z-50 btn-whatsapp rounded-full p-3.5 shadow-lg hover:scale-110 transition-all ${isClientMobile ? 'bottom-24 md:bottom-6' : 'bottom-6'}`}
+    <motion.a
+      href="https://wa.me/5214625905222?text=%C2%A1Hola%21+manny+necesito+ayuda+con+mi+sistema+de+puntos+vip"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`fixed right-3 z-30 rounded-full shadow-lg hover:scale-110 transition-all ${
+        hasBottomNav ? 'bottom-[84px] lg:bottom-6' : 'bottom-6'
+      }`}
       initial={{ opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 1 }}
       aria-label="Contactar por WhatsApp"
     >
-      <MessageCircle className="w-5 h-5" />
-    </motion.button>
+      <img src={WhatsAppIcon} alt="WhatsApp" className="w-12 h-12" />
+    </motion.a>
   );
 };
 

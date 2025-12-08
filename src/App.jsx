@@ -78,13 +78,28 @@ const ProtectedRoute = React.memo(({ children, adminOnly = false }) => {
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
+
   if (adminOnly && !isAdmin) {
     return <Navigate to="/acceso-denegado" replace />;
   }
-  
+
   return children;
 });
+
+// Component to handle root redirect based on auth status
+const RootRedirect = () => {
+  const { user, isAdmin, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingFallback />;
+  }
+
+  if (user) {
+    return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+};
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -94,7 +109,7 @@ const AppRoutes = () => {
         <Routes location={location} key={location.pathname}>
           <Route path="/login" element={<Login />} />
           <Route path="/acceso-denegado" element={<AccesoDenegado />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<RootRedirect />} />
 
           {/* Rutas públicas de referidos y regalos */}
           <Route path="/r/:codigo" element={<ReferralLanding />} />

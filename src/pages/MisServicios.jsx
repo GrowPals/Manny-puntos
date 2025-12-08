@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 const MisServicios = () => {
     const { user } = useAuth();
@@ -48,23 +49,6 @@ const MisServicios = () => {
     const serviciosOrdenados = useMemo(() => {
         return [...servicios].sort((a, b) => new Date(b.fecha_servicio) - new Date(a.fecha_servicio));
     }, [servicios]);
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('es-MX', {
-            style: 'currency',
-            currency: 'MXN',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount);
-    };
-
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('es-MX', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
-    };
 
     // Componente para las estadísticas
     const StatsHeader = () => {

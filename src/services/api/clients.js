@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone, normalizePhone } from '@/config';
+import { enqueueSyncOperation } from './sync';
 
 export const getTodosLosClientes = async () => {
   const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
@@ -197,7 +198,7 @@ export const syncToNotion = async (clienteId) => {
         // Queue for retry instead of failing silently
         await enqueueSyncOperation('sync_cliente', clienteId, {
             original_error: error.message
-        });
+        }, 'clients_service');
 
         // Return a pending status so the caller knows it's queued
         return {
@@ -208,25 +209,3 @@ export const syncToNotion = async (clienteId) => {
     }
 };
 
-/**
- * Encola una operación de sincronización para procesamiento con reintentos
- * @param {string} operationType - Tipo de operación
- * @param {string} resourceId - ID del recurso relacionado
- * @param {object} payload - Datos adicionales
- */
-export const enqueueSyncOperation = async (operationType, resourceId, payload = {}) => {
-    const { data, error } = await supabase.rpc('enqueue_sync_operation', {
-        p_operation_type: operationType,
-        p_resource_id: resourceId,
-        p_payload: payload,
-        p_source: 'clients_service',
-        p_source_context: { timestamp: new Date().toISOString() }
-    });
-
-    if (error) {
-        console.error('Failed to enqueue sync operation:', error);
-        return null;
-    }
-
-    return data;
-};

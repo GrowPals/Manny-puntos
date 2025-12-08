@@ -32,6 +32,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 const AdminClienteDetalle = () => {
     const { clienteId } = useParams();
@@ -104,24 +105,6 @@ const AdminClienteDetalle = () => {
             'completado': { text: 'Completado', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500/10 text-green-600' },
         };
         return statuses[estado] || { text: estado, icon: <Hourglass className="w-3 h-3" />, color: 'bg-muted text-muted-foreground' };
-    };
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('es-MX', {
-            style: 'currency',
-            currency: 'MXN',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount || 0);
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('es-MX', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
     };
 
     const getTimeAgo = (dateString) => {

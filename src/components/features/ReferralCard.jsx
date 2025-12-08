@@ -17,16 +17,15 @@ const ReferralCard = () => {
     queryKey: ['referral-stats', user?.id],
     queryFn: () => api.referrals.getReferralStats(user.id),
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: config } = useQuery({
     queryKey: ['referral-config'],
     queryFn: api.referrals.getReferralConfig,
-    staleTime: 1000 * 60 * 30, // 30 minutos
+    staleTime: 1000 * 60 * 30,
   });
 
-  // Si el programa no está activo, no mostrar
   if (config && !config.activo) {
     return null;
   }
@@ -37,38 +36,30 @@ const ReferralCard = () => {
 
   const handleCopy = async () => {
     if (!referralLink) return;
-
     try {
       await navigator.clipboard.writeText(referralLink);
       setCopied(true);
       toast({ title: 'Link copiado', description: 'Compártelo con tus amigos' });
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'No se pudo copiar el link', variant: 'destructive' });
     }
   };
 
   const handleShare = async () => {
     if (!referralLink || !config) return;
-
     const shareData = {
       title: 'Manny Rewards',
       text: config.mensaje_compartir || '¡Únete a Manny Rewards!',
       url: referralLink,
     };
-
-    // Intentar Web Share API (móvil)
     if (navigator.share && navigator.canShare?.(shareData)) {
       try {
         await navigator.share(shareData);
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          // Si falla, abrir WhatsApp
-          openWhatsApp();
-        }
+        if (err.name !== 'AbortError') openWhatsApp();
       }
     } else {
-      // Fallback a WhatsApp
       openWhatsApp();
     }
   };
@@ -86,9 +77,9 @@ const ReferralCard = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-card rounded-2xl p-6 border border-border mb-6">
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="bg-card rounded-xl p-4 border border-border">
+        <div className="flex items-center justify-center py-3">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
         </div>
       </div>
     );
@@ -96,113 +87,115 @@ const ReferralCard = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-primary/10 via-card to-purple-500/10 rounded-2xl p-6 border border-primary/20 mb-6"
+      className="bg-card rounded-xl border border-border overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Gift className="w-6 h-6 text-primary" />
+      {/* Compact Header */}
+      <div className="p-3 bg-gradient-to-r from-primary/10 to-purple-500/10 border-b border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Gift className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-foreground">Invita y Gana</h3>
+              <p className="text-xs text-muted-foreground">
+                +{config?.puntos_referidor || 100} pts por amigo
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-lg text-foreground">Invita y Gana</h3>
-            <p className="text-sm text-muted-foreground">
-              Gana {config?.puntos_referidor || 100} pts por cada amigo
-            </p>
-          </div>
+          <Link to="/mis-referidos">
+            <Button variant="ghost" size="sm" className="text-primary h-8 px-2 text-xs">
+              Ver <ChevronRight className="w-3 h-3 ml-0.5" />
+            </Button>
+          </Link>
         </div>
-        <Link to="/mis-referidos">
-          <Button variant="ghost" size="sm" className="text-primary">
-            Ver más <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        </Link>
       </div>
 
-      {/* Stats rápidas */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-card/50 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-primary">{stats.referidos_activos || 0}</p>
-            <p className="text-xs text-muted-foreground">Referidos activos</p>
-          </div>
-          <div className="bg-card/50 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-green-500">{stats.puntos_ganados || 0}</p>
-            <p className="text-xs text-muted-foreground">Puntos ganados</p>
-          </div>
-        </div>
-      )}
-
-      {/* Progreso mensual */}
-      {stats?.limite_mensual && (
-        <div className="mb-4">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Este mes</span>
-            <span>{stats.puntos_este_mes || 0} / {stats.limite_mensual} pts</span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.5 }}
-              className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Link y botones */}
-      {referralLink && (
-        <div className="space-y-3">
-          {/* Link display */}
-          <div className="flex items-center gap-2 bg-card rounded-lg p-3 border border-border">
-            <code className="flex-1 text-sm text-foreground truncate">
-              {referralLink.replace('https://', '')}
-            </code>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={handleCopy}
-            >
-              {copied ? (
-                <Check className="w-4 h-4 text-green-500" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
-
-          {/* Share buttons */}
+      <div className="p-3 space-y-3">
+        {/* Stats - Compact horizontal layout */}
+        {stats && (
           <div className="flex gap-2">
-            <Button
-              variant="default"
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={handleShare}
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Compartir
-            </Button>
-            <Link to="/mis-referidos" className="flex-1">
-              <Button variant="outline" className="w-full">
-                <Users className="w-4 h-4 mr-2" />
-                Mis referidos
-              </Button>
-            </Link>
+            <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
+              <p className="text-lg font-bold text-primary">{stats.referidos_activos || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Referidos</p>
+            </div>
+            <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
+              <p className="text-lg font-bold text-green-500">{stats.puntos_ganados || 0}</p>
+              <p className="text-[10px] text-muted-foreground">Pts ganados</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Pendientes */}
-      {stats?.referidos_pendientes > 0 && (
-        <div className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            <span className="font-semibold">{stats.referidos_pendientes}</span> amigo(s)
-            pendiente(s) de usar los servicios de Manny
-          </p>
-        </div>
-      )}
+        {/* Monthly progress - More compact */}
+        {stats?.limite_mensual && (
+          <div>
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>Este mes</span>
+              <span>{stats.puntos_este_mes || 0} / {stats.limite_mensual} pts</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                transition={{ duration: 0.5 }}
+                className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Link and actions - Compact */}
+        {referralLink && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg p-2 border border-border">
+              <code className="flex-1 text-xs text-foreground truncate">
+                {referralLink.replace('https://', '')}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 h-9 bg-green-600 hover:bg-green-700 text-xs"
+                onClick={handleShare}
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                Compartir
+              </Button>
+              <Link to="/mis-referidos" className="flex-1">
+                <Button variant="outline" size="sm" className="w-full h-9 text-xs">
+                  <Users className="w-3.5 h-3.5 mr-1.5" />
+                  Mis referidos
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Pending referrals */}
+        {stats?.referidos_pendientes > 0 && (
+          <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              <span className="font-semibold">{stats.referidos_pendientes}</span> amigo(s)
+              pendiente(s) de usar los servicios
+            </p>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 };

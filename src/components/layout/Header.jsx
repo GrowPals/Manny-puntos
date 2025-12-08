@@ -84,9 +84,9 @@ const Header = () => {
         </>
     );
 
-    // Mobile admin links - full version for drawer
+    // Mobile admin links - full version for drawer with scrollable area
     const AdminNavLinksMobile = ({ onClick }) => (
-        <>
+        <div className="flex flex-col gap-1.5 overflow-y-auto">
             <NavLink to="/admin" end onClick={onClick}><LayoutDashboard className="w-5 h-5 mr-3" />Dashboard</NavLink>
             <NavLink to="/admin/productos" onClick={onClick}><Package className="w-5 h-5 mr-3" />Recompensas</NavLink>
             <NavLink to="/admin/clientes" onClick={onClick}><Users className="w-5 h-5 mr-3" />Clientes</NavLink>
@@ -95,9 +95,9 @@ const Header = () => {
             <NavLink to="/admin/referidos" onClick={onClick}><UserPlus className="w-5 h-5 mr-3" />Referidos</NavLink>
             <NavLink to="/admin/regalos" onClick={onClick}><Gift className="w-5 h-5 mr-3" />Regalos</NavLink>
             <NavLink to="/admin/gestion" onClick={onClick}><ShieldCheck className="w-5 h-5 mr-3" />Admins</NavLink>
-            <hr className="my-2 border-border" />
+            <div className="my-3 border-t border-border" />
             <NavLink to="/dashboard" end onClick={onClick}><Shield className="w-5 h-5 mr-3" />Vista Cliente</NavLink>
-        </>
+        </div>
     );
 
     const ClientNavLinks = ({ onClick, compact = false }) => (
@@ -172,33 +172,49 @@ const Header = () => {
                             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99] md:hidden"
                             aria-hidden="true"
                         />
-                        <motion.div 
+                        <motion.div
                             variants={menuVariants}
                             initial="hidden"
                             animate="visible"
                             exit="exit"
-                            className="fixed top-0 right-0 h-dvh w-[85%] max-w-sm bg-card z-[100] p-6 flex flex-col shadow-2xl md:hidden border-l border-border"
+                            className="fixed top-0 right-0 h-dvh w-[85%] max-w-sm bg-card z-[100] flex flex-col shadow-2xl lg:hidden border-l border-border"
                             role="dialog"
                             aria-modal="true"
                         >
-                            <div className="flex justify-between items-center mb-8">
-                                <img src={MannyLogo} alt="Manny Logo" className="h-16 w-auto" />
-                                <Button variant="ghost" size="icon" onClick={toggleMenu} aria-label="Cerrar menú" className="h-12 w-12">
-                                    <X className="w-6 h-6" />
+                            {/* Header */}
+                            <div className="flex justify-between items-center p-4 border-b border-border">
+                                <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto" />
+                                <Button variant="ghost" size="icon" onClick={toggleMenu} aria-label="Cerrar menú" className="h-10 w-10">
+                                    <X className="w-5 h-5" />
                                 </Button>
                             </div>
-                            <div className="flex flex-col gap-2 flex-1">
-                                {user && (
-                                    <div className="p-4 bg-primary/10 text-foreground rounded-xl font-bold flex items-center gap-3 mb-6">
-                                        <Coins className="w-6 h-6 text-primary" />
-                                        <span className="text-xl">{user.puntos_actuales?.toLocaleString('es-MX')} Puntos</span>
+
+                            {/* Points display */}
+                            {user && (
+                                <div className="p-4 border-b border-border">
+                                    <div className="p-3 bg-primary/10 text-foreground rounded-xl font-bold flex items-center gap-3">
+                                        <Coins className="w-5 h-5 text-primary" />
+                                        <span className="text-lg">{user.puntos_actuales?.toLocaleString('es-MX')} Puntos</span>
                                     </div>
-                                )}
+                                </div>
+                            )}
+
+                            {/* Navigation - scrollable */}
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {isAdmin ? <AdminNavLinksMobile onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} />}
                             </div>
-                            <Button variant="destructive" size="lg" onClick={handleLogout} className="mt-auto h-14 text-base">
-                                <LogOut className="w-5 h-5 mr-3" /> Cerrar Sesión
-                            </Button>
+
+                            {/* Logout button - fixed at bottom with safe area */}
+                            <div className="p-4 border-t border-border bg-card pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                                <Button
+                                    variant="destructive"
+                                    size="lg"
+                                    onClick={handleLogout}
+                                    className="w-full h-12 text-base font-semibold"
+                                >
+                                    <LogOut className="w-5 h-5 mr-2" /> Cerrar Sesión
+                                </Button>
+                            </div>
                         </motion.div>
                     </>
                 )}

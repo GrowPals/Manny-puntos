@@ -6,6 +6,7 @@ import * as services from './services';
 import * as admin from './admin';
 import * as referrals from './referrals';
 import * as gifts from './gifts';
+import * as sync from './sync';
 
 export const api = {
   auth,
@@ -15,5 +16,6 @@ export const api = {
   services,
   admin,
   referrals,
-  gifts
+  gifts,
+  sync,
 };

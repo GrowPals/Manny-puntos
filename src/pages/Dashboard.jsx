@@ -23,7 +23,6 @@ const Dashboard = () => {
   // Mostrar servicios para usuarios Partner o VIP
   const showServices = isPartner || isVIP;
 
-
   return (
     <>
       <Helmet>
@@ -31,87 +30,101 @@ const Dashboard = () => {
         <meta name="description" content="Consulta tus puntos Manny y canjea productos y servicios exclusivos." />
       </Helmet>
 
-      <div className="container mx-auto px-4 md:px-4 py-4 md:py-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <div className="bg-card rounded-b-3xl md:rounded-3xl shadow-xl p-6 md:p-8 border-b md:border border-border">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <div>
-                <h1 className="text-2xl md:text-3xl mb-1">
+      <div className="space-y-4 pb-4">
+        {/* Hero Section - Compact and impactful */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card rounded-2xl shadow-lg border border-border overflow-hidden"
+        >
+          {/* User greeting + Points in one compact header */}
+          <div className="p-4 pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-bold truncate">
                   ¡Hola, {firstName}!
                 </h1>
-                <p className="text-muted-foreground text-sm">Tel: {telefonoMasked}</p>
-                {(isPartner || isVIP) && (
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mt-2 ${
-                    isVIP
-                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-500'
-                      : 'border-purple-500/30 bg-purple-500/10 text-purple-500'
-                  }`}>
-                    {isVIP ? 'Cliente VIP' : 'Socio Partner'}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-muted-foreground text-xs">Tel: {telefonoMasked}</p>
+                  {(isPartner || isVIP) && (
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                      isVIP
+                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+                        : 'border-primary/30 bg-primary/10 text-primary'
+                    }`}>
+                      {isVIP ? 'VIP' : 'Partner'}
+                    </span>
+                  )}
+                </div>
               </div>
-               {/* Only show navigation buttons on desktop - mobile uses BottomNav */}
-               <div className="hidden lg:flex items-center gap-4">
+              {/* Desktop navigation */}
+              <div className="hidden lg:flex items-center gap-2">
                 <Link to="/mis-servicios">
-                  <Button variant="outline" size="sm" className="hover:bg-secondary hover:text-foreground">
-                    <Wrench className="w-4 h-4 mr-2" />
-                    Mis Servicios
+                  <Button variant="outline" size="sm">
+                    <Wrench className="w-4 h-4 mr-1.5" />
+                    Servicios
                   </Button>
                 </Link>
                 <Link to="/mis-canjes">
-                  <Button variant="outline" size="sm" className="hover:bg-secondary hover:text-foreground">
-                    <History className="w-4 h-4 mr-2" />
-                    Mis Canjes
+                  <Button variant="outline" size="sm">
+                    <History className="w-4 h-4 mr-1.5" />
+                    Canjes
                   </Button>
                 </Link>
                 <Button onClick={logout} variant="destructive" size="sm">
-                  <LogOut className="w-4 h-4 mr-2" />
+                  <LogOut className="w-4 h-4 mr-1.5" />
                   Salir
                 </Button>
               </div>
             </div>
+          </div>
 
-            <div className="hero rounded-2xl p-6 text-white">
-              <div className="flex items-center gap-3 mb-2">
-                <Coins className="w-6 md:w-8 h-6 md:h-8" />
-                <span className="text-base md:text-lg opacity-90">Tus puntos Manny</span>
+          {/* Points display - Compact gradient card */}
+          <div className="hero mx-4 mb-4 rounded-xl p-4 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 opacity-90" />
+                <span className="text-sm opacity-90">Tus puntos Manny</span>
               </div>
-              <p className="text-5xl md:text-6xl font-black">
-                {user?.puntos_actuales !== undefined ? user.puntos_actuales.toLocaleString('es-MX') : <Loader2 className="w-12 h-12 animate-spin" />}
-              </p>
               {user?.ultimo_servicio && (
-                 <p className="text-xs md:text-sm opacity-80 mt-2">Última acumulación: {user.ultimo_servicio}</p>
+                <span className="text-[10px] opacity-70 hidden sm:block">
+                  Última acumulación: {user.ultimo_servicio}
+                </span>
               )}
             </div>
-
-            <div className="mt-6">
-              <NotificationSettings clienteId={user?.id} />
-            </div>
+            <p className="text-4xl md:text-5xl font-black mt-1">
+              {user?.puntos_actuales !== undefined ? user.puntos_actuales.toLocaleString('es-MX') : <Loader2 className="w-8 h-8 animate-spin" />}
+            </p>
           </div>
-        </motion.div>
 
+          {/* Notification settings */}
+          <div className="px-4 pb-4">
+            <NotificationSettings clienteId={user?.id} />
+          </div>
+        </motion.section>
+
+        {/* Services for Partner/VIP */}
         {showServices && <ServicesList />}
 
-        {/* Mis Beneficios (regalos canjeados) */}
+        {/* Benefits from gifts */}
         <MisBeneficiosCard />
 
-        {/* Tarjeta de referidos */}
-        <div className="px-4 md:px-0">
-          <ReferralCard />
-        </div>
+        {/* Referral Card */}
+        <ReferralCard />
 
-        <div className="mb-6 px-4 md:px-0 flex justify-between items-center">
-          <h2 className="text-2xl flex items-center gap-2">
-            <Gift className="w-6 h-6 text-primary" />
-            Catálogo de Recompensas
-          </h2>
-        </div>
+        {/* Rewards Catalog */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Gift className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold">Catálogo de Recompensas</h2>
+          </div>
 
-        {loading ? (
-           <div className="text-center py-12"><Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" /></div>
-        ) : (
-          productos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 px-4 md:px-0">
+          {loading ? (
+            <div className="text-center py-8">
+              <Loader2 className="animate-spin h-6 w-6 mx-auto text-primary" />
+            </div>
+          ) : productos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {productos.map((producto) => (
                 <ProductCard
                   key={producto.id}
@@ -121,12 +134,12 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <div className="col-span-full text-center py-12 bg-card rounded-2xl shadow-md border border-border mx-4 md:mx-0">
-                <Gift className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-lg">Pronto tendremos nuevas recompensas para ti.</p>
+            <div className="text-center py-8 bg-card rounded-xl border border-border">
+              <Gift className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm">Pronto tendremos nuevas recompensas para ti.</p>
             </div>
-          )
-        )}
+          )}
+        </section>
       </div>
     </>
   );

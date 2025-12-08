@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Loader2, Lock, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,8 +15,17 @@ const Login = () => {
   const [pin, setPin] = useState('');
   const [step, setStep] = useState('phone'); // 'phone' | 'pin' | 'forgot'
   const [clienteInfo, setClienteInfo] = useState(null);
-  const { checkCliente, loginWithPin, loginFirstTime, loading } = useAuth();
+  const { user, isAdmin, checkCliente, loginWithPin, loginFirstTime, loading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      const destination = isAdmin ? '/admin' : '/dashboard';
+      navigate(destination, { replace: true });
+    }
+  }, [user, isAdmin, loading, navigate]);
 
   const handlePhoneChange = (e) => {
     const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
@@ -138,6 +148,15 @@ const Login = () => {
     center: { x: 0, opacity: 1 },
     exit: { x: -50, opacity: 0 }
   };
+
+  // Don't render login form while checking auth status or if already authenticated
+  if (loading || user) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <img src={MannyLogo} alt="Manny Logo" className="h-16 w-auto animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <>

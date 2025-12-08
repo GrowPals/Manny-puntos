@@ -31,15 +31,11 @@ export const NotificationSettings = ({ clienteId }) => {
 
     if (!isSupported) {
         return (
-            <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl">
-                <BellOff className="text-muted-foreground" size={24} />
-                <div>
-                    <p className="text-sm font-medium text-foreground">
-                        Notificaciones no disponibles
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        Tu navegador no soporta notificaciones push
-                    </p>
+            <div className="flex items-center gap-2.5 p-3 bg-muted/50 rounded-lg">
+                <BellOff className="text-muted-foreground shrink-0" size={18} />
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Notificaciones no disponibles</p>
+                    <p className="text-[10px] text-muted-foreground truncate">Tu navegador no las soporta</p>
                 </div>
             </div>
         );
@@ -47,41 +43,32 @@ export const NotificationSettings = ({ clienteId }) => {
 
     if (permission === 'denied') {
         return (
-            <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-xl">
-                <BellOff className="text-destructive" size={24} />
-                <div>
-                    <p className="text-sm font-medium text-destructive">
-                        Notificaciones bloqueadas
-                    </p>
-                    <p className="text-xs text-destructive/80">
-                        Habilítalas desde la configuración de tu navegador
-                    </p>
+            <div className="flex items-center gap-2.5 p-3 bg-destructive/10 rounded-lg">
+                <BellOff className="text-destructive shrink-0" size={18} />
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-destructive">Bloqueadas</p>
+                    <p className="text-[10px] text-destructive/80 truncate">Habilita en configuración del navegador</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
-            <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2.5 min-w-0">
                 {permission === 'granted' ? (
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                        <Bell className="text-emerald-500" size={20} />
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <Bell className="text-emerald-500" size={16} />
                     </div>
                 ) : (
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <BellOff className="text-muted-foreground" size={20} />
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <BellOff className="text-muted-foreground" size={16} />
                     </div>
                 )}
-                <div>
-                    <p className="text-sm font-medium text-foreground">
-                        Notificaciones push
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        {permission === 'granted'
-                            ? 'Recibirás alertas de puntos y canjes'
-                            : 'Activa para recibir alertas'
-                        }
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Notificaciones</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                        {permission === 'granted' ? 'Alertas activas' : 'Activa para recibir alertas'}
                     </p>
                 </div>
             </div>
@@ -91,17 +78,17 @@ export const NotificationSettings = ({ clienteId }) => {
                 disabled={isLoading}
                 variant={permission === 'granted' ? 'outline' : 'investment'}
                 size="sm"
-                className={permission === 'granted'
+                className={`shrink-0 h-8 text-xs px-3 ${permission === 'granted'
                     ? 'border-emerald-500 text-emerald-500 hover:bg-emerald-500/10'
                     : ''
-                }
+                }`}
             >
                 {isLoading ? (
-                    <Loader2 className="animate-spin" size={16} />
+                    <Loader2 className="animate-spin" size={14} />
                 ) : permission === 'granted' ? (
                     <>
-                        <Check size={16} className="mr-1" />
-                        Activas
+                        <Check size={14} className="mr-1" />
+                        On
                     </>
                 ) : (
                     'Activar'

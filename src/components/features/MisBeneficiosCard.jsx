@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/utils';
 
 const MisBeneficiosCard = () => {
   const { user } = useAuth();
@@ -22,15 +23,6 @@ const MisBeneficiosCard = () => {
   if (!isLoading && beneficiosActivos.length === 0) {
     return null;
   }
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
 
   const getDaysRemaining = (expirationDate) => {
     if (!expirationDate) return null;
