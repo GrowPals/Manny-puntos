@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '@/services/api';
 import { safeStorage } from '@/lib/utils';
 import { STORAGE_CONFIG } from '@/config';
+import { offlineStorage } from '@/lib/offlineStorage';
 
 const AuthContext = createContext(null);
 
@@ -156,10 +157,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, [loginWithPin, loginFirstTime]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setUser(null);
     setNeedsOnboarding(false);
     safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
+
+    // Clear offline cache (non-blocking, fire-and-forget)
+    if (offlineStorage.isAvailable()) {
+      offlineStorage.clearAll().catch((err) => {
+        console.warn('Failed to clear offline storage on logout:', err);
+      });
+    }
+
     navigate('/login', { replace: true });
   }, [navigate]);
 

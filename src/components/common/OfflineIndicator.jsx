@@ -1,13 +1,18 @@
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useSyncOfflineActions } from '@/hooks/useOfflineData';
 import { WifiOff, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * Indicador global de estado offline
  * Muestra una barra en la parte superior cuando no hay conexión
+ * Also handles syncing offline actions when connection returns
  */
 export const OfflineIndicator = () => {
   const { isOnline, isSlowConnection } = useNetworkStatus();
+
+  // Process any pending offline actions when back online
+  useSyncOfflineActions();
 
   return (
     <AnimatePresence>
