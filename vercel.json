@@ -2,9 +2,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "routes": [
+    { "src": "/g/([A-Za-z0-9]+)", "dest": "/api/gift/$1" }
+  ],
   "rewrites": [
-    { "source": "/g/:codigo", "destination": "/api/gift/:codigo" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

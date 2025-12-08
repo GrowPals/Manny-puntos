@@ -69,9 +69,39 @@ const GiftLinkCard = ({
         className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
         onClick={() => link.es_campana && onToggleExpand()}
       >
-        <div className="flex items-start gap-4">
+        {/* Header: Código + Badges + Expand button */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="font-mono font-bold text-primary text-sm">
+              {link.codigo}
+            </span>
+            {link.es_campana && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                Campaña
+              </span>
+            )}
+            {getEstadoBadge(link.estado, link.es_campana, link.canjes_realizados, link.max_canjes)}
+          </div>
+          {link.es_campana && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+              className="h-7 w-7 shrink-0"
+            >
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+        </div>
+
+        {/* Content: Icon + Info */}
+        <div className="flex items-start gap-3">
           {/* Icono tipo */}
-          <div className={`p-2.5 rounded-xl ${
+          <div className={`p-2 rounded-lg shrink-0 ${
             link.es_campana
               ? 'bg-purple-500/10'
               : link.tipo === 'puntos'
@@ -79,29 +109,17 @@ const GiftLinkCard = ({
               : 'bg-blue-500/10'
           }`}>
             {link.es_campana ? (
-              <Megaphone className="w-5 h-5 text-purple-500" />
+              <Megaphone className="w-4 h-4 text-purple-500" />
             ) : link.tipo === 'puntos' ? (
-              <Coins className="w-5 h-5 text-yellow-500" />
+              <Coins className="w-4 h-4 text-yellow-500" />
             ) : (
-              <Wrench className="w-5 h-5 text-blue-500" />
+              <Wrench className="w-4 h-4 text-blue-500" />
             )}
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-mono font-bold text-primary">
-                {link.codigo}
-              </span>
-              {link.es_campana && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-500 border border-purple-500/20">
-                  Campaña
-                </span>
-              )}
-              {getEstadoBadge(link.estado, link.es_campana, link.canjes_realizados, link.max_canjes)}
-            </div>
-
-            <p className="font-medium text-sm truncate">
+            <p className="font-medium text-sm line-clamp-2">
               {link.es_campana && link.nombre_campana
                 ? link.nombre_campana
                 : link.tipo === 'puntos'
@@ -111,23 +129,20 @@ const GiftLinkCard = ({
             </p>
 
             {link.es_campana && link.nombre_beneficio && (
-              <p className="text-sm text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                 {link.nombre_beneficio}
               </p>
             )}
 
-            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-              <span>Creado: {formatDateTime(link.created_at)}</span>
+            <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground flex-wrap">
+              <span>{formatDateTime(link.created_at)}</span>
               {link.veces_visto > 0 && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-0.5">
                   <Eye className="w-3 h-3" /> {link.veces_visto}
                 </span>
               )}
-              {!link.es_campana && link.destinatario_telefono && (
-                <span>Para: {link.destinatario_telefono}</span>
-              )}
               {link.es_campana && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-0.5">
                   <Users className="w-3 h-3" />
                   {link.canjes_realizados || 0} canjes
                 </span>
@@ -136,94 +151,86 @@ const GiftLinkCard = ({
 
             {!link.es_campana && link.estado === 'canjeado' && link.canjeador && (
               <p className="text-xs text-green-600 mt-1">
-                Canjeado por: {link.canjeador.nombre} ({link.canjeador.telefono})
+                Canjeado: {link.canjeador.nombre}
               </p>
             )}
           </div>
+        </div>
 
-          {/* Acciones */}
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {/* Ver beneficiarios (campañas) */}
-            {link.es_campana && link.canjes_realizados > 0 && (
+        {/* Actions - Full width row on mobile */}
+        <div
+          className="flex items-center justify-end gap-1 mt-3 pt-2 border-t border-border/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Ver beneficiarios (campañas) */}
+          {link.es_campana && link.canjes_realizados > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onViewBeneficiarios}
+              className="h-8 px-2"
+            >
+              <Users className="w-4 h-4 mr-1" />
+              <span className="text-xs">Ver</span>
+            </Button>
+          )}
+
+          {canShare && (
+            <>
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={onViewBeneficiarios}
-                title="Ver beneficiarios"
+                onClick={() => onCopyLink(link)}
+                title="Copiar link"
+                className="h-8 w-8"
               >
-                <Users className="w-4 h-4" />
-              </Button>
-            )}
-
-            {canShare && (
-              <>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onCopyLink(link)}
-                  title="Copiar link"
-                >
-                  {copiedId === link.id ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onShareWhatsApp(link)}
-                  title="Compartir por WhatsApp"
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => window.open(`/g/${link.codigo}`, '_blank')}
-                  title="Ver página"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onExpire(link.id)}
-                  title="Expirar"
-                  className="text-orange-500 hover:text-orange-600"
-                >
-                  <XCircle className="w-4 h-4" />
-                </Button>
-              </>
-            )}
-
-            {/* Expandir/contraer para campañas */}
-            {link.es_campana && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={onToggleExpand}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="w-4 h-4" />
+                {copiedId === link.id ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
                 ) : (
-                  <ChevronDown className="w-4 h-4" />
+                  <Copy className="w-4 h-4" />
                 )}
               </Button>
-            )}
-
-            {canDelete && (
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => onDelete(link.id)}
-                title="Eliminar"
-                className="text-red-500 hover:text-red-600"
+                onClick={() => onShareWhatsApp(link)}
+                title="Compartir"
+                className="h-8 w-8"
               >
-                <Trash2 className="w-4 h-4" />
+                <Share2 className="w-4 h-4" />
               </Button>
-            )}
-          </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => window.open(`/g/${link.codigo}`, '_blank')}
+                title="Ver página"
+                className="h-8 w-8"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => onExpire(link.id)}
+                title="Expirar"
+                className="h-8 w-8 text-orange-500 hover:text-orange-600"
+              >
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+
+          {canDelete && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => onDelete(link.id)}
+              title="Eliminar"
+              className="h-8 w-8 text-red-500 hover:text-red-600"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 
