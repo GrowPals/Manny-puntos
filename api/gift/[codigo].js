@@ -34,11 +34,17 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
-// Truncar texto para meta descriptions
+// Truncar texto para meta descriptions (emoji-safe)
 function truncate(text, maxLength = 160) {
   if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
+
+  // Usar Array.from para respetar caracteres Unicode completos (incluyendo emojis)
+  const chars = Array.from(text);
+
+  if (chars.length <= maxLength) return text;
+
+  // Truncar respetando caracteres completos
+  return chars.slice(0, maxLength - 3).join('') + '...';
 }
 
 export const config = {
