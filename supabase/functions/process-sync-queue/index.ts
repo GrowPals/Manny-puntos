@@ -230,7 +230,7 @@ async function processItem(
   }
 }
 
-// Admin-only function for processing sync queue
+// Process sync queue - callable by webhook (internal) or admin (manual)
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -249,27 +249,35 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate caller is admin
+    // Check if this is a webhook call (from database trigger) or manual admin call
+    const webhookSource = req.headers.get('x-webhook-source');
+    const isWebhookCall = webhookSource === 'database';
     const callerClienteId = req.headers.get('x-cliente-id');
-    if (!callerClienteId) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+
+    // If it's not a webhook call, require admin authentication
+    if (!isWebhookCall) {
+      if (!callerClienteId) {
+        return new Response(JSON.stringify({ error: 'Authentication required' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: caller, error: callerError } = await supabase
+        .from('clientes')
+        .select('id, es_admin')
+        .eq('id', callerClienteId)
+        .single();
+
+      if (callerError || !caller || !caller.es_admin) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const { data: caller, error: callerError } = await supabase
-      .from('clientes')
-      .select('id, es_admin')
-      .eq('id', callerClienteId)
-      .single();
-
-    if (callerError || !caller || !caller.es_admin) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    console.log(`Processing sync queue - source: ${isWebhookCall ? 'webhook' : 'admin'}`);
 
     // Parse batch size from request or use default
     let batchSize = 10;

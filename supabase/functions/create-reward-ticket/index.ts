@@ -327,30 +327,6 @@ Deno.serve(async (req: Request) => {
       const tipoBeneficio = beneficio.tipo?.toLowerCase() || '';
       esServicio = tipoBeneficio === 'servicio' || tipoBeneficio === 'service';
 
-    } else if (tipo === 'beneficio_reclamado') {
-      // Beneficio reclamado desde la tabla beneficios_reclamados (legacy)
-      const { data: beneficio, error } = await supabase
-        .from('beneficios_reclamados')
-        .select(`
-          *,
-          clientes(id, nombre, telefono, email, nivel, notion_page_id)
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error || !beneficio) {
-        throw new Error(`Beneficio reclamado not found: ${id}`);
-      }
-
-      clienteTelefono = beneficio.clientes?.telefono;
-      clienteNombre = beneficio.clientes?.nombre || 'Cliente';
-      clienteEmail = beneficio.clientes?.email || null;
-      clienteNivel = beneficio.clientes?.nivel || null;
-      itemNombre = beneficio.nombre_beneficio || 'Beneficio';
-      itemDescripcion = beneficio.descripcion_beneficio || '';
-      fechaCanje = beneficio.created_at;
-      esServicio = true; // Beneficios reclamados siempre son servicios
-
     } else {
       return new Response(JSON.stringify({ error: `Unknown tipo: ${tipo}` }), {
         status: 400,
@@ -426,7 +402,7 @@ Deno.serve(async (req: Request) => {
       // SERVICIO: Crear ticket en Tickets Manny con checkbox marcado
       const ticketTitle = tipo === 'canje'
         ? `Canje Servicio: ${itemNombre}`
-        : tipo === 'beneficio' || tipo === 'beneficio_reclamado'
+        : tipo === 'beneficio'
           ? `Regalo: ${itemNombre}`
           : `Manny Rewards: ${itemNombre}`;
 
@@ -460,11 +436,6 @@ Deno.serve(async (req: Request) => {
       } else if (tipo === 'beneficio') {
         await supabase
           .from('beneficios_cliente')
-          .update({ notion_ticket_id: notionId })
-          .eq('id', id);
-      } else if (tipo === 'beneficio_reclamado') {
-        await supabase
-          .from('beneficios_reclamados')
           .update({ notion_ticket_id: notionId })
           .eq('id', id);
       }

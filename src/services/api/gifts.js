@@ -438,3 +438,36 @@ export const createBenefitTicket = async (beneficioId) => {
   }
 };
 
+/**
+ * Obtiene resumen de analytics de regalos/campañas
+ * @param {Date} desde - Fecha inicio (opcional)
+ * @param {Date} hasta - Fecha fin (opcional)
+ */
+export const getGiftAnalyticsSummary = async (desde = null, hasta = null) => {
+  const { data, error } = await supabase.rpc('get_gift_analytics_summary', {
+    p_desde: desde,
+    p_hasta: hasta
+  });
+
+  if (error) {
+    logger.error('Error obteniendo analytics de regalos', { error: error.message });
+    throw new Error('Error al obtener analytics');
+  }
+
+  return data;
+};
+
+/**
+ * Ejecuta limpieza de links expirados (para admin/cron)
+ */
+export const expireOldGiftLinks = async () => {
+  const { data, error } = await supabase.rpc('expire_old_gift_links');
+
+  if (error) {
+    logger.error('Error expirando links antiguos', { error: error.message });
+    throw new Error('Error al expirar links');
+  }
+
+  return data;
+};
+

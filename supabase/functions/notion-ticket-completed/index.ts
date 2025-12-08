@@ -1,10 +1,25 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS con whitelist de orígenes permitidos
+const ALLOWED_ORIGINS = [
+  'https://recompensas.manny.mx',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://[::]:3000',
+  // Notion webhooks no envían origin, se permite sin origin para webhooks
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  // Si no hay origin (webhook de Notion), usar el primer origen permitido
+  const allowedOrigin = !origin || ALLOWED_ORIGINS.includes(origin) ? (origin || ALLOWED_ORIGINS[0]) : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
 const CONTACTOS_DB = '17ac6cfd-8c1e-8068-8bc0-d32488189164';
@@ -162,6 +177,8 @@ async function updateRewardPoints(rewardId: string, notionToken: string): Promis
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
