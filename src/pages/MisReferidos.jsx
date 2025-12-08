@@ -138,7 +138,7 @@ const MisReferidos = () => {
         <title>Mis Referidos - Manny Rewards</title>
       </Helmet>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

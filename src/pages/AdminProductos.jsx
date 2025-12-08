@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Package, Plus, Edit, Trash2, Image as ImageIcon, Wrench, Loader2 } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Image as ImageIcon, Wrench, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/context/AuthContext';
 
 
@@ -105,72 +102,171 @@ const ProductForm = ({ product, onFinished }) => {
     const isSubmitting = mutation.isPending;
 
     return (
-        <DialogContent className="bg-card border-border text-foreground">
+        <DialogContent className="bg-card border-border text-foreground sm:max-w-md">
             <DialogHeader>
-                <DialogTitle className="text-2xl">{product ? 'Editar' : 'Nueva'} Recompensa</DialogTitle>
-                <DialogDescription className="sr-only">
-                    {product ? 'Edita los detalles de la recompensa' : 'Crea una nueva recompensa para el catálogo'}
-                </DialogDescription>
+                <DialogTitle className="text-lg font-bold">{product ? 'Editar' : 'Nueva'} Recompensa</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-1">
-                <Input name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Nombre de la recompensa (ej. Kit de Herramientas)" required className="h-12 text-base" />
-                <Select value={formData.tipo} onValueChange={handleTypeChange}>
-                  <SelectTrigger className="h-12 text-base">
-                    <SelectValue placeholder="Tipo de recompensa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="producto">Producto Físico</SelectItem>
-                    <SelectItem value="servicio">Servicio</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input name="descripcion" value={formData.descripcion || ''} onChange={handleChange} placeholder="Descripción" className="h-12 text-base" />
-                <Input name="puntos_requeridos" type="number" value={formData.puntos_requeridos} onChange={handleChange} placeholder="Puntos requeridos" required className="h-12 text-base" />
-                {formData.tipo === 'producto' &&
-                    <Input name="stock" type="number" value={formData.stock || ''} onChange={handleChange} placeholder="Stock disponible" required className="h-12 text-base" />
-                }
-                <Input name="categoria" value={formData.categoria || ''} onChange={handleChange} placeholder="Categoría (e.g., Bienestar)" className="h-12 text-base" />
-                
-                <div className="space-y-2">
-                    <Label>Imagen</Label>
-                    {imagePreview && <img src={imagePreview} alt="preview" className="w-full h-32 object-contain rounded-lg bg-muted mb-2"/>}
-                    <div className="flex gap-2">
-                        <Input
-                            name="imagen_url"
-                            value={formData.imagen_url || ''}
-                            onChange={handleChange}
-                            placeholder="URL de la imagen"
-                            className="h-12 text-base flex-1"
-                        />
-                    </div>
-                    <div className="relative">
-                        <Input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
-                            onChange={handleFileChange}
-                            className="text-sm cursor-pointer"
-                            disabled={isUploading}
-                        />
-                        {isUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
-                                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                                <span className="ml-2 text-sm">Subiendo...</span>
-                            </div>
-                        )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Formatos: JPG, PNG, WebP, GIF. Máximo 5MB.</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Tipo - inline toggle */}
+                <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-lg">
+                    <button
+                        type="button"
+                        onClick={() => handleTypeChange('producto')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                            formData.tipo === 'producto'
+                                ? 'bg-background shadow-sm text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Package className="w-4 h-4" />
+                        Producto
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleTypeChange('servicio')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                            formData.tipo === 'servicio'
+                                ? 'bg-background shadow-sm text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Wrench className="w-4 h-4" />
+                        Servicio
+                    </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                   <input type="checkbox" id="activo" name="activo" checked={formData.activo} onChange={handleChange} className="w-5 h-5 accent-primary" />
-                   <Label htmlFor="activo" className="text-base text-muted-foreground">Recompensa Activa</Label>
+                {/* Nombre */}
+                <Input
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    placeholder="Nombre de la recompensa *"
+                    required
+                />
+
+                {/* Puntos y Stock/Categoría en grid */}
+                <div className="grid grid-cols-2 gap-3">
+                    <Input
+                        name="puntos_requeridos"
+                        type="number"
+                        value={formData.puntos_requeridos}
+                        onChange={handleChange}
+                        placeholder="Puntos requeridos *"
+                        required
+                        min="1"
+                    />
+                    {formData.tipo === 'producto' ? (
+                        <Input
+                            name="stock"
+                            type="number"
+                            value={formData.stock || ''}
+                            onChange={handleChange}
+                            placeholder="Stock disponible *"
+                            required
+                            min="0"
+                        />
+                    ) : (
+                        <Input
+                            name="categoria"
+                            value={formData.categoria || ''}
+                            onChange={handleChange}
+                            placeholder="Categoría"
+                        />
+                    )}
                 </div>
-                 <DialogFooter>
+
+                {/* Estado activo - compacto */}
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30 border border-border">
+                    <span className="text-sm font-medium">Activa en catálogo</span>
+                    <input
+                        type="checkbox"
+                        name="activo"
+                        checked={formData.activo}
+                        onChange={handleChange}
+                        className="w-5 h-5 accent-primary rounded"
+                    />
+                </div>
+
+                {/* Opciones avanzadas colapsables */}
+                <details className="group">
+                    <summary className="flex items-center cursor-pointer py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors list-none">
+                        <ChevronDown className="w-4 h-4 mr-2 transition-transform group-open:rotate-180" />
+                        Más opciones
+                    </summary>
+                    <div className="space-y-3 pt-3 border-t border-border mt-2">
+                        {/* Descripción */}
+                        <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Descripción</label>
+                            <textarea
+                                name="descripcion"
+                                value={formData.descripcion || ''}
+                                onChange={handleChange}
+                                placeholder="Qué incluye esta recompensa..."
+                                className="w-full h-16 p-2.5 rounded-lg bg-background border border-border text-foreground resize-none text-sm"
+                            />
+                        </div>
+
+                        {/* Categoría para productos */}
+                        {formData.tipo === 'producto' && (
+                            <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Categoría</label>
+                                <Input
+                                    name="categoria"
+                                    value={formData.categoria || ''}
+                                    onChange={handleChange}
+                                    placeholder="Ej: Herramientas, Accesorios"
+                                />
+                            </div>
+                        )}
+
+                        {/* Imagen */}
+                        <div className="space-y-2">
+                            <label className="text-xs text-muted-foreground block">Imagen</label>
+
+                            {imagePreview && (
+                                <div className="relative rounded-lg overflow-hidden bg-muted">
+                                    <img src={imagePreview} alt="preview" className="w-full h-32 object-contain"/>
+                                </div>
+                            )}
+
+                            <Input
+                                name="imagen_url"
+                                value={formData.imagen_url || ''}
+                                onChange={handleChange}
+                                placeholder="URL de la imagen"
+                            />
+
+                            <label className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer ${isUploading ? 'opacity-50' : ''}`}>
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                        <span className="text-sm text-muted-foreground">Subiendo...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-sm text-muted-foreground">Subir imagen</span>
+                                    </>
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/gif"
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    disabled={isUploading}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                </details>
+
+                <DialogFooter className="gap-2 mt-2">
                     <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isSubmitting}>Cancelar</Button>
+                        <Button type="button" variant="outline" size="sm" disabled={isSubmitting}>Cancelar</Button>
                     </DialogClose>
-                    <Button type="submit" variant="investment" disabled={isSubmitting || isUploading}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {product ? 'Actualizar' : 'Crear'}
+                    <Button type="submit" size="sm" disabled={isSubmitting || isUploading}>
+                        {isSubmitting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                        {product ? 'Guardar' : 'Crear'}
                     </Button>
                 </DialogFooter>
             </form>
@@ -260,7 +356,7 @@ const AdminProductos = () => {
                 </DialogContent>
             </Dialog>
 
-            <div className="container mx-auto px-4 py-6">
+            <div className="space-y-6">
                 <PageHeader
                     icon={Package}
                     title="Recompensas"
@@ -300,8 +396,8 @@ const AdminProductos = () => {
                                 <div className="absolute top-3 left-3">
                                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-sm capitalize ${
                                         producto.tipo === 'servicio'
-                                            ? 'bg-indigo-500/90 text-white'
-                                            : 'bg-amber-500/90 text-white'
+                                            ? 'bg-blue-500/90 text-white'
+                                            : 'bg-rose-500/90 text-white'
                                     }`}>
                                         {producto.tipo}
                                     </span>

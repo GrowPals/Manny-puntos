@@ -11,18 +11,29 @@ import MannyLogo from '@/assets/images/manny-logo-new.svg';
 import { VALIDATION, UI_CONFIG, isValidPhone } from '@/config';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { logger } from '@/lib/logger';
+import AppDownloadStep from '@/components/AppDownloadStep';
+
+// Pre-generate particle data to avoid re-renders with Math.random()
+const FLOATING_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  hue: Math.random() * 60 + 320,
+  left: Math.random() * 100,
+  top: Math.random() * 100,
+  duration: 2 + Math.random() * 2,
+  delay: Math.random() * 2,
+}));
 
 // Componente de partículas flotantes
 const FloatingParticles = () => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none">
-    {[...Array(20)].map((_, i) => (
+    {FLOATING_PARTICLES.map((particle) => (
       <motion.div
-        key={i}
+        key={particle.id}
         className="absolute w-2 h-2 rounded-full"
         style={{
-          background: `hsl(${Math.random() * 60 + 320}, 80%, 60%)`,
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
+          background: `hsl(${particle.hue}, 80%, 60%)`,
+          left: `${particle.left}%`,
+          top: `${particle.top}%`,
         }}
         animate={{
           y: [0, -30, 0],
@@ -30,9 +41,9 @@ const FloatingParticles = () => (
           scale: [1, 1.5, 1],
         }}
         transition={{
-          duration: 2 + Math.random() * 2,
+          duration: particle.duration,
           repeat: Infinity,
-          delay: Math.random() * 2,
+          delay: particle.delay,
         }}
       />
     ))}
@@ -48,13 +59,15 @@ const GiftLanding = () => {
   const [loading, setLoading] = useState(true);
   const [giftData, setGiftData] = useState(null);
   const [error, setError] = useState(null);
-  const [step, setStep] = useState('intro'); // 'intro' | 'reveal' | 'terms' | 'claim'
+  const [step, setStep] = useState('intro'); // 'intro' | 'reveal' | 'terms' | 'claim' | 'download'
   const [telefono, setTelefono] = useState('');
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [claimAttempted, setClaimAttempted] = useState(false); // Prevent double submission
   const [isExclusiveGift, setIsExclusiveGift] = useState(false); // For destinatario validation
+  const [claimedClienteId, setClaimedClienteId] = useState(null); // Store cliente ID after claim
+  const [isClienteNuevo, setIsClienteNuevo] = useState(false); // Track if new client
 
   // Cargar datos del regalo
   useEffect(() => {
@@ -200,11 +213,14 @@ const GiftLanding = () => {
           }
         }
 
+        // Store cliente info for download step
+        setClaimedClienteId(result.cliente_id);
+        setIsClienteNuevo(result.cliente_nuevo);
         setClaimed(true);
 
         // Mega confetti with error handling
         try {
-          const duration = UI_CONFIG.REDIRECT_DELAY;
+          const duration = 2000;
           const end = Date.now() + duration;
 
           const frame = () => {
@@ -233,14 +249,10 @@ const GiftLanding = () => {
           console.warn('Confetti animation failed:', confettiError);
         }
 
-        // Redirigir después del delay configurado
+        // Ir al paso de descarga/notificaciones después del confetti
         setTimeout(() => {
-          if (result.cliente_nuevo) {
-            navigate('/login');
-          } else {
-            navigate('/dashboard');
-          }
-        }, UI_CONFIG.REDIRECT_DELAY);
+          setStep('download');
+        }, 2000);
       }
     } catch (err) {
       console.error('Error claiming gift:', err);
@@ -285,6 +297,27 @@ const GiftLanding = () => {
           </Button>
         </motion.div>
       </div>
+    );
+  }
+
+  // Render download step separately (has its own full layout)
+  if (step === 'download') {
+    return (
+      <AppDownloadStep
+        clienteId={claimedClienteId}
+        colorTema={giftData?.color_tema || '#E91E63'}
+        benefitText={giftData?.tipo === 'puntos'
+          ? `tus ${giftData?.puntos_regalo?.toLocaleString()} puntos`
+          : giftData?.nombre_beneficio || 'tu regalo'
+        }
+        onComplete={() => {
+          if (isClienteNuevo) {
+            navigate('/login');
+          } else {
+            navigate('/dashboard');
+          }
+        }}
+      />
     );
   }
 
@@ -690,12 +723,13 @@ const GiftLanding = () => {
             </motion.div>
           )}
 
-          {/* STEP 4: Claimed - Éxito */}
-          {claimed && (
+          {/* STEP 4: Claimed - Éxito (transitorio) */}
+          {claimed && step === 'claim' && (
             <motion.div
               key="claimed"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
               className="text-center"
             >
               <motion.div
@@ -723,15 +757,6 @@ const GiftLanding = () => {
                 className="text-lg text-muted-foreground mb-2"
               >
                 Tu regalo ha sido agregado a tu cuenta
-              </motion.p>
-
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-sm text-muted-foreground"
-              >
-                Redirigiendo...
               </motion.p>
             </motion.div>
           )}

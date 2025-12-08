@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -97,8 +95,10 @@ const Dashboard = () => {
             </p>
           </div>
 
-          {/* Notification settings - el componente se auto-oculta cuando ya están activadas */}
-          <NotificationSettings clienteId={user?.id} />
+          {/* Notification settings */}
+          <div className="px-4 pb-4">
+            <NotificationSettings clienteId={user?.id} />
+          </div>
         </motion.section>
 
         {/* Services for Partner/VIP */}

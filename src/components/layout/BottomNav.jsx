@@ -38,7 +38,7 @@ const BottomNav = () => {
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-            <div className="bg-card/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-card border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom)]">
                 <div className={cn("grid h-[68px] max-w-lg mx-auto", gridCols)}>
                     {navItems.map(({ to, icon: Icon, label, exact }) => {
                         const isActive = isActiveRoute(to, exact);

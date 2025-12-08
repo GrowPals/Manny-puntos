@@ -58,7 +58,7 @@ const PageLayout = ({ children, seoTitle, seoDescription, isAdminRoute = false }
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <SEOHelmet title={seoTitle} description={seoDescription} />
       <Header />
-      <main className={`flex-1 container mx-auto px-4 ${mainPadding} flex flex-col`}>
+      <main className={`flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 ${mainPadding} flex flex-col`}>
         {children}
       </main>
       <Footer />

@@ -99,7 +99,8 @@ export const AuthProvider = ({ children }) => {
   }, [navigate, location.state]);
 
   // Login primera vez (sin PIN - para onboarding)
-  const loginFirstTime = useCallback(async (telefono) => {
+  // skipNavigation: si es true, no navega automáticamente (útil para flujos con pasos intermedios)
+  const loginFirstTime = useCallback(async (telefono, { skipNavigation = false } = {}) => {
     setLoading(true);
     try {
       const clienteData = await api.auth.loginFirstTime(telefono);
@@ -109,8 +110,10 @@ export const AuthProvider = ({ children }) => {
 
       // NO guardamos en localStorage hasta que complete onboarding
 
-      const destination = clienteData.es_admin ? '/admin' : '/dashboard';
-      navigate(destination, { replace: true });
+      if (!skipNavigation) {
+        const destination = clienteData.es_admin ? '/admin' : '/dashboard';
+        navigate(destination, { replace: true });
+      }
 
       return clienteData;
     } catch (error) {

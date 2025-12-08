@@ -1,9 +1,7 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Gift, Copy, Share2, Users, ChevronRight, Check, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { Users, Share2, ChevronRight, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
@@ -11,8 +9,6 @@ import { CACHE_CONFIG } from '@/config';
 
 const ReferralCard = memo(() => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['referral-stats', user?.id],
@@ -35,18 +31,6 @@ const ReferralCard = memo(() => {
     ? `${window.location.origin}/r/${stats.codigo}`
     : null;
 
-  const handleCopy = useCallback(async () => {
-    if (!referralLink) return;
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopied(true);
-      toast({ title: 'Link copiado', description: 'Compártelo con tus amigos' });
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo copiar el link', variant: 'destructive' });
-    }
-  }, [referralLink, toast]);
-
   const openWhatsApp = useCallback(() => {
     const message = encodeURIComponent(
       `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`
@@ -54,7 +38,8 @@ const ReferralCard = memo(() => {
     window.open(`https://wa.me/?text=${message}`, '_blank');
   }, [config?.mensaje_compartir, referralLink]);
 
-  const handleShare = useCallback(async () => {
+  const handleShare = useCallback(async (e) => {
+    e.stopPropagation();
     if (!referralLink || !config) return;
     const shareData = {
       title: 'Manny Rewards',
@@ -72,132 +57,62 @@ const ReferralCard = memo(() => {
     }
   }, [referralLink, config, openWhatsApp]);
 
-  const progressPercent = stats?.limite_mensual
-    ? Math.min((stats.puntos_este_mes / stats.limite_mensual) * 100, 100)
-    : 0;
-
   if (isLoading) {
     return (
-      <div className="bg-card rounded-xl p-4 border border-border">
-        <div className="flex items-center justify-center py-3">
-          <Loader2 className="w-5 h-5 animate-spin text-primary" />
-        </div>
+      <div className="bg-card rounded-xl border border-border h-[60px] flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <motion.div
+    <motion.section
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card rounded-xl border border-border overflow-hidden"
+      className="bg-card rounded-2xl border border-border overflow-hidden"
     >
-      {/* Compact Header */}
-      <div className="p-3 bg-gradient-to-r from-primary/10 to-purple-500/10 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Gift className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-foreground">Invita y Gana</h3>
-              <p className="text-xs text-muted-foreground">
-                +{config?.puntos_referidor || 100} pts por amigo
-              </p>
-            </div>
-          </div>
-          <Link to="/mis-referidos">
-            <Button variant="ghost" size="sm" className="text-primary h-8 px-2 text-xs">
-              Ver <ChevronRight className="w-3 h-3 ml-0.5" />
-            </Button>
-          </Link>
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 pb-2">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-primary" />
+          <span className="font-bold text-sm uppercase tracking-tight">Invita y Gana</span>
+          <span className="text-[10px] text-muted-foreground">+{config?.puntos_referidor || 100} pts por amigo</span>
+        </div>
+        <Link to="/mis-referidos" className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline">
+          Ver <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-2 px-3 pb-2">
+        <div className="bg-muted/50 rounded-lg p-2 text-center">
+          <p className="text-lg font-bold text-foreground">{stats?.referidos_activos || 0}</p>
+          <p className="text-[10px] text-muted-foreground">Referidos</p>
+        </div>
+        <div className="bg-muted/50 rounded-lg p-2 text-center">
+          <p className="text-lg font-bold text-primary">{stats?.puntos_ganados || 0}</p>
+          <p className="text-[10px] text-muted-foreground">Pts ganados</p>
         </div>
       </div>
 
-      <div className="p-3 space-y-3">
-        {/* Stats - Compact horizontal layout */}
-        {stats && (
-          <div className="flex gap-2">
-            <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-foreground">{stats.referidos_activos || 0}</p>
-              <p className="text-xs text-muted-foreground">Referidos</p>
-            </div>
-            <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.puntos_ganados || 0}</p>
-              <p className="text-xs text-muted-foreground">Pts ganados</p>
-            </div>
-          </div>
-        )}
-
-        {/* Monthly progress - More compact */}
-        {stats?.limite_mensual && (
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Este mes</span>
-              <span>{stats.puntos_este_mes || 0} / {stats.limite_mensual} pts</span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Link and actions - Compact */}
-        {referralLink && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg p-2 border border-border">
-              <code className="flex-1 text-xs text-foreground truncate">
-                {referralLink.replace('https://', '')}
-              </code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={handleCopy}
-              >
-                {copied ? (
-                  <Check className="w-3.5 h-3.5 text-green-500" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                className="flex-1 h-9 bg-green-600 hover:bg-green-700 text-xs"
-                onClick={handleShare}
-              >
-                <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                Compartir
-              </Button>
-              <Link to="/mis-referidos" className="flex-1">
-                <Button variant="outline" size="sm" className="w-full h-9 text-xs">
-                  <Users className="w-3.5 h-3.5 mr-1.5" />
-                  Mis referidos
-                </Button>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Pending referrals */}
-        {stats?.referidos_pendientes > 0 && (
-          <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              <span className="font-semibold">{stats.referidos_pendientes}</span> amigo(s)
-              pendiente(s) de usar los servicios
-            </p>
-          </div>
-        )}
+      {/* Actions */}
+      <div className="grid grid-cols-2 gap-2 p-3 pt-0">
+        <button
+          onClick={handleShare}
+          className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-lg py-2 text-sm font-medium transition-colors"
+        >
+          <Share2 className="w-4 h-4" />
+          Compartir
+        </button>
+        <Link
+          to="/mis-referidos"
+          className="flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg py-2 text-sm font-medium transition-colors"
+        >
+          <Users className="w-4 h-4" />
+          Mis referidos
+        </Link>
       </div>
-    </motion.div>
+    </motion.section>
   );
 });
 

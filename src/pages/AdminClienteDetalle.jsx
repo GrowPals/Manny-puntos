@@ -132,7 +132,7 @@ const AdminClienteDetalle = () => {
 
     if (!cliente) {
         return (
-            <div className="container mx-auto px-4 py-8 text-center">
+            <div className="py-8 text-center">
                 <p className="text-muted-foreground">Cliente no encontrado.</p>
                 <Link to="/admin/clientes">
                     <Button variant="outline" className="mt-4">Volver a Clientes</Button>
@@ -147,7 +147,7 @@ const AdminClienteDetalle = () => {
                 <title>{cliente.nombre} - Admin Manny</title>
             </Helmet>
 
-            <div className="container mx-auto px-4 py-8">
+            <div className="space-y-6">
                 {/* Header */}
                 <Link to="/admin/clientes" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-6">
                     <ArrowLeft size={16} />
@@ -165,7 +165,7 @@ const AdminClienteDetalle = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">{cliente.nombre}</h1>
-                                    <Badge className={cliente.nivel === 'vip' ? 'bg-amber-500' : 'bg-purple-500'}>
+                                    <Badge className={cliente.nivel === 'vip' ? 'bg-amber-500' : 'bg-blue-500'}>
                                         {cliente.nivel === 'vip' ? <><Crown className="w-3 h-3 mr-1" />VIP</> : 'Partner'}
                                     </Badge>
                                     {cliente.es_admin && <Badge variant="outline">Admin</Badge>}
@@ -840,7 +840,7 @@ const ChangeLevelModal = ({ open, onClose, cliente, onSuccess }) => {
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Nivel Actual</Label>
-                        <Badge className={cliente?.nivel === 'vip' ? 'bg-amber-500' : 'bg-purple-500'}>
+                        <Badge className={cliente?.nivel === 'vip' ? 'bg-amber-500' : 'bg-blue-500'}>
                             {cliente?.nivel === 'vip' ? 'VIP' : 'Partner'}
                         </Badge>
                     </div>

@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    Users, Search, PlusCircle, Edit, Loader2, Gift, Crown, ChevronRight,
-    Filter, ArrowUpDown, Coins, TrendingUp, X, Sparkles
+    Users, Search, Edit, Loader2, Gift, Crown, ChevronRight,
+    ArrowUpDown, Coins, X, Star, TrendingUp, Phone, UserPlus
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +12,6 @@ import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -31,35 +30,113 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Stats Card Component - Enhanced with icon backgrounds and better contrast
-const StatCard = ({ icon: Icon, label, value, color = "primary", trend }) => {
-    const colorClasses = {
-        primary: 'bg-primary/10 text-primary',
-        'amber-500': 'bg-amber-500/10 text-amber-500',
-        'green-500': 'bg-green-500/10 text-green-500',
-        'purple-500': 'bg-purple-500/10 text-purple-500',
+// Avatar Component with gradient background
+const ClientAvatar = ({ nombre, nivel, size = 'md' }) => {
+    const sizeClasses = {
+        sm: 'w-9 h-9 text-sm',
+        md: 'w-11 h-11 text-base',
+        lg: 'w-14 h-14 text-xl'
     };
 
+    // VIP = dorado/naranja, Partner = azul/cyan
+    const gradientClasses = nivel === 'vip'
+        ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600'
+        : 'bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-700';
+
     return (
-        <div className="bg-card rounded-xl p-4 border border-border hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-foreground/70">{label}</p>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClasses[color] || colorClasses.primary}`}>
-                    <Icon className="w-5 h-5" />
-                </div>
-            </div>
-            <div className="flex items-end justify-between">
-                <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
-                {trend && (
-                    <div className="flex items-center gap-1 text-green-500 text-sm font-medium px-2 py-0.5 bg-green-500/10 rounded-lg">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        {trend}
-                    </div>
-                )}
-            </div>
+        <div className={`${sizeClasses[size]} ${gradientClasses} rounded-full flex items-center justify-center flex-shrink-0 shadow-lg`}>
+            <span className="font-bold text-white drop-shadow-sm">
+                {nombre.charAt(0).toUpperCase()}
+            </span>
         </div>
     );
 };
+
+// Level Badge Component - Clickeable para cambiar nivel
+const LevelBadge = ({ nivel, showLabel = true, onClick, clickable = false }) => {
+    const content = nivel === 'vip' ? (
+        <div className="flex items-center gap-1">
+            <Crown className="w-4 h-4 text-amber-500" />
+            {showLabel && <span className="text-xs font-semibold text-amber-500">VIP</span>}
+        </div>
+    ) : (
+        <div className="flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 text-blue-500" />
+            {showLabel && <span className="text-xs font-medium text-blue-500">Partner</span>}
+        </div>
+    );
+
+    if (clickable && onClick) {
+        return (
+            <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all hover:bg-muted ${
+                    nivel === 'vip' ? 'hover:bg-amber-500/10' : 'hover:bg-blue-500/10'
+                }`}
+                title="Cambiar nivel"
+            >
+                {content}
+                <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            </button>
+        );
+    }
+
+    return content;
+};
+
+// Stats Card Component - Enhanced design
+const StatCard = ({ icon: Icon, label, value, color, subtext, bgAccent }) => (
+    <div className="relative bg-card rounded-xl p-4 border border-border overflow-hidden group hover:border-border/80 transition-colors">
+        {/* Subtle gradient accent */}
+        <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-10 -translate-y-1/2 translate-x-1/2 ${bgAccent || 'bg-primary'}`} />
+
+        <div className="relative flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">{label}</p>
+                <p className={`text-3xl font-bold ${color} tabular-nums`}>{value}</p>
+                {subtext && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                        {subtext}
+                    </p>
+                )}
+            </div>
+            <div className={`p-2.5 rounded-xl ${color} bg-current/10 flex-shrink-0`}>
+                <Icon className="w-5 h-5" />
+            </div>
+        </div>
+    </div>
+);
+
+// Filter Tab Component
+const FilterTab = ({ active, onClick, children, count, color }) => (
+    <button
+        onClick={onClick}
+        className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            active
+                ? 'bg-card border border-border shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+        }`}
+    >
+        {children}
+        <span className={`text-xs px-1.5 py-0.5 rounded-md ${
+            active ? `${color} bg-current/10` : 'text-muted-foreground'
+        }`}>
+            {count}
+        </span>
+    </button>
+);
+
+// Quick Action Button
+const QuickAction = ({ icon: Icon, label, onClick, color = 'text-muted-foreground' }) => (
+    <button
+        onClick={onClick}
+        className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors ${color} hover:text-foreground`}
+    >
+        <Icon className="w-4 h-4" />
+        <span className="text-[10px] font-medium">{label}</span>
+    </button>
+);
 
 const ClientForm = ({ client, onFinished }) => {
     const initialState = client ? { ...client } : { id: undefined, nombre: '', telefono: '', puntos_actuales: 0, nivel: 'partner' };
@@ -132,8 +209,18 @@ const ClientForm = ({ client, onFinished }) => {
                             <SelectValue placeholder="Seleccionar nivel" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="partner">Partner</SelectItem>
-                            <SelectItem value="vip">VIP</SelectItem>
+                            <SelectItem value="partner">
+                                <div className="flex items-center gap-2">
+                                    <Star className="w-4 h-4 text-blue-500" />
+                                    Partner
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="vip">
+                                <div className="flex items-center gap-2">
+                                    <Crown className="w-4 h-4 text-amber-500" />
+                                    VIP
+                                </div>
+                            </SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -161,13 +248,12 @@ const AssignPointsForm = ({ client, onFinished }) => {
 
     const mutation = useMutation({
         mutationFn: ({ telefono, puntos, concepto }) => api.clients.asignarPuntosManualmente(telefono, puntos, concepto),
-        onSuccess: (data, variables) => {
+        onSuccess: (_, variables) => {
             toast({ title: "¡Puntos asignados!", description: `${variables.puntos} puntos agregados a ${client.nombre}` });
             queryClient.invalidateQueries(['admin-clientes']);
             onFinished();
         },
         onError: (error) => {
-            console.error("Error assigning points:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     });
@@ -198,13 +284,15 @@ const AssignPointsForm = ({ client, onFinished }) => {
     return (
         <DialogContent className="bg-card border-border text-foreground">
             <DialogHeader>
-                <DialogTitle className="text-2xl">Asignar Puntos</DialogTitle>
+                <DialogTitle className="text-2xl flex items-center gap-3">
+                    <ClientAvatar nombre={client?.nombre || ''} nivel={client?.nivel} size="sm" />
+                    Asignar Puntos
+                </DialogTitle>
                 <DialogDescription>
-                    Agrega puntos a <span className="font-semibold text-foreground">{client?.nombre}</span>
+                    Cliente: <span className="font-semibold text-foreground">{client?.nombre}</span>
                 </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleAssignPoints} className="space-y-4 py-4">
-                {/* Quick Points Buttons */}
                 <div className="space-y-2">
                     <Label>Puntos rápidos</Label>
                     <div className="grid grid-cols-4 gap-2">
@@ -273,7 +361,6 @@ const AssignServiceForm = ({ client, onFinished }) => {
             onFinished();
         },
         onError: (error) => {
-            console.error("Error assigning service:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     });
@@ -303,13 +390,15 @@ const AssignServiceForm = ({ client, onFinished }) => {
     return (
         <DialogContent className="bg-card border-border text-foreground max-w-lg">
             <DialogHeader>
-                <DialogTitle className="text-2xl">Asignar Beneficio</DialogTitle>
+                <DialogTitle className="text-2xl flex items-center gap-3">
+                    <ClientAvatar nombre={client?.nombre || ''} nivel={client?.nivel} size="sm" />
+                    Asignar Beneficio
+                </DialogTitle>
                 <DialogDescription>
-                    Crea un beneficio para <span className="font-semibold text-foreground">{client?.nombre}</span>
+                    Cliente: <span className="font-semibold text-foreground">{client?.nombre}</span>
                 </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                {/* Template Suggestions */}
                 <div className="space-y-2">
                     <Label>Sugerencias rápidas</Label>
                     <div className="grid grid-cols-2 gap-2">
@@ -320,7 +409,7 @@ const AssignServiceForm = ({ client, onFinished }) => {
                                 onClick={() => handleTemplateSelect(template)}
                                 className={`text-left p-3 rounded-lg border transition-all ${
                                     serviceName === template.name
-                                        ? 'border-primary bg-primary/10'
+                                        ? 'border-primary bg-primary/5'
                                         : 'border-border hover:border-primary/50 hover:bg-muted/50'
                                 }`}
                             >
@@ -357,7 +446,7 @@ const AssignServiceForm = ({ client, onFinished }) => {
                     </DialogClose>
                     <Button type="submit" variant="investment" disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Asignar
+                        Asignar Beneficio
                     </Button>
                 </DialogFooter>
             </form>
@@ -366,13 +455,12 @@ const AssignServiceForm = ({ client, onFinished }) => {
 };
 
 const ChangeLevelForm = ({ client, onFinished }) => {
-    const [newLevel, setNewLevel] = useState(client?.nivel || 'partner');
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
     const mutation = useMutation({
         mutationFn: ({ clienteId, nuevoNivel }) => api.clients.cambiarNivelCliente(clienteId, nuevoNivel),
-        onSuccess: (data, variables) => {
+        onSuccess: (_, variables) => {
             toast({
                 title: "Nivel actualizado",
                 description: `${client.nombre} ahora es ${variables.nuevoNivel === 'vip' ? 'VIP' : 'Partner'}`
@@ -385,62 +473,221 @@ const ChangeLevelForm = ({ client, onFinished }) => {
         }
     });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        mutation.mutate({ clienteId: client.id, nuevoNivel: newLevel });
+    const handleLevelChange = (nuevoNivel) => {
+        if (nuevoNivel !== client?.nivel) {
+            mutation.mutate({ clienteId: client.id, nuevoNivel });
+        }
     };
 
     const isSubmitting = mutation.isPending;
+    const currentLevel = client?.nivel || 'partner';
 
     return (
-        <DialogContent className="bg-card border-border text-foreground">
+        <DialogContent className="bg-card border-border text-foreground sm:max-w-sm">
             <DialogHeader>
-                <DialogTitle className="text-2xl">Cambiar Nivel de {client?.nombre}</DialogTitle>
-                <DialogDescription>
-                    Selecciona el nuevo nivel para este cliente.
-                </DialogDescription>
+                <DialogTitle className="text-lg font-medium">Cambiar Nivel</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label>Nivel Actual</Label>
-                    <div>
-                        <Badge className={client?.nivel === 'vip' ? 'bg-amber-500' : 'bg-purple-500'}>
-                            {client?.nivel === 'vip' ? 'VIP' : 'Partner'}
-                        </Badge>
-                    </div>
+            <div className="py-2">
+                {/* Client Info - Compact */}
+                <div className="flex items-center gap-3 mb-4">
+                    <ClientAvatar nombre={client?.nombre || ''} nivel={currentLevel} size="md" />
+                    <p className="font-medium text-foreground">{client?.nombre}</p>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="newLevel">Nuevo Nivel</Label>
-                    <Select value={newLevel} onValueChange={setNewLevel}>
-                        <SelectTrigger className="h-12 text-base">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="partner">Partner</SelectItem>
-                            <SelectItem value="vip">VIP</SelectItem>
-                        </SelectContent>
-                    </Select>
+
+                {/* Toggle Switch - Notion style */}
+                <div className="relative flex bg-muted rounded-lg p-1">
+                    {/* Sliding background */}
+                    <div
+                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-md transition-all duration-200 ease-out ${
+                            currentLevel === 'vip'
+                                ? 'translate-x-[calc(100%+4px)] bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30'
+                                : 'translate-x-0 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-blue-500/30'
+                        }`}
+                    />
+
+                    {/* Partner Option */}
+                    <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => handleLevelChange('partner')}
+                        className={`relative flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
+                            currentLevel === 'partner'
+                                ? 'text-blue-500'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        {isSubmitting && currentLevel !== 'partner' ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <Star className="w-4 h-4" />
+                        )}
+                        Partner
+                    </button>
+
+                    {/* VIP Option */}
+                    <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => handleLevelChange('vip')}
+                        className={`relative flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
+                            currentLevel === 'vip'
+                                ? 'text-amber-500'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        {isSubmitting && currentLevel !== 'vip' ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <Crown className="w-4 h-4" />
+                        )}
+                        VIP
+                    </button>
                 </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isSubmitting}>Cancelar</Button>
-                    </DialogClose>
-                    <Button type="submit" variant="investment" disabled={isSubmitting || newLevel === client?.nivel}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Confirmar Cambio
-                    </Button>
-                </DialogFooter>
-            </form>
+            </div>
         </DialogContent>
     );
 };
 
+// Desktop Table Row
+const ClientRow = ({ cliente, onAction, navigate }) => (
+    <tr
+        onClick={() => navigate(`/admin/clientes/${cliente.id}`)}
+        className="border-b border-border last:border-b-0 hover:bg-muted/30 transition-colors cursor-pointer"
+    >
+        <td className="p-4">
+            <div className="flex items-center gap-3">
+                <ClientAvatar nombre={cliente.nombre} nivel={cliente.nivel} size="md" />
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">{cliente.nombre}</span>
+                        <LevelBadge nivel={cliente.nivel} showLabel={false} />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Phone className="w-3 h-3" />
+                        {cliente.telefono}
+                    </div>
+                </div>
+            </div>
+        </td>
+        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+            <LevelBadge
+                nivel={cliente.nivel}
+                clickable
+                onClick={() => onAction('level', cliente)}
+            />
+        </td>
+        <td className="p-4 text-right">
+            <div className="flex items-center justify-end gap-1">
+                <Coins className="w-4 h-4 text-primary" />
+                <span className="font-bold text-lg text-foreground">{cliente.puntos_actuales?.toLocaleString() || 0}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">puntos acumulados</p>
+        </td>
+        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-end items-center gap-1">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => onAction('assign', cliente)}
+                >
+                    <Coins className="w-4 h-4 mr-1" />
+                    Puntos
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => onAction('service', cliente)}
+                >
+                    <Gift className="w-4 h-4 mr-1" />
+                    Beneficio
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => onAction('edit', cliente)}
+                >
+                    <Edit className="w-4 h-4" />
+                </Button>
+            </div>
+        </td>
+    </tr>
+);
+
+// Mobile Card
+const ClientCard = ({ cliente, onAction }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card rounded-2xl border border-border overflow-hidden"
+    >
+        <Link
+            to={`/admin/clientes/${cliente.id}`}
+            className="block p-4 active:bg-muted/30 transition-colors"
+        >
+            <div className="flex items-center gap-3">
+                <ClientAvatar nombre={cliente.nombre} nivel={cliente.nivel} size="md" />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground truncate">{cliente.nombre}</p>
+                        <LevelBadge nivel={cliente.nivel} showLabel={false} />
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-sm text-muted-foreground">{cliente.telefono}</span>
+                        <LevelBadge nivel={cliente.nivel} />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                            <Coins className="w-4 h-4 text-primary" />
+                            <p className="font-bold text-foreground text-xl">{cliente.puntos_actuales?.toLocaleString('es-MX') || 0}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">puntos</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                </div>
+            </div>
+        </Link>
+
+        {/* Quick Actions Bar */}
+        <div className="border-t border-border px-4 py-2 flex justify-between items-center bg-muted/20">
+            <div className="flex gap-1">
+                <QuickAction
+                    icon={Coins}
+                    label="Puntos"
+                    onClick={() => onAction('assign', cliente)}
+                    color="text-primary"
+                />
+                <QuickAction
+                    icon={Gift}
+                    label="Beneficio"
+                    onClick={() => onAction('service', cliente)}
+                    color="text-green-500"
+                />
+                <QuickAction
+                    icon={cliente.nivel === 'vip' ? Star : Crown}
+                    label="Nivel"
+                    onClick={() => onAction('level', cliente)}
+                    color={cliente.nivel === 'vip' ? 'text-blue-500' : 'text-amber-500'}
+                />
+            </div>
+            <button
+                onClick={() => onAction('edit', cliente)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+                <Edit className="w-4 h-4" />
+            </button>
+        </div>
+    </motion.div>
+);
+
 const AdminClientes = () => {
-    const { toast } = useToast();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [modalState, setModalState] = useState({ type: null, client: null });
-    const [showFilters, setShowFilters] = useState(false);
     const [levelFilter, setLevelFilter] = useState('all');
     const [sortBy, setSortBy] = useState('nombre');
     const [sortOrder, setSortOrder] = useState('asc');
@@ -448,31 +695,36 @@ const AdminClientes = () => {
     const { data: clientes = [], isLoading: loading } = useQuery({
         queryKey: ['admin-clientes'],
         queryFn: api.clients.getTodosLosClientes,
+        staleTime: 30000,
     });
 
     // Calculate stats
     const stats = useMemo(() => {
         const totalClientes = clientes.length;
         const vipCount = clientes.filter(c => c.nivel === 'vip').length;
+        const partnerCount = clientes.filter(c => c.nivel === 'partner').length;
         const totalPuntos = clientes.reduce((sum, c) => sum + (c.puntos_actuales || 0), 0);
         const avgPuntos = totalClientes > 0 ? Math.round(totalPuntos / totalClientes) : 0;
-        return { totalClientes, vipCount, totalPuntos, avgPuntos };
+        return { totalClientes, vipCount, partnerCount, totalPuntos, avgPuntos };
     }, [clientes]);
 
     const filteredAndSortedClientes = useMemo(() => {
         let result = [...clientes];
 
-        // Apply search filter
-        if (searchTerm) {
-            result = result.filter(c =>
-                c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                c.telefono.includes(searchTerm)
-            );
+        // Apply level filter
+        if (levelFilter === 'vip') {
+            result = result.filter(c => c.nivel === 'vip');
+        } else if (levelFilter === 'partner') {
+            result = result.filter(c => c.nivel === 'partner');
         }
 
-        // Apply level filter
-        if (levelFilter !== 'all') {
-            result = result.filter(c => c.nivel === levelFilter);
+        // Apply search filter
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            result = result.filter(c =>
+                c.nombre.toLowerCase().includes(term) ||
+                c.telefono.includes(searchTerm)
+            );
         }
 
         // Apply sorting
@@ -483,7 +735,7 @@ const AdminClientes = () => {
             } else if (sortBy === 'puntos') {
                 comparison = (a.puntos_actuales || 0) - (b.puntos_actuales || 0);
             } else if (sortBy === 'nivel') {
-                comparison = a.nivel.localeCompare(b.nivel);
+                comparison = (b.nivel === 'vip' ? 1 : 0) - (a.nivel === 'vip' ? 1 : 0);
             }
             return sortOrder === 'asc' ? comparison : -comparison;
         });
@@ -495,370 +747,285 @@ const AdminClientes = () => {
         setModalState({ type: null, client: null });
     };
 
+    const handleAction = (type, client) => {
+        setModalState({ type, client });
+    };
+
     const toggleSort = (field) => {
         if (sortBy === field) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
         } else {
             setSortBy(field);
-            setSortOrder('asc');
+            setSortOrder(field === 'puntos' ? 'desc' : 'asc');
         }
     };
-
-    const clearFilters = () => {
-        setSearchTerm('');
-        setLevelFilter('all');
-        setSortBy('nombre');
-        setSortOrder('asc');
-    };
-
-    const hasActiveFilters = searchTerm || levelFilter !== 'all' || sortBy !== 'nombre';
 
     return (
         <>
             <Helmet>
                 <title>Gestión de Clientes - Admin Manny</title>
             </Helmet>
-            <div className="container mx-auto px-4 py-6">
+            <div className="space-y-6">
                 {/* Header */}
                 <PageHeader
                     icon={Users}
                     title="Clientes"
-                    subtitle={`${stats.totalClientes} registrados`}
+                    subtitle={`${stats.totalClientes} clientes registrados`}
                 >
-                    <Button variant="investment" onClick={() => setModalState({ type: 'create', client: null })} className="w-full md:w-auto">
-                        <PlusCircle className="w-4 h-4 mr-2" />
+                    <Button variant="investment" onClick={() => setModalState({ type: 'create', client: null })} className="gap-2">
+                        <UserPlus className="w-4 h-4" />
                         Nuevo Cliente
                     </Button>
                 </PageHeader>
 
-                {/* Stats Cards */}
+                {/* Stats Grid */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"
+                    className="grid grid-cols-2 md:grid-cols-4 gap-3"
                 >
                     <StatCard
                         icon={Users}
                         label="Total Clientes"
-                        value={stats.totalClientes.toLocaleString()}
+                        value={stats.totalClientes}
+                        color="text-foreground"
+                        bgAccent="bg-gray-500"
+                    />
+                    <StatCard
+                        icon={Star}
+                        label="Partners"
+                        value={stats.partnerCount}
+                        color="text-blue-500"
+                        bgAccent="bg-blue-500"
+                        subtext={`${stats.totalClientes > 0 ? Math.round(stats.partnerCount / stats.totalClientes * 100) : 0}% del total`}
                     />
                     <StatCard
                         icon={Crown}
-                        label="Clientes VIP"
-                        value={stats.vipCount.toLocaleString()}
-                        color="amber-500"
+                        label="VIP"
+                        value={stats.vipCount}
+                        color="text-amber-500"
+                        bgAccent="bg-amber-500"
+                        subtext={`${stats.totalClientes > 0 ? Math.round(stats.vipCount / stats.totalClientes * 100) : 0}% del total`}
                     />
                     <StatCard
-                        icon={Coins}
+                        icon={TrendingUp}
                         label="Puntos Totales"
                         value={stats.totalPuntos.toLocaleString()}
-                        color="green-500"
-                    />
-                    <StatCard
-                        icon={Sparkles}
-                        label="Promedio Puntos"
-                        value={stats.avgPuntos.toLocaleString()}
-                        color="purple-500"
+                        color="text-primary"
+                        bgAccent="bg-primary"
+                        subtext={`~${stats.avgPuntos} promedio`}
                     />
                 </motion.div>
 
-                {/* Search and Filters */}
+                {/* Search + Filters */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-3 mb-6"
+                    transition={{ delay: 0.15 }}
+                    className="space-y-4"
                 >
-                    {/* Search Bar */}
-                    <div className="flex gap-2">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                                placeholder="Buscar por nombre o teléfono..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-12 h-12 text-base bg-card border-2 border-input rounded-xl pr-10"
-                            />
-                            {searchTerm && (
-                                <button
-                                    onClick={() => setSearchTerm('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
-                                >
-                                    <X className="w-4 h-4 text-muted-foreground" />
-                                </button>
-                            )}
-                        </div>
-                        <Button
-                            variant={showFilters ? "default" : "outline"}
-                            size="icon"
-                            className="h-12 w-12 shrink-0"
-                            onClick={() => setShowFilters(!showFilters)}
-                        >
-                            <Filter className="w-5 h-5" />
-                        </Button>
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                        <Input
+                            placeholder="Buscar por nombre o teléfono..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-12 h-12 text-base bg-card border-border rounded-xl pr-10"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-muted rounded-full transition-colors"
+                            >
+                                <X className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                        )}
                     </div>
 
-                    {/* Expandable Filters */}
-                    <AnimatePresence>
-                        {showFilters && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
+                    {/* Filter Tabs */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-xl">
+                            <FilterTab
+                                active={levelFilter === 'all'}
+                                onClick={() => setLevelFilter('all')}
+                                count={stats.totalClientes}
+                                color="text-foreground"
                             >
-                                <div className="bg-card rounded-xl border border-border p-4 space-y-4">
-                                    <div className="flex flex-wrap gap-4">
-                                        <div className="flex-1 min-w-[140px]">
-                                            <Label className="text-sm mb-2 block">Nivel</Label>
-                                            <Select value={levelFilter} onValueChange={setLevelFilter}>
-                                                <SelectTrigger className="h-10">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Todos</SelectItem>
-                                                    <SelectItem value="partner">Partner</SelectItem>
-                                                    <SelectItem value="vip">VIP</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="flex-1 min-w-[140px]">
-                                            <Label className="text-sm mb-2 block">Ordenar por</Label>
-                                            <Select value={sortBy} onValueChange={setSortBy}>
-                                                <SelectTrigger className="h-10">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="nombre">Nombre</SelectItem>
-                                                    <SelectItem value="puntos">Puntos</SelectItem>
-                                                    <SelectItem value="nivel">Nivel</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="flex-1 min-w-[140px]">
-                                            <Label className="text-sm mb-2 block">Orden</Label>
-                                            <Select value={sortOrder} onValueChange={setSortOrder}>
-                                                <SelectTrigger className="h-10">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="asc">Ascendente</SelectItem>
-                                                    <SelectItem value="desc">Descendente</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    {hasActiveFilters && (
-                                        <div className="flex justify-end">
-                                            <Button variant="ghost" size="sm" onClick={clearFilters}>
-                                                <X className="w-4 h-4 mr-1" />
-                                                Limpiar filtros
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                <Users className="w-4 h-4" />
+                                <span className="hidden sm:inline">Todos</span>
+                            </FilterTab>
+                            <FilterTab
+                                active={levelFilter === 'partner'}
+                                onClick={() => setLevelFilter('partner')}
+                                count={stats.partnerCount}
+                                color="text-blue-500"
+                            >
+                                <Star className="w-4 h-4 text-blue-500" />
+                                <span className="hidden sm:inline">Partner</span>
+                            </FilterTab>
+                            <FilterTab
+                                active={levelFilter === 'vip'}
+                                onClick={() => setLevelFilter('vip')}
+                                count={stats.vipCount}
+                                color="text-amber-500"
+                            >
+                                <Crown className="w-4 h-4 text-amber-500" />
+                                <span className="hidden sm:inline">VIP</span>
+                            </FilterTab>
+                        </div>
 
-                    {/* Results count */}
-                    {(searchTerm || levelFilter !== 'all') && (
-                        <p className="text-sm text-muted-foreground">
-                            Mostrando {filteredAndSortedClientes.length} de {clientes.length} clientes
-                        </p>
-                    )}
+                        {/* Results count on filter */}
+                        {(searchTerm || levelFilter !== 'all') && (
+                            <span className="text-sm text-muted-foreground">
+                                {filteredAndSortedClientes.length} resultado{filteredAndSortedClientes.length !== 1 ? 's' : ''}
+                            </span>
+                        )}
+                    </div>
                 </motion.div>
 
                 {loading ? (
-                    <div className="flex justify-center items-center py-20">
-                        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                    <div className="flex flex-col justify-center items-center py-20 gap-3">
+                        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                        <p className="text-muted-foreground">Cargando clientes...</p>
                     </div>
                 ) : (
                     <>
                         {/* Desktop Table */}
-                        <div className="bg-card rounded-2xl shadow-xl overflow-hidden hidden md:block border border-border">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-card rounded-2xl border border-border overflow-hidden hidden md:block"
+                        >
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
-                                    <thead className="bg-muted/50">
+                                    <thead className="bg-muted/30 border-b border-border">
                                         <tr>
                                             <th className="p-4">
                                                 <button
                                                     onClick={() => toggleSort('nombre')}
-                                                    className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors"
+                                                    className="flex items-center gap-2 font-semibold text-foreground hover:text-primary transition-colors"
                                                 >
                                                     Cliente
                                                     <ArrowUpDown className={`w-4 h-4 ${sortBy === 'nombre' ? 'text-primary' : 'text-muted-foreground'}`} />
                                                 </button>
                                             </th>
+                                            <th className="p-4">
+                                                <button
+                                                    onClick={() => toggleSort('nivel')}
+                                                    className="flex items-center gap-2 font-semibold text-foreground hover:text-primary transition-colors"
+                                                >
+                                                    Nivel
+                                                    <ArrowUpDown className={`w-4 h-4 ${sortBy === 'nivel' ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                </button>
+                                            </th>
                                             <th className="p-4 text-right">
                                                 <button
                                                     onClick={() => toggleSort('puntos')}
-                                                    className="flex items-center gap-2 font-bold text-foreground hover:text-primary transition-colors ml-auto"
+                                                    className="flex items-center gap-2 font-semibold text-foreground hover:text-primary transition-colors ml-auto"
                                                 >
                                                     Puntos
                                                     <ArrowUpDown className={`w-4 h-4 ${sortBy === 'puntos' ? 'text-primary' : 'text-muted-foreground'}`} />
                                                 </button>
                                             </th>
-                                            <th className="p-4 font-bold text-foreground text-center">Acciones</th>
+                                            <th className="p-4 text-right font-semibold text-foreground">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredAndSortedClientes.map(cliente => (
-                                            <tr
+                                            <ClientRow
                                                 key={cliente.id}
-                                                onClick={() => navigate(`/admin/clientes/${cliente.id}`)}
-                                                className="border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors cursor-pointer"
-                                            >
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-3">
-                                                        {/* Avatar with gradient background */}
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                                            cliente.nivel === 'vip'
-                                                                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
-                                                                : 'bg-gradient-to-br from-violet-400 to-violet-600 text-white'
-                                                        }`}>
-                                                            <span className="font-bold">{cliente.nombre.charAt(0).toUpperCase()}</span>
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-medium text-foreground">{cliente.nombre}</span>
-                                                                {/* Improved badge with solid background */}
-                                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                                                                    cliente.nivel === 'vip'
-                                                                        ? 'bg-amber-500 text-white'
-                                                                        : 'bg-violet-500 text-white'
-                                                                }`}>
-                                                                    {cliente.nivel === 'vip' && <Crown className="w-3 h-3" />}
-                                                                    {cliente.nivel === 'vip' ? 'VIP' : 'Partner'}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-sm text-muted-foreground">{cliente.telefono}</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    <span className="font-bold text-primary text-lg">{cliente.puntos_actuales?.toLocaleString() || 0}</span>
-                                                    <span className="text-xs text-muted-foreground ml-1">pts</span>
-                                                </td>
-                                                <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex justify-center items-center gap-1">
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-green-500/10 hover:text-green-500" onClick={() => setModalState({ type: 'assign', client: cliente })} title="Asignar puntos">
-                                                            <Coins className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-purple-500/10 hover:text-purple-500" onClick={() => setModalState({ type: 'service', client: cliente })} title="Asignar beneficio">
-                                                            <Gift className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-blue-500/10 hover:text-blue-500" onClick={() => setModalState({ type: 'edit', client: cliente })} title="Editar cliente">
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                cliente={cliente}
+                                                onAction={handleAction}
+                                                navigate={navigate}
+                                            />
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Mobile Cards */}
                         <div className="md:hidden space-y-3">
-                            {filteredAndSortedClientes.map(cliente => (
+                            {filteredAndSortedClientes.map((cliente, index) => (
                                 <motion.div
                                     key={cliente.id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                    transition={{ delay: 0.05 * Math.min(index, 10) }}
                                 >
-                                    {/* Card Header - Clickable area */}
-                                    <Link
-                                        to={`/admin/clientes/${cliente.id}`}
-                                        className="block p-4 active:bg-muted/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {/* Avatar with gradient background */}
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                                                cliente.nivel === 'vip'
-                                                    ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/25'
-                                                    : 'bg-gradient-to-br from-violet-400 to-violet-600 text-white shadow-lg shadow-violet-500/25'
-                                            }`}>
-                                                <span className="font-bold text-lg">{cliente.nombre.charAt(0).toUpperCase()}</span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <p className="font-semibold text-foreground truncate">{cliente.nombre}</p>
-                                                    {/* Improved badge with better contrast */}
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold flex-shrink-0 ${
-                                                        cliente.nivel === 'vip'
-                                                            ? 'bg-amber-500 text-white dark:bg-amber-500/90'
-                                                            : 'bg-violet-500 text-white dark:bg-violet-500/90'
-                                                    }`}>
-                                                        {cliente.nivel === 'vip' && <Crown className="w-3 h-3" />}
-                                                        {cliente.nivel === 'vip' ? 'VIP' : 'Partner'}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-muted-foreground">{cliente.telefono}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                                <div className="text-right">
-                                                    <p className="font-bold text-primary text-xl">{cliente.puntos_actuales?.toLocaleString('es-MX') || 0}</p>
-                                                    <p className="text-xs text-muted-foreground">puntos</p>
-                                                </div>
-                                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                                            </div>
-                                        </div>
-                                    </Link>
-
-                                    {/* Quick Actions Bar - Enhanced with icons and better spacing */}
-                                    <div className="border-t border-border bg-muted/30 px-1 py-1.5 flex justify-around gap-1">
-                                        <button
-                                            onClick={() => setModalState({ type: 'assign', client: cliente })}
-                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95"
-                                        >
-                                            <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
-                                                <Coins className="w-4 h-4 text-green-500" />
-                                            </div>
-                                            <span>Puntos</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setModalState({ type: 'service', client: cliente })}
-                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95"
-                                        >
-                                            <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                                                <Gift className="w-4 h-4 text-purple-500" />
-                                            </div>
-                                            <span>Beneficio</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setModalState({ type: 'edit', client: cliente })}
-                                            className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95"
-                                        >
-                                            <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                                                <Edit className="w-4 h-4 text-blue-500" />
-                                            </div>
-                                            <span>Editar</span>
-                                        </button>
-                                    </div>
+                                    <ClientCard
+                                        cliente={cliente}
+                                        onAction={handleAction}
+                                    />
                                 </motion.div>
                             ))}
                         </div>
 
                         {/* Empty State */}
                         {filteredAndSortedClientes.length === 0 && !loading && (
-                            <div className="text-center py-12 bg-card rounded-2xl border border-border">
-                                <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground text-lg mb-2">
-                                    {searchTerm || levelFilter !== 'all'
-                                        ? 'No se encontraron clientes con esos filtros'
-                                        : 'Aún no hay clientes registrados'}
-                                </p>
-                                {(searchTerm || levelFilter !== 'all') && (
-                                    <Button variant="outline" onClick={clearFilters} className="mt-2">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="text-center py-16 bg-card rounded-2xl border border-border"
+                            >
+                                {levelFilter === 'vip' ? (
+                                    <>
+                                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
+                                            <Crown className="w-10 h-10 text-amber-500" />
+                                        </div>
+                                        <p className="text-lg font-medium text-foreground mb-1">
+                                            {searchTerm ? 'No se encontraron clientes VIP' : 'Aún no hay clientes VIP'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Los clientes VIP tienen beneficios exclusivos
+                                        </p>
+                                    </>
+                                ) : levelFilter === 'partner' ? (
+                                    <>
+                                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                            <Star className="w-10 h-10 text-blue-500" />
+                                        </div>
+                                        <p className="text-lg font-medium text-foreground mb-1">
+                                            {searchTerm ? 'No se encontraron Partners' : 'Aún no hay clientes Partner'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Los Partners acumulan puntos en cada servicio
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                                            <Users className="w-10 h-10 text-muted-foreground" />
+                                        </div>
+                                        <p className="text-lg font-medium text-foreground mb-1">
+                                            {searchTerm ? 'No se encontraron clientes' : 'Aún no hay clientes registrados'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Comienza agregando tu primer cliente
+                                        </p>
+                                    </>
+                                )}
+                                {(searchTerm || levelFilter !== 'all') ? (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => { setSearchTerm(''); setLevelFilter('all'); }}
+                                    >
                                         Limpiar filtros
                                     </Button>
+                                ) : (
+                                    <Button
+                                        variant="investment"
+                                        onClick={() => setModalState({ type: 'create', client: null })}
+                                        className="gap-2"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        Agregar Cliente
+                                    </Button>
                                 )}
-                            </div>
+                            </motion.div>
                         )}
                     </>
                 )}

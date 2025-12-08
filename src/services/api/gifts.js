@@ -105,21 +105,13 @@ export const claimGift = async (codigo, telefono) => {
       }
 
       // Fire and forget: Send notifications
+      // Note: These notifications will be sent by the RPC or Edge Function
+      // to avoid RLS issues when user is not yet authenticated
       if (data.cliente_id && data.nombre_beneficio) {
+        // Use nombre_cliente from RPC response if available (avoids extra query)
+        const clienteName = data.nombre_cliente || 'Cliente';
         notifyClienteBeneficioReclamado(data.cliente_id, data.nombre_beneficio);
-
-        // Get client name for admin notification
-        supabase
-          .from('clientes')
-          .select('nombre')
-          .eq('id', data.cliente_id)
-          .single()
-          .then(({ data: cliente }) => {
-            if (cliente?.nombre) {
-              notifyAdminsNuevoBeneficio(cliente.nombre, data.nombre_beneficio);
-            }
-          })
-          .catch(() => {}); // Silent fail
+        notifyAdminsNuevoBeneficio(clienteName, data.nombre_beneficio);
       }
 
       return data;

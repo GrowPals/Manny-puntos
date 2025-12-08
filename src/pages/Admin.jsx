@@ -1,99 +1,251 @@
-
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
     Users, TrendingUp, Gift, Truck, Loader2, Download, Upload,
-    DollarSign, ArrowUpRight, ArrowDownRight, Wrench, ShoppingBag
+    DollarSign, Wrench, ShoppingBag, LayoutDashboard, Crown,
+    AlertTriangle, CheckCircle2, Clock, ChevronRight, Coins,
+    ArrowUpRight, ArrowDownRight, Calendar
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-    PieChart, Pie, Cell, Legend,
-    AreaChart, Area, Line
+    XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+    PieChart, Pie, Cell, Legend, AreaChart, Area, Line
 } from 'recharts';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogClose,
 } from "@/components/ui/dialog";
 
-// Colores para gráficas
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
-const NIVEL_COLORS = {
-    normal: '#6b7280',
-    partner: '#f59e0b',
-    vip: '#8b5cf6'
+// ============================================================================
+// DESIGN TOKENS
+// ============================================================================
+
+const CHART_COLORS = {
+    primary: 'hsl(var(--primary))',
+    indigo: '#6366f1',
+    green: '#22c55e',
+    amber: '#f59e0b',
+    red: '#ef4444',
+    purple: '#8b5cf6',
+    cyan: '#06b6d4',
+    pink: '#ec4899'
 };
 
-const AdminMetricCard = ({ icon, title, value, subtitle, loading, trend }) => (
+const NIVEL_CONFIG = {
+    normal: { color: '#6b7280', gradient: 'from-gray-500 to-gray-600', label: 'Normal' },
+    partner: { color: '#3b82f6', gradient: 'from-cyan-500 to-blue-600', label: 'Partner' },
+    vip: { color: '#f59e0b', gradient: 'from-amber-500 to-orange-600', label: 'VIP' }
+};
+
+// ============================================================================
+// STAT CARD - Consistent with AdminClientes
+// ============================================================================
+
+const StatCard = ({ icon: Icon, label, value, trend, color = "primary", subtitle, to }) => {
+    const colorClasses = {
+        primary: 'text-primary',
+        purple: 'text-purple-500',
+        green: 'text-green-500',
+        amber: 'text-amber-500',
+        red: 'text-red-500',
+        blue: 'text-blue-500',
+    };
+
+    const content = (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`bg-card rounded-xl p-4 border border-border hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full ${to ? 'cursor-pointer' : ''}`}
+        >
+            <div className="flex items-center gap-2 mb-2">
+                <Icon className={`w-5 h-5 ${colorClasses[color] || colorClasses.primary}`} />
+                <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            </div>
+            <div className="flex items-end justify-between">
+                <div>
+                    <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 min-h-[1rem]">{subtitle || '\u00A0'}</p>
+                </div>
+                {trend !== undefined && (
+                    <div className={`flex items-center gap-0.5 text-sm font-medium ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                        {Math.abs(trend)}%
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+
+    return to ? <Link to={to}>{content}</Link> : content;
+};
+
+// ============================================================================
+// SECTION CARD - Container for sections
+// ============================================================================
+
+const SectionCard = ({ title, subtitle, icon: Icon, children, action, className = "" }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200"
+        className={`bg-card rounded-2xl border border-border overflow-hidden ${className}`}
     >
-        <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-foreground/80">{title}</p>
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                {React.cloneElement(icon, { className: "w-5 h-5 text-primary" })}
-            </div>
-        </div>
-
-        {loading ? (
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        ) : (
-            <div className="space-y-1.5">
-                <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+        {(title || action) && (
+            <div className="flex items-center justify-between p-4 pb-0">
                 <div className="flex items-center gap-2">
-                     {trend && (
-                        <span className={`text-xs font-semibold flex items-center px-1.5 py-0.5 rounded ${trend > 0 ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
-                            {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
-                            {Math.abs(trend)}%
-                        </span>
-                    )}
-                    {subtitle && <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>}
+                    {Icon && <Icon className="w-5 h-5 text-primary" />}
+                    <div>
+                        <h3 className="font-semibold text-foreground">{title}</h3>
+                        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                    </div>
                 </div>
+                {action}
             </div>
         )}
+        <div className="p-4">
+            {children}
+        </div>
     </motion.div>
 );
 
-const ChartCard = ({ title, children, className = "" }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`bg-card rounded-2xl shadow-sm border border-border p-5 ${className}`}
-    >
-        <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
-        {children}
-    </motion.div>
-);
+// ============================================================================
+// CHART TOOLTIP
+// ============================================================================
 
 const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-        return (
-            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                <p className="font-medium text-foreground">{label}</p>
-                {payload.map((entry, index) => (
-                    <p key={index} className="text-sm" style={{ color: entry.color }}>
-                        {entry.name}: {typeof entry.value === 'number' && entry.name.includes('Ingreso')
-                            ? `$${entry.value.toLocaleString('es-MX')}`
-                            : entry.value.toLocaleString('es-MX')}
-                    </p>
-                ))}
-            </div>
-        );
-    }
-    return null;
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-popover border border-border rounded-lg p-3 shadow-xl">
+            <p className="font-medium text-foreground mb-1">{label}</p>
+            {payload.map((entry, index) => (
+                <p key={index} className="text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-muted-foreground">{entry.name}:</span>
+                    <span className="font-semibold text-foreground">
+                        {entry.name === 'Ingresos' ? `$${entry.value.toLocaleString('es-MX')}` : entry.value.toLocaleString('es-MX')}
+                    </span>
+                </p>
+            ))}
+        </div>
+    );
 };
+
+// ============================================================================
+// TOP CLIENT ROW
+// ============================================================================
+
+const TopClientRow = ({ client, rank, maxPoints }) => {
+    const percentage = maxPoints > 0 ? (client.puntos_actuales / maxPoints) * 100 : 0;
+    const config = NIVEL_CONFIG[client.nivel] || NIVEL_CONFIG.normal;
+
+    return (
+        <Link
+            to={`/admin/clientes/${client.id}`}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
+        >
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${config.gradient} flex items-center justify-center text-white font-bold text-sm`}>
+                {rank}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <p className="font-medium text-foreground truncate">{client.nombre}</p>
+                    {client.nivel === 'vip' && <Crown className="w-3 h-3 text-amber-500" />}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full"
+                        />
+                    </div>
+                    <span className="text-xs font-semibold text-primary tabular-nums">
+                        {client.puntos_actuales.toLocaleString('es-MX')}
+                    </span>
+                </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </Link>
+    );
+};
+
+// ============================================================================
+// PENDING DELIVERY ROW
+// ============================================================================
+
+const PendingDeliveryRow = ({ entrega }) => {
+    const isEnLista = entrega.estado === 'en_lista';
+
+    return (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                isEnLista ? 'bg-blue-500/10' : 'bg-orange-500/10'
+            }`}>
+                {isEnLista ? (
+                    <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                ) : (
+                    <Clock className="w-5 h-5 text-orange-500" />
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground truncate">{entrega.producto_nombre}</p>
+                <p className="text-xs text-muted-foreground truncate">{entrega.cliente_nombre}</p>
+            </div>
+            <div className="text-right flex-shrink-0">
+                <Badge variant="outline" className={`text-[10px] ${
+                    isEnLista ? 'border-blue-500/30 text-blue-600 bg-blue-500/10' : 'border-orange-500/30 text-orange-600 bg-orange-500/10'
+                }`}>
+                    {isEnLista ? 'En lista' : 'Pendiente'}
+                </Badge>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                    {new Date(entrega.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}
+                </p>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================================
+// QUICK STAT ROW
+// ============================================================================
+
+const QuickStatRow = ({ icon: Icon, label, value, color = "primary", to }) => {
+    const colorClasses = {
+        primary: 'text-primary',
+        indigo: 'text-indigo-500',
+        green: 'text-green-500',
+        amber: 'text-amber-500',
+    };
+
+    const content = (
+        <div className={`flex items-center justify-between py-2 ${to ? 'hover:opacity-70 cursor-pointer transition-opacity' : ''}`}>
+            <div className="flex items-center gap-3">
+                <Icon className={`w-5 h-5 ${colorClasses[color] || colorClasses.primary}`} />
+                <span className="text-sm font-medium text-muted-foreground">{label}</span>
+            </div>
+            <span className="text-lg font-bold text-foreground tabular-nums">{value}</span>
+        </div>
+    );
+
+    return to ? <Link to={to}>{content}</Link> : content;
+};
+
+// ============================================================================
+// MAIN ADMIN COMPONENT
+// ============================================================================
 
 const Admin = () => {
     const { toast } = useToast();
@@ -101,11 +253,11 @@ const Admin = () => {
     const [importData, setImportData] = useState(null);
     const [showImportConfirm, setShowImportConfirm] = useState(false);
 
-    // Query para estadísticas del dashboard
+    // Queries
     const { data: stats, isLoading: loadingStats } = useQuery({
         queryKey: ['admin-dashboard-stats'],
         queryFn: api.admin.getDashboardStats,
-        staleTime: 30000, // 30 segundos
+        staleTime: 30000,
     });
 
     const { data: clientes = [], isLoading: loadingClientes } = useQuery({
@@ -120,54 +272,58 @@ const Admin = () => {
 
     const loading = loadingStats || loadingClientes || loadingCanjes;
 
-    const entregas = canjesPendientes.slice(0, 5);
+    // Computed data
+    const entregas = useMemo(() => canjesPendientes.slice(0, 5), [canjesPendientes]);
 
-    const topClients = React.useMemo(() => {
+    const topClients = useMemo(() => {
         return [...clientes]
-          .filter(c => !c.es_admin)
-          .sort((a, b) => b.puntos_actuales - a.puntos_actuales)
-          .slice(0, 5);
+            .filter(c => !c.es_admin)
+            .sort((a, b) => b.puntos_actuales - a.puntos_actuales)
+            .slice(0, 5);
     }, [clientes]);
 
-    // Datos para gráfica de niveles
-    const nivelesData = stats?.niveles ? [
-        { name: 'Normal', value: stats.niveles.normal, fill: NIVEL_COLORS.normal },
-        { name: 'Partner', value: stats.niveles.partner, fill: NIVEL_COLORS.partner },
-        { name: 'VIP', value: stats.niveles.vip, fill: NIVEL_COLORS.vip },
-    ].filter(n => n.value > 0) : [];
+    const maxClientPoints = useMemo(() =>
+        topClients.length > 0 ? topClients[0].puntos_actuales : 0
+    , [topClients]);
 
-    // Datos para gráfica de canjes por tipo
-    const canjesPorTipoData = stats?.canjesPorTipo || [];
+    const nivelesData = useMemo(() => {
+        if (!stats?.niveles) return [];
+        return [
+            { name: 'Normal', value: stats.niveles.normal, fill: NIVEL_CONFIG.normal.color },
+            { name: 'Partner', value: stats.niveles.partner, fill: NIVEL_CONFIG.partner.color },
+            { name: 'VIP', value: stats.niveles.vip, fill: NIVEL_CONFIG.vip.color },
+        ].filter(n => n.value > 0);
+    }, [stats?.niveles]);
 
-    // Datos para gráfica de servicios por mes
-    const serviciosPorMesData = stats?.serviciosPorMes || [];
+    const canjesPorTipoData = useMemo(() => stats?.canjesPorTipo || [], [stats?.canjesPorTipo]);
+    const serviciosPorMesData = useMemo(() => stats?.serviciosPorMes || [], [stats?.serviciosPorMes]);
 
+    const pieColors = [CHART_COLORS.indigo, CHART_COLORS.green, CHART_COLORS.amber, CHART_COLORS.red, CHART_COLORS.purple, CHART_COLORS.cyan, CHART_COLORS.pink];
+
+    // Handlers
     const handleExport = async () => {
         try {
             await api.admin.exportMannyData();
-            toast({ title: "Exportación iniciada", description: "El archivo de respaldo se está descargando." });
+            toast({ title: "Exportando datos", description: "El archivo se descargará en breve." });
         } catch (error) {
-            toast({ title: "Error de exportación", description: error.message, variant: "destructive" });
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         }
     };
 
-    const handleImportClick = () => {
-        fileInputRef.current.click();
-    };
+    const handleImportClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (event) => {
-        const file = event.target.files[0];
+        const file = event.target.files?.[0];
         if (!file) return;
-
         try {
             const fileContent = await file.text();
             const data = JSON.parse(fileContent);
             setImportData(data);
             setShowImportConfirm(true);
         } catch (error) {
-            toast({ title: "Error de lectura", description: `No se pudo leer el archivo: ${error.message}`, variant: "destructive" });
+            toast({ title: "Error de lectura", description: error.message, variant: "destructive" });
         }
-        event.target.value = null;
+        event.target.value = '';
     };
 
     const handleImportConfirm = async () => {
@@ -175,10 +331,10 @@ const Admin = () => {
         setShowImportConfirm(false);
         try {
             await api.admin.importMannyData(importData);
-            toast({ title: "Importación exitosa", description: "Los datos se han importado correctamente. La página se recargará." });
+            toast({ title: "Importación exitosa", description: "Recargando página..." });
             setTimeout(() => window.location.reload(), 2000);
         } catch (error) {
-            toast({ title: "Error de importación", description: error.message, variant: "destructive" });
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         }
         setImportData(null);
     };
@@ -186,414 +342,377 @@ const Admin = () => {
     return (
         <>
             <Helmet>
-                <title>Panel Admin - Manny</title>
-                <meta name="description" content="Dashboard de administración del sistema de recompensas Manny" />
+                <title>Dashboard - Admin Manny</title>
+                <meta name="description" content="Panel de administración del sistema de recompensas Manny" />
             </Helmet>
 
+            {/* Import Dialog */}
             <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
-                <DialogContent className="bg-card border-border text-foreground">
+                <DialogContent className="bg-card border-border">
                     <DialogHeader>
-                        <DialogTitle className="text-xl">Confirmar Importación</DialogTitle>
+                        <DialogTitle className="text-xl flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            Confirmar Importación
+                        </DialogTitle>
                         <DialogDescription>
-                            Esta acción importará datos desde un archivo JSON.
+                            Esta acción importará datos desde el archivo JSON seleccionado.
                         </DialogDescription>
                     </DialogHeader>
-                    <p className="text-muted-foreground py-4">
-                        ¿Seguro que quieres importar? Esto <strong className="text-destructive">sobreescribirá todos los datos actuales</strong>.
-                    </p>
+                    <div className="py-4">
+                        <div className="p-4 bg-destructive/10 rounded-xl border border-destructive/20">
+                            <p className="text-sm text-destructive font-medium">
+                                Esto sobreescribirá todos los datos actuales. Esta acción no se puede deshacer.
+                            </p>
+                        </div>
+                    </div>
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
                             <Button variant="outline">Cancelar</Button>
                         </DialogClose>
                         <Button variant="destructive" onClick={handleImportConfirm}>
-                            Importar
+                            Confirmar
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-                <h1 className="text-3xl md:text-4xl font-bold">Dashboard de Admin</h1>
-                <p className="text-muted-foreground mt-1">Resumen completo del sistema de recompensas.</p>
-            </motion.div>
-
-            {/* Métricas principales */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <AdminMetricCard
-                    icon={<Users />}
-                    title="Clientes"
-                    value={stats?.resumen?.totalClientes || 0}
-                    subtitle={`+${stats?.resumen?.clientesNuevosMes || 0} este mes`}
-                    loading={loading}
-                />
-                <AdminMetricCard
-                    icon={<TrendingUp />}
-                    title="Puntos Totales"
-                    value={(stats?.resumen?.totalPuntos || 0).toLocaleString('es-MX')}
-                    loading={loading}
-                />
-                <AdminMetricCard
-                    icon={<DollarSign />}
-                    title="Ingresos"
-                    value={`$${((stats?.resumen?.totalIngresos || 0) / 1000).toFixed(0)}k`}
-                    subtitle="Total acumulado"
-                    loading={loading}
-                />
-                <AdminMetricCard
-                    icon={<Wrench />}
-                    title="Servicios"
-                    value={stats?.resumen?.totalServicios || 0}
-                    loading={loading}
-                />
-                <AdminMetricCard
-                    icon={<Gift />}
-                    title="Recompensas"
-                    value={stats?.productosActivos || 0}
-                    subtitle="Productos activos"
-                    loading={loading}
-                />
-                <AdminMetricCard
-                    icon={<Truck />}
-                    title="Pendientes"
-                    value={stats?.canjesStats?.pendientes || 0}
-                    subtitle={`${stats?.canjesStats?.total || 0} canjes total`}
-                    loading={loading}
-                />
-            </div>
-
-            {/* Gráficas principales */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Tendencia de Servicios e Ingresos */}
-                <ChartCard title="Tendencia Mensual (últimos 6 meses)">
-                    <div className="h-64">
-                        {loading ? (
-                            <div className="h-full flex justify-center items-center">
-                                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={serviciosPorMesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorServicios" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                    <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
-                                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => v.toLocaleString()} />
-                                    <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={40} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Area
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="ingresos"
-                                        name="Ingresos"
-                                        stroke="#22c55e"
-                                        fillOpacity={1}
-                                        fill="url(#colorIngresos)"
-                                    />
-                                    <Line
-                                        yAxisId="left"
-                                        type="monotone"
-                                        dataKey="servicios"
-                                        name="Servicios"
-                                        stroke="#6366f1"
-                                        strokeWidth={2}
-                                        dot={{ fill: '#6366f1', strokeWidth: 2 }}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        )}
+            <div className="space-y-4">
+                {/* Header */}
+                <PageHeader
+                    icon={LayoutDashboard}
+                    title="Dashboard"
+                    subtitle="Resumen general del sistema de recompensas"
+                >
+                    <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                            {new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>
                     </div>
-                </ChartCard>
+                </PageHeader>
 
-                {/* Top 5 Clientes */}
-                <ChartCard title="Top 5 Clientes por Puntos">
-                    <div className="h-64">
-                        {loading ? (
-                            <div className="h-full flex justify-center items-center">
-                                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={topClients} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.toLocaleString()} />
-                                    <YAxis
-                                        dataKey="nombre"
-                                        type="category"
-                                        stroke="hsl(var(--muted-foreground))"
-                                        fontSize={11}
-                                        width={90}
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickFormatter={(value) => {
-                                            const firstName = value.split(' ')[0];
-                                            return firstName.length > 12 ? firstName.slice(0, 12) + '.' : firstName;
-                                        }}
-                                    />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
-                                    <Bar
-                                        dataKey="puntos_actuales"
-                                        name="Puntos"
-                                        fill="url(#barGradient)"
-                                        radius={[0, 6, 6, 0]}
-                                        barSize={20}
-                                    />
-                                    <defs>
-                                        <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1}/>
-                                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.5}/>
-                                        </linearGradient>
-                                    </defs>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        )}
-                    </div>
-                </ChartCard>
-            </div>
+                {/* Main Stats - More compact */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 lg:gap-3">
+                    <StatCard
+                        icon={Users}
+                        label="Clientes"
+                        value={loading ? '-' : stats?.resumen?.totalClientes || 0}
+                        subtitle={`+${stats?.resumen?.clientesNuevosMes || 0} este mes`}
+                        to="/admin/clientes"
+                    />
+                    <StatCard
+                        icon={Coins}
+                        label="Puntos"
+                        value={loading ? '-' : (stats?.resumen?.totalPuntos || 0).toLocaleString('es-MX')}
+                        color="purple"
+                        to="/admin/clientes"
+                    />
+                    <StatCard
+                        icon={DollarSign}
+                        label="Ingresos"
+                        value={loading ? '-' : `$${((stats?.resumen?.totalIngresos || 0) / 1000).toFixed(0)}k`}
+                        subtitle="Acumulado"
+                        color="green"
+                    />
+                    <StatCard
+                        icon={Wrench}
+                        label="Servicios"
+                        value={loading ? '-' : (stats?.resumen?.totalServicios || 0).toLocaleString('es-MX')}
+                        color="amber"
+                        to="/admin/clientes"
+                    />
+                    <StatCard
+                        icon={Gift}
+                        label="Productos"
+                        value={loading ? '-' : stats?.productosActivos || 0}
+                        subtitle="Activos"
+                        to="/admin/productos"
+                    />
+                    <StatCard
+                        icon={Truck}
+                        label="Pendientes"
+                        value={loading ? '-' : stats?.canjesStats?.pendientes || 0}
+                        subtitle={`${stats?.canjesStats?.total || 0} total`}
+                        color="red"
+                        to="/admin/entregas"
+                    />
+                </div>
 
-            {/* Gráficas secundarias */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                {/* Distribución de Niveles */}
-                <ChartCard title="Distribución de Clientes">
-                    <div className="h-52">
-                        {loading ? (
-                            <div className="h-full flex justify-center items-center">
-                                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                {/* Main Content Grid - 12 column layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* Left Column - Charts */}
+                    <div className="lg:col-span-8 space-y-4">
+                        {/* Main Chart */}
+                        <SectionCard
+                            title="Tendencia Mensual"
+                            subtitle="Servicios e ingresos últimos 6 meses"
+                            icon={TrendingUp}
+                        >
+                            <div className="h-56 lg:h-64">
+                                {loading ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : serviciosPorMesData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={serviciosPorMesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor={CHART_COLORS.green} stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor={CHART_COLORS.green} stopOpacity={0}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                                            <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                                            <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={35} />
+                                            <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={45} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Area yAxisId="right" type="monotone" dataKey="ingresos" name="Ingresos" stroke={CHART_COLORS.green} fill="url(#colorIngresos)" />
+                                            <Line yAxisId="left" type="monotone" dataKey="servicios" name="Servicios" stroke={CHART_COLORS.indigo} strokeWidth={2.5} dot={{ fill: CHART_COLORS.indigo, r: 4 }} />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                                        <TrendingUp className="w-12 h-12 mb-2 opacity-30" />
+                                        <p className="text-sm">Sin datos de tendencia</p>
+                                    </div>
+                                )}
                             </div>
-                        ) : nivelesData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={nivelesData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={40}
-                                        outerRadius={70}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {nivelesData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        height={36}
-                                        formatter={(value) => <span className="text-foreground text-sm">{value}</span>}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col justify-center items-center text-muted-foreground">
-                                <Users className="w-10 h-10 mb-2 opacity-30" />
-                                <p className="text-sm font-medium">Sin datos de niveles</p>
-                            </div>
-                        )}
-                    </div>
-                </ChartCard>
+                            {!loading && serviciosPorMesData.length > 0 && (
+                                <div className="flex items-center justify-center gap-6 pt-3 border-t border-border mt-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS.indigo }} />
+                                        <span className="text-xs text-muted-foreground">Servicios</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS.green }} />
+                                        <span className="text-xs text-muted-foreground">Ingresos</span>
+                                    </div>
+                                </div>
+                            )}
+                        </SectionCard>
 
-                {/* Canjes por Tipo */}
-                <ChartCard title="Canjes por Tipo de Producto">
-                    <div className="h-52">
-                        {loading ? (
-                            <div className="h-full flex justify-center items-center">
-                                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : canjesPorTipoData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={canjesPorTipoData}
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={70}
-                                        dataKey="cantidad"
-                                        nameKey="tipo"
-                                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                                        labelLine={false}
-                                    >
-                                        {canjesPorTipoData.map((_, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        height={36}
-                                        formatter={(value) => <span className="text-foreground text-sm">{value}</span>}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col justify-center items-center text-muted-foreground">
-                                <ShoppingBag className="w-10 h-10 mb-2 opacity-30" />
-                                <p className="text-sm font-medium">Sin canjes registrados</p>
-                            </div>
-                        )}
-                    </div>
-                </ChartCard>
+                        {/* Pie Charts Row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Distribución de Niveles */}
+                            <SectionCard title="Distribución de Clientes" icon={Users}>
+                                <div className="h-44">
+                                    {loading ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                                        </div>
+                                    ) : nivelesData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={nivelesData}
+                                                    cx="50%"
+                                                    cy="45%"
+                                                    innerRadius={30}
+                                                    outerRadius={50}
+                                                    paddingAngle={5}
+                                                    dataKey="value"
+                                                >
+                                                    {nivelesData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip />
+                                                <Legend verticalAlign="bottom" height={24} formatter={(value) => <span className="text-foreground text-xs">{value}</span>} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                                            <Users className="w-10 h-10 mb-2 opacity-30" />
+                                            <p className="text-sm">Sin datos</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </SectionCard>
 
-                {/* Estadísticas de Canjes */}
-                <ChartCard title="Resumen de Canjes">
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                                    <ShoppingBag className="w-5 h-5 text-indigo-500" />
+                            {/* Canjes por Tipo */}
+                            <SectionCard title="Canjes por Categoría" icon={Gift}>
+                                <div className="h-44">
+                                    {loading ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                                        </div>
+                                    ) : canjesPorTipoData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={canjesPorTipoData}
+                                                    cx="50%"
+                                                    cy="45%"
+                                                    outerRadius={50}
+                                                    dataKey="cantidad"
+                                                    nameKey="tipo"
+                                                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                                                    labelLine={false}
+                                                >
+                                                    {canjesPorTipoData.map((_, index) => (
+                                                        <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip />
+                                                <Legend verticalAlign="bottom" height={24} formatter={(value) => <span className="text-foreground text-xs">{value}</span>} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                                            <Gift className="w-10 h-10 mb-2 opacity-30" />
+                                            <p className="text-sm">Sin canjes</p>
+                                        </div>
+                                    )}
                                 </div>
-                                <span className="text-sm font-medium text-foreground/80">Total Canjes</span>
-                            </div>
-                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.total || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center">
-                                    <Gift className="w-5 h-5 text-green-500" />
-                                </div>
-                                <span className="text-sm font-medium text-foreground/80">Entregados</span>
-                            </div>
-                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.entregados || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                                    <Truck className="w-5 h-5 text-amber-500" />
-                                </div>
-                                <span className="text-sm font-medium text-foreground/80">Pendientes</span>
-                            </div>
-                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.pendientes || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
-                                    <TrendingUp className="w-5 h-5 text-primary" />
-                                </div>
-                                <span className="text-sm font-medium text-foreground/80">Puntos Canjeados</span>
-                            </div>
-                            <span className="text-xl font-bold text-foreground">
-                                {(stats?.canjesStats?.puntosCanjeados || 0).toLocaleString('es-MX')}
-                            </span>
+                            </SectionCard>
                         </div>
                     </div>
-                </ChartCard>
-            </div>
 
-            {/* Sección inferior */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Últimos canjes pendientes */}
-                <ChartCard title="Canjes Pendientes de Entrega">
-                    <div className="space-y-3">
+                    {/* Right Column - Stats & Lists */}
+                    <div className="lg:col-span-4 space-y-4">
+                        {/* Canjes Summary */}
+                        <SectionCard
+                            title="Resumen de Canjes"
+                            icon={ShoppingBag}
+                        >
+                            <div className="space-y-1">
+                                <QuickStatRow icon={ShoppingBag} label="Total" value={stats?.canjesStats?.total || 0} color="indigo" to="/admin/entregas" />
+                                <QuickStatRow icon={CheckCircle2} label="Entregados" value={stats?.canjesStats?.entregados || 0} color="green" to="/admin/entregas" />
+                                <QuickStatRow icon={Clock} label="Pendientes" value={stats?.canjesStats?.pendientes || 0} color="amber" to="/admin/entregas" />
+                                <Link to="/admin/entregas" className="flex items-center justify-between py-2 hover:opacity-70 transition-opacity">
+                                    <div className="flex items-center gap-3">
+                                        <TrendingUp className="w-5 h-5 text-primary" />
+                                        <span className="text-sm font-medium text-muted-foreground">Puntos Canjeados</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-primary tabular-nums">
+                                        {(stats?.canjesStats?.puntosCanjeados || 0).toLocaleString('es-MX')}
+                                    </span>
+                                </Link>
+                            </div>
+                        </SectionCard>
+
+                        {/* Top Clientes */}
+                        <SectionCard
+                            title="Top 5 Clientes"
+                            subtitle="Por puntos acumulados"
+                            icon={Crown}
+                            action={
+                                <Link to="/admin/clientes">
+                                    <Button variant="ghost" size="sm" className="text-xs">
+                                        Ver todos <ChevronRight className="w-3 h-3 ml-1" />
+                                    </Button>
+                                </Link>
+                            }
+                        >
+                            {loading ? (
+                                <div className="h-40 flex items-center justify-center">
+                                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : topClients.length > 0 ? (
+                                <div className="space-y-0.5">
+                                    {topClients.map((client, index) => (
+                                        <TopClientRow
+                                            key={client.id}
+                                            client={client}
+                                            rank={index + 1}
+                                            maxPoints={maxClientPoints}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="h-40 flex flex-col items-center justify-center text-muted-foreground">
+                                    <Users className="w-10 h-10 mb-2 opacity-30" />
+                                    <p className="text-sm">Sin clientes</p>
+                                </div>
+                            )}
+                        </SectionCard>
+                    </div>
+                </div>
+
+                {/* Bottom Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {/* Canjes Pendientes */}
+                    <SectionCard
+                        title="Entregas Pendientes"
+                        subtitle="Próximas recompensas a entregar"
+                        icon={Truck}
+                        className="lg:col-span-7"
+                        action={
+                            entregas.length > 0 && (
+                                <Badge variant="secondary" className="font-semibold">
+                                    {canjesPendientes.length} total
+                                </Badge>
+                            )
+                        }
+                    >
                         {loading ? (
-                            <div className="h-40 flex justify-center items-center">
+                            <div className="h-32 flex items-center justify-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                             </div>
                         ) : entregas.length > 0 ? (
-                            entregas.map((entrega) => (
-                                <div
-                                    key={entrega.id}
-                                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
-                                >
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-foreground">{entrega.producto_nombre}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            Para: <span className="font-medium text-foreground/80">{entrega.cliente_nombre}</span>
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${
-                                            entrega.estado === 'en_lista'
-                                                ? 'bg-blue-500/20 text-blue-500'
-                                                : 'bg-orange-500/20 text-orange-500'
-                                        }`}>
-                                            {entrega.estado === 'en_lista' ? 'En lista' : 'Pendiente'}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {new Date(entrega.fecha).toLocaleDateString('es-MX')}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
+                            <div className="space-y-2">
+                                {entregas.map((entrega) => (
+                                    <PendingDeliveryRow key={entrega.id} entrega={entrega} />
+                                ))}
+                            </div>
                         ) : (
-                            <div className="py-8 text-center text-muted-foreground">
-                                <Gift className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                <p>¡No hay canjes pendientes!</p>
+                            <div className="py-6 text-center">
+                                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mx-auto mb-2">
+                                    <CheckCircle2 className="w-6 h-6 text-green-500" />
+                                </div>
+                                <p className="font-medium text-foreground">¡Todo al día!</p>
+                                <p className="text-sm text-muted-foreground">No hay entregas pendientes</p>
                             </div>
                         )}
-                    </div>
-                </ChartCard>
+                    </SectionCard>
 
-                {/* Gestión de datos */}
-                <ChartCard title="Gestión de Datos">
-                    <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            Exporta o importa los datos del sistema para respaldos o migraciones.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                                onClick={handleExport}
-                                variant="outline"
-                                className="flex-1"
-                                disabled={loading}
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Exportar Datos
-                            </Button>
-                            <Button
-                                onClick={handleImportClick}
-                                variant="outline"
-                                className="flex-1"
-                                disabled={loading}
-                            >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Importar Datos
-                            </Button>
-                            <Input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept=".json"
-                                disabled={loading}
-                            />
-                        </div>
-                        <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30 flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <Upload className="w-4 h-4 text-amber-600" />
+                    {/* Gestión de Datos */}
+                    <SectionCard
+                        title="Gestión de Datos"
+                        subtitle="Respaldo y restauración"
+                        icon={Download}
+                        className="lg:col-span-5"
+                    >
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <Button onClick={handleExport} variant="outline" className="flex-1 h-10" disabled={loading}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Exportar
+                                </Button>
+                                <Button onClick={handleImportClick} variant="outline" className="flex-1 h-10" disabled={loading}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Importar
+                                </Button>
+                                <Input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept=".json"
+                                />
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold text-amber-600 mb-1">Advertencia</p>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    La importación sobreescribirá los datos existentes.
-                                    Asegúrate de tener un respaldo antes de importar.
-                                </p>
-                            </div>
-                        </div>
 
-                        {/* Resumen rápido del sistema */}
-                        <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
-                            <div className="text-center p-3 bg-muted/30 rounded-lg">
-                                <p className="text-2xl font-bold text-foreground">
-                                    {stats?.serviciosPorTipo?.length || 0}
+                            <div className="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20 flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                <p className="text-xs text-muted-foreground">
+                                    La importación reemplazará los datos existentes.
                                 </p>
-                                <p className="text-xs text-muted-foreground">Tipos de Servicio</p>
                             </div>
-                            <div className="text-center p-3 bg-muted/30 rounded-lg">
-                                <p className="text-2xl font-bold text-foreground">
-                                    {stats?.canjesPorTipo?.length || 0}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Tipos de Producto</p>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                                <div className="text-center p-2 bg-muted/30 rounded-lg">
+                                    <p className="text-lg font-bold text-foreground">{stats?.serviciosPorTipo?.length || 0}</p>
+                                    <p className="text-[10px] text-muted-foreground">Tipos de Servicio</p>
+                                </div>
+                                <div className="text-center p-2 bg-muted/30 rounded-lg">
+                                    <p className="text-lg font-bold text-foreground">{stats?.canjesPorTipo?.length || 0}</p>
+                                    <p className="text-[10px] text-muted-foreground">Tipos de Producto</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </ChartCard>
+                    </SectionCard>
+                </div>
             </div>
         </>
     );

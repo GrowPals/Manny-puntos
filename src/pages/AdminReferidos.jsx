@@ -15,10 +15,8 @@ import {
     ChevronDown,
     ChevronUp,
     RefreshCw,
-    Edit2,
     Coins,
-    UserPlus,
-    Info
+    UserPlus
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -86,12 +84,21 @@ const AdminReferidos = () => {
     });
 
     const handleSaveConfig = () => {
-        if (!localConfig) return;
+        if (!localConfig?.id) {
+            toast({ title: "Error", description: "Configuración no cargada aún", variant: "destructive" });
+            return;
+        }
         configMutation.mutate(localConfig);
     };
 
     const handleToggleActive = (checked) => {
-        const newConfig = { ...localConfig, activo: checked };
+        // Use config from server if localConfig doesn't have id yet
+        const baseConfig = localConfig?.id ? localConfig : config;
+        if (!baseConfig?.id) {
+            toast({ title: "Error", description: "Configuración no cargada aún", variant: "destructive" });
+            return;
+        }
+        const newConfig = { ...baseConfig, activo: checked };
         setLocalConfig(newConfig);
         configMutation.mutate(newConfig);
     };
@@ -329,25 +336,20 @@ const AdminReferidos = () => {
                 className="mb-6"
             >
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <Users className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                                Programa de Referidos
-                            </h1>
-                            <p className="text-muted-foreground text-sm">
-                                Gestiona invitaciones y recompensas
-                            </p>
-                        </div>
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                            <Users className="w-7 h-7 text-primary" />
+                            Programa de Referidos
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            Gestiona invitaciones y recompensas
+                        </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => refetchReferidos()}
-                            className="hover:bg-muted"
                         >
                             <RefreshCw className="w-4 h-4 mr-1" />
                             Actualizar
@@ -364,32 +366,32 @@ const AdminReferidos = () => {
             </motion.div>
 
             {/* Control ON/OFF */}
-            <div className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
-                localConfig?.activo
-                    ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
-                    : 'bg-card border-border'
-            }`}>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
+                    localConfig?.activo
+                        ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
+                        : 'bg-card border-border'
+                }`}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                        <div className={`relative p-3 rounded-xl transition-all duration-300 ${
                             localConfig?.activo
-                                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                                : 'bg-muted text-muted-foreground'
+                                ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
+                                : 'bg-muted'
                         }`}>
-                            <Gift className="w-6 h-6" />
+                            <Gift className={`w-6 h-6 transition-colors ${localConfig?.activo ? 'text-white' : 'text-muted-foreground'}`} />
+                            {localConfig?.activo && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                            )}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="font-bold text-lg">
-                                    {localConfig?.activo ? 'Programa Activo' : 'Programa Inactivo'}
-                                </h2>
-                                {localConfig?.activo && (
-                                    <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-lg shadow-sm">
-                                        ON
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">
+                            <h2 className="font-bold text-lg">
+                                {localConfig?.activo ? 'Programa Activo' : 'Programa Inactivo'}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
                                 {localConfig?.activo
                                     ? `${localConfig.puntos_referidor} pts para referidor • ${localConfig.puntos_referido} pts para referido`
                                     : 'Activa para que los clientes puedan invitar amigos'}
@@ -400,10 +402,10 @@ const AdminReferidos = () => {
                         checked={localConfig?.activo || false}
                         onCheckedChange={handleToggleActive}
                         disabled={configMutation.isPending}
-                        className="scale-110"
+                        className="scale-125"
                     />
                 </div>
-            </div>
+            </motion.div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

@@ -202,8 +202,9 @@ Deno.serve(async (req: Request) => {
     const ticketName = extractTicketName(properties);
     const monto = extractMonto(properties);
     const contactoId = extractContactoId(properties);
+    const esMannyReward = properties['Manny Rewards']?.checkbox || false;
 
-    console.log(`Ticket: ${ticketName}, Monto: ${monto}, Contacto: ${contactoId}`);
+    console.log(`Ticket: ${ticketName}, Monto: ${monto}, Contacto: ${contactoId}, Es Manny Reward: ${esMannyReward}`);
 
     if (!contactoId) {
       return new Response(JSON.stringify({
@@ -340,34 +341,39 @@ Deno.serve(async (req: Request) => {
       if (cliente) {
         clienteId = cliente.id;
 
-        // Calculate points for this ticket only (for Supabase) - 5% del monto
-        const puntosTicket = Math.round(monto * 0.05);
+        // Solo acumular puntos si NO es un ticket de Manny Rewards (canje)
+        if (!esMannyReward) {
+          // Calculate points for this ticket only (for Supabase) - 5% del monto
+          const puntosTicket = Math.round(monto * 0.05);
 
-        if (puntosTicket > 0) {
-          await supabase.rpc('asignar_puntos_atomico', {
-            p_cliente_telefono: telefono,
-            p_puntos_a_sumar: puntosTicket,
-            p_concepto: `Ticket completado: ${ticketName} - $${monto} (5%)`
-          });
-
-          // Send push notification
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                tipo: 'puntos_recibidos',
-                cliente_id: cliente.id,
-                data: { puntos: puntosTicket, concepto: ticketName },
-                url: '/dashboard'
-              }),
+          if (puntosTicket > 0) {
+            await supabase.rpc('asignar_puntos_atomico', {
+              p_cliente_telefono: telefono,
+              p_puntos_a_sumar: puntosTicket,
+              p_concepto: `Ticket completado: ${ticketName} - $${monto} (5%)`
             });
-          } catch (e) {
-            console.warn('Push notification failed:', e);
+
+            // Send push notification
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  tipo: 'puntos_recibidos',
+                  cliente_id: cliente.id,
+                  data: { puntos: puntosTicket, concepto: ticketName },
+                  url: '/dashboard'
+                }),
+              });
+            } catch (e) {
+              console.warn('Push notification failed:', e);
+            }
           }
+        } else {
+          console.log(`Ticket ${ticketId} es Manny Reward - NO se acumulan puntos`);
         }
       }
     }

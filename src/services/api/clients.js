@@ -168,7 +168,7 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
     return data;
 };
 
-export const cambiarRolAdmin = async (clienteId, esAdmin) => {
+export const cambiarRolAdmin = async (clienteId, esAdmin, changedById) => {
     const { data, error } = await supabase
         .from('clientes')
         .update({ es_admin: esAdmin })
@@ -177,6 +177,18 @@ export const cambiarRolAdmin = async (clienteId, esAdmin) => {
         .single();
 
     if (error) throw new Error(ERROR_MESSAGES.CLIENTS.ROLE_CHANGE_ERROR);
+
+    // Registrar el cambio en el log (fire and forget)
+    if (changedById) {
+        supabase.from('admin_role_logs').insert({
+            cliente_id: clienteId,
+            changed_by_id: changedById,
+            action: esAdmin ? 'granted' : 'revoked'
+        }).then(({ error: logError }) => {
+            if (logError) console.warn('Error logging admin role change:', logError);
+        });
+    }
+
     return data;
 };
 

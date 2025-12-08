@@ -115,7 +115,7 @@ const AdminEntregas = () => {
     return (
         <>
             <Helmet><title>Gestión de Canjes - Admin Manny</title></Helmet>
-            <div className="container mx-auto px-4 py-6">
+            <div className="space-y-6">
                 <PageHeader
                     icon={Truck}
                     title="Canjes"

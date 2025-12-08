@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = [
   'https://recompensas.manny.mx',
   'http://localhost:5173',
   'http://localhost:4173',
+  'http://localhost:3000',
 ];
 
 function getCorsHeaders(origin: string | null) {

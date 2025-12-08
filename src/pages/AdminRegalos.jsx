@@ -15,15 +15,9 @@ import {
     Coins,
     Wrench,
     RefreshCw,
-    Calendar,
     Share2,
-    MessageSquare,
     Users,
     Megaphone,
-    FileText,
-    Palette,
-    Image,
-    Info,
     ChevronDown,
     ChevronUp
 } from 'lucide-react';
@@ -33,7 +27,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { VALIDATION } from '@/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
     Dialog,
     DialogContent,
@@ -317,127 +310,94 @@ const AdminRegalos = () => {
 
             {/* Dialog de crear */}
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-                <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-card border-border text-foreground sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="text-xl flex items-center gap-2">
-                            <Gift className="w-5 h-5 text-primary" />
-                            Crear Link de Regalo
-                        </DialogTitle>
-                        <DialogDescription>
-                            Crea un link único o una campaña masiva para regalar beneficios.
-                        </DialogDescription>
+                        <DialogTitle className="text-lg font-bold">Nuevo Link de Regalo</DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-5 py-4">
-                        {/* Toggle Campaña */}
-                        <div className="flex items-center justify-between p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <Megaphone className="w-5 h-5 text-primary" />
-                                </div>
-                                <div>
-                                    <p className="font-medium">Campaña Masiva</p>
-                                    <p className="text-xs text-muted-foreground">Un link que pueden canjear múltiples personas</p>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={newLink.es_campana}
-                                onCheckedChange={(checked) => setNewLink({ ...newLink, es_campana: checked })}
-                            />
+                    <div className="space-y-4">
+                        {/* Tipo toggle compacto */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setNewLink({ ...newLink, es_campana: false })}
+                                className={`p-3 rounded-xl border-2 transition-all text-center ${
+                                    !newLink.es_campana
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-primary/50'
+                                }`}
+                            >
+                                <Gift className={`w-5 h-5 mx-auto mb-1 ${!newLink.es_campana ? 'text-primary' : 'text-muted-foreground'}`} />
+                                <p className="font-medium text-sm">Link único</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setNewLink({ ...newLink, es_campana: true })}
+                                className={`p-3 rounded-xl border-2 transition-all text-center ${
+                                    newLink.es_campana
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-primary/50'
+                                }`}
+                            >
+                                <Megaphone className={`w-5 h-5 mx-auto mb-1 ${newLink.es_campana ? 'text-primary' : 'text-muted-foreground'}`} />
+                                <p className="font-medium text-sm">Campaña</p>
+                            </button>
                         </div>
 
-                        {/* Nombre de campaña (solo si es campaña) */}
+                        {/* Nombre campaña */}
                         {newLink.es_campana && (
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Nombre de la campaña *
-                                </label>
-                                <Input
-                                    value={newLink.nombre_campana}
-                                    onChange={(e) => setNewLink({ ...newLink, nombre_campana: e.target.value })}
-                                    placeholder="Ej: Navidad 2024, Verano Manny"
-                                    className="bg-background"
-                                />
-                            </div>
+                            <Input
+                                value={newLink.nombre_campana}
+                                onChange={(e) => setNewLink({ ...newLink, nombre_campana: e.target.value })}
+                                placeholder="Nombre de la campaña *"
+                            />
                         )}
 
-                        {/* Tipo de regalo */}
-                        <div>
-                            <label className="text-sm font-medium mb-3 block">Tipo de regalo</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={() => setNewLink({ ...newLink, tipo: 'servicio' })}
-                                    className={`p-4 rounded-xl border-2 transition-all ${
-                                        newLink.tipo === 'servicio'
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:border-primary/50'
-                                    }`}
-                                >
-                                    <Wrench className={`w-8 h-8 mx-auto mb-2 ${
-                                        newLink.tipo === 'servicio' ? 'text-primary' : 'text-muted-foreground'
-                                    }`} />
-                                    <p className="font-medium text-sm">Servicio</p>
-                                    <p className="text-xs text-muted-foreground">Beneficio o trabajo gratis</p>
-                                </button>
-                                <button
-                                    onClick={() => setNewLink({ ...newLink, tipo: 'puntos' })}
-                                    className={`p-4 rounded-xl border-2 transition-all ${
-                                        newLink.tipo === 'puntos'
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:border-primary/50'
-                                    }`}
-                                >
-                                    <Coins className={`w-8 h-8 mx-auto mb-2 ${
-                                        newLink.tipo === 'puntos' ? 'text-primary' : 'text-muted-foreground'
-                                    }`} />
-                                    <p className="font-medium text-sm">Puntos</p>
-                                    <p className="text-xs text-muted-foreground">Puntos Manny</p>
-                                </button>
-                            </div>
+                        {/* Tipo de regalo - inline */}
+                        <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-lg">
+                            <button
+                                type="button"
+                                onClick={() => setNewLink({ ...newLink, tipo: 'servicio' })}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                                    newLink.tipo === 'servicio'
+                                        ? 'bg-background shadow-sm text-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <Wrench className="w-4 h-4" />
+                                Servicio
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setNewLink({ ...newLink, tipo: 'puntos' })}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                                    newLink.tipo === 'puntos'
+                                        ? 'bg-background shadow-sm text-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                <Coins className="w-4 h-4" />
+                                Puntos
+                            </button>
                         </div>
 
                         {/* Campos según tipo */}
                         {newLink.tipo === 'servicio' ? (
-                            <>
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Nombre del beneficio *
-                                    </label>
-                                    <Input
-                                        value={newLink.nombre_beneficio}
-                                        onChange={(e) => setNewLink({ ...newLink, nombre_beneficio: e.target.value })}
-                                        placeholder="Ej: Mini Seguro de Emergencias"
-                                        className="bg-background"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Descripción (opcional)
-                                    </label>
-                                    <textarea
-                                        value={newLink.descripcion_beneficio}
-                                        onChange={(e) => setNewLink({ ...newLink, descripcion_beneficio: e.target.value })}
-                                        placeholder="Describe qué incluye el beneficio..."
-                                        className="w-full h-20 p-3 rounded-xl bg-background border border-border text-foreground resize-none text-sm"
-                                    />
-                                </div>
-                            </>
+                            <Input
+                                value={newLink.nombre_beneficio}
+                                onChange={(e) => setNewLink({ ...newLink, nombre_beneficio: e.target.value })}
+                                placeholder="Nombre del servicio *"
+                            />
                         ) : (
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">
-                                    Cantidad de puntos *
-                                </label>
-                                <div className="relative">
-                                    <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                                    <Input
-                                        type="number"
-                                        value={newLink.puntos_regalo}
-                                        onChange={(e) => setNewLink({ ...newLink, puntos_regalo: parseInt(e.target.value) || 0 })}
-                                        className="pl-11 text-lg font-medium"
-                                        min={1}
-                                    />
-                                </div>
-                                <div className="flex gap-2 mt-2">
+                            <div className="space-y-2">
+                                <Input
+                                    type="number"
+                                    value={newLink.puntos_regalo}
+                                    onChange={(e) => setNewLink({ ...newLink, puntos_regalo: parseInt(e.target.value) || 0 })}
+                                    placeholder="Cantidad de puntos *"
+                                    min={1}
+                                />
+                                <div className="flex gap-1.5">
                                     {[50, 100, 200, 500].map(pts => (
                                         <Button
                                             key={pts}
@@ -445,6 +405,7 @@ const AdminRegalos = () => {
                                             size="sm"
                                             variant={newLink.puntos_regalo === pts ? 'default' : 'outline'}
                                             onClick={() => setNewLink({ ...newLink, puntos_regalo: pts })}
+                                            className="flex-1 h-8"
                                         >
                                             {pts}
                                         </Button>
@@ -453,185 +414,115 @@ const AdminRegalos = () => {
                             </div>
                         )}
 
-                        {/* Términos y Condiciones (para campañas) */}
-                        {newLink.es_campana && (
-                            <>
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                        <FileText className="w-4 h-4" />
-                                        Términos y Condiciones
-                                    </label>
-                                    <textarea
-                                        value={newLink.terminos_condiciones}
-                                        onChange={(e) => setNewLink({ ...newLink, terminos_condiciones: e.target.value })}
-                                        placeholder="Ej:&#10;• El servicio no puede exceder 6 horas&#10;• Tiempo de respuesta: 24 horas&#10;• No incluye materiales&#10;• Solo horario laboral (9am - 6pm)"
-                                        className="w-full h-32 p-3 rounded-xl bg-background border border-border text-foreground resize-none text-sm font-mono"
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        El cliente verá estos términos ANTES de aceptar el regalo
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                        <Info className="w-4 h-4" />
-                                        Instrucciones de uso
-                                    </label>
-                                    <textarea
-                                        value={newLink.instrucciones_uso}
-                                        onChange={(e) => setNewLink({ ...newLink, instrucciones_uso: e.target.value })}
-                                        placeholder="Ej: Para usar tu beneficio, envía un WhatsApp al +52 xxx explicando tu emergencia."
-                                        className="w-full h-20 p-3 rounded-xl bg-background border border-border text-foreground resize-none text-sm"
-                                    />
-                                </div>
-                            </>
-                        )}
-
-                        {/* Mensaje personalizado */}
-                        <div>
-                            <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4" />
-                                Mensaje personalizado (opcional)
-                            </label>
-                            <textarea
-                                value={newLink.mensaje_personalizado}
-                                onChange={(e) => setNewLink({ ...newLink, mensaje_personalizado: e.target.value })}
-                                placeholder={newLink.es_campana
-                                    ? "Ej: ¡Gracias por ser parte de Manny! Te regalamos..."
-                                    : "Un mensaje especial para quien recibe el regalo..."
-                                }
-                                className="w-full h-20 p-3 rounded-xl bg-background border border-border text-foreground resize-none text-sm"
-                            />
-                        </div>
-
-                        {/* Configuración de límites y vigencia */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Max canjes (solo campaña) */}
-                            {newLink.es_campana && (
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                        <Users className="w-4 h-4" />
-                                        Máximo de participantes
-                                    </label>
-                                    <Input
-                                        type="number"
-                                        value={newLink.max_canjes}
-                                        onChange={(e) => setNewLink({ ...newLink, max_canjes: parseInt(e.target.value) || 0 })}
-                                        className="bg-background"
-                                        min={1}
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        0 = sin límite
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Destinatario específico (solo link individual) */}
-                            {!newLink.es_campana && (
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Teléfono del destinatario
-                                    </label>
-                                    <Input
-                                        type="tel"
-                                        value={newLink.destinatario_telefono}
-                                        onChange={(e) => setNewLink({
-                                            ...newLink,
-                                            destinatario_telefono: e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH)
-                                        })}
-                                        placeholder="Dejar vacío para cualquiera"
-                                        className="bg-background"
-                                        maxLength={VALIDATION.PHONE.LENGTH}
-                                    />
-                                </div>
-                            )}
-
-                            {/* Vigencia del link */}
-                            <div>
-                                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" />
-                                    Vigencia del link (días)
-                                </label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {[7, 15, 30, 60, 90].map(dias => (
-                                        <Button
-                                            key={dias}
-                                            type="button"
-                                            size="sm"
-                                            variant={newLink.dias_expiracion === dias ? 'default' : 'outline'}
-                                            onClick={() => setNewLink({ ...newLink, dias_expiracion: dias })}
-                                        >
-                                            {dias}d
-                                        </Button>
-                                    ))}
-                                </div>
+                        {/* Vigencia - siempre visible, compacto */}
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">Vigencia:</span>
+                            <div className="flex gap-1.5 flex-1">
+                                {[7, 30, 90].map(dias => (
+                                    <Button
+                                        key={dias}
+                                        type="button"
+                                        size="sm"
+                                        variant={newLink.dias_expiracion === dias ? 'default' : 'outline'}
+                                        onClick={() => setNewLink({ ...newLink, dias_expiracion: dias })}
+                                        className="flex-1 h-8"
+                                    >
+                                        {dias} días
+                                    </Button>
+                                ))}
                             </div>
-
-                            {/* Vigencia del beneficio (solo campaña) */}
-                            {newLink.es_campana && (
-                                <div>
-                                    <label className="text-sm font-medium mb-2 block">
-                                        Vigencia del beneficio (días)
-                                    </label>
-                                    <div className="flex gap-2 flex-wrap">
-                                        {[30, 90, 180, 365].map(dias => (
-                                            <Button
-                                                key={dias}
-                                                type="button"
-                                                size="sm"
-                                                variant={newLink.vigencia_beneficio === dias ? 'default' : 'outline'}
-                                                onClick={() => setNewLink({ ...newLink, vigencia_beneficio: dias })}
-                                            >
-                                                {dias === 365 ? '1 año' : `${dias}d`}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Tiempo que tiene el cliente para usar el beneficio después de canjearlo
-                                    </p>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Personalización visual (para campañas) */}
-                        {newLink.es_campana && (
-                            <div className="space-y-4 p-4 border border-border rounded-xl bg-muted/20">
-                                <p className="font-medium text-sm flex items-center gap-2">
-                                    <Palette className="w-4 h-4" />
-                                    Personalización visual
-                                </p>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Sección colapsable de opciones avanzadas */}
+                        <details className="group">
+                            <summary className="flex items-center justify-between cursor-pointer py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors list-none">
+                                <span className="flex items-center gap-2">
+                                    <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                                    Opciones avanzadas
+                                </span>
+                            </summary>
+                            <div className="space-y-3 pt-3 border-t border-border mt-2">
+                                {/* Teléfono o Max canjes */}
+                                {newLink.es_campana ? (
                                     <div>
-                                        <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                                            <Image className="w-4 h-4" />
-                                            URL de imagen/banner
-                                        </label>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Máx. participantes (0 = sin límite)</label>
                                         <Input
-                                            value={newLink.imagen_banner}
-                                            onChange={(e) => setNewLink({ ...newLink, imagen_banner: e.target.value })}
-                                            placeholder="https://..."
-                                            className="bg-background"
+                                            type="number"
+                                            value={newLink.max_canjes}
+                                            onChange={(e) => setNewLink({ ...newLink, max_canjes: parseInt(e.target.value) || 0 })}
+                                            placeholder="Sin límite"
+                                            min={0}
                                         />
                                     </div>
-
+                                ) : (
                                     <div>
-                                        <label className="text-sm font-medium mb-2 block">
-                                            Color del tema
-                                        </label>
-                                        <div className="flex gap-2 items-center">
-                                            <input
-                                                type="color"
-                                                value={newLink.color_tema}
-                                                onChange={(e) => setNewLink({ ...newLink, color_tema: e.target.value })}
-                                                className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                                        <label className="text-xs text-muted-foreground mb-1 block">Teléfono destinatario (opcional)</label>
+                                        <Input
+                                            type="tel"
+                                            value={newLink.destinatario_telefono}
+                                            onChange={(e) => setNewLink({
+                                                ...newLink,
+                                                destinatario_telefono: e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH)
+                                            })}
+                                            placeholder="Cualquiera puede usarlo"
+                                            maxLength={VALIDATION.PHONE.LENGTH}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Descripción para servicios */}
+                                {newLink.tipo === 'servicio' && (
+                                    <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Descripción</label>
+                                        <textarea
+                                            value={newLink.descripcion_beneficio}
+                                            onChange={(e) => setNewLink({ ...newLink, descripcion_beneficio: e.target.value })}
+                                            placeholder="Qué incluye el servicio..."
+                                            className="w-full h-16 p-2.5 rounded-lg bg-background border border-border text-foreground resize-none text-sm"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Mensaje personalizado */}
+                                <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Mensaje personalizado</label>
+                                    <textarea
+                                        value={newLink.mensaje_personalizado}
+                                        onChange={(e) => setNewLink({ ...newLink, mensaje_personalizado: e.target.value })}
+                                        placeholder="Un mensaje especial..."
+                                        className="w-full h-14 p-2.5 rounded-lg bg-background border border-border text-foreground resize-none text-sm"
+                                    />
+                                </div>
+
+                                {/* Campos extra para campañas */}
+                                {newLink.es_campana && (
+                                    <>
+                                        <div>
+                                            <label className="text-xs text-muted-foreground mb-1 block">Términos y condiciones</label>
+                                            <textarea
+                                                value={newLink.terminos_condiciones}
+                                                onChange={(e) => setNewLink({ ...newLink, terminos_condiciones: e.target.value })}
+                                                placeholder="• Condición 1&#10;• Condición 2"
+                                                className="w-full h-20 p-2.5 rounded-lg bg-background border border-border text-foreground resize-none text-sm"
                                             />
-                                            <div className="flex gap-1">
-                                                {['#E91E63', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800', '#795548'].map(color => (
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-muted-foreground mb-1 block">Instrucciones de uso</label>
+                                            <Input
+                                                value={newLink.instrucciones_uso}
+                                                onChange={(e) => setNewLink({ ...newLink, instrucciones_uso: e.target.value })}
+                                                placeholder="Cómo usar el beneficio..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-muted-foreground mb-1.5 block">Color del tema</label>
+                                            <div className="flex gap-2">
+                                                {['#E91E63', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800'].map(color => (
                                                     <button
                                                         key={color}
+                                                        type="button"
                                                         onClick={() => setNewLink({ ...newLink, color_tema: color })}
-                                                        className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                                                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
                                                             newLink.color_tema === color ? 'border-foreground scale-110' : 'border-transparent'
                                                         }`}
                                                         style={{ backgroundColor: color }}
@@ -639,35 +530,22 @@ const AdminRegalos = () => {
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                {/* Preview del banner */}
-                                {newLink.imagen_banner && (
-                                    <div className="mt-2">
-                                        <p className="text-xs text-muted-foreground mb-2">Vista previa:</p>
-                                        <img
-                                            src={newLink.imagen_banner}
-                                            alt="Preview"
-                                            className="w-full h-32 object-cover rounded-xl border border-border"
-                                            onError={(e) => e.target.style.display = 'none'}
-                                        />
-                                    </div>
+                                    </>
                                 )}
                             </div>
-                        )}
+                        </details>
                     </div>
 
-                    <DialogFooter className="gap-2">
+                    <DialogFooter className="gap-2 mt-2">
                         <DialogClose asChild>
-                            <Button variant="outline">Cancelar</Button>
+                            <Button variant="outline" size="sm">Cancelar</Button>
                         </DialogClose>
                         <Button
                             onClick={handleCreate}
                             disabled={createMutation.isPending}
+                            size="sm"
                         >
-                            {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                            {newLink.es_campana ? <Megaphone className="w-4 h-4 mr-2" /> : <Gift className="w-4 h-4 mr-2" />}
+                            {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
                             {newLink.es_campana ? 'Crear Campaña' : 'Crear Link'}
                         </Button>
                     </DialogFooter>
@@ -833,25 +711,11 @@ const AdminRegalos = () => {
                 </div>
             </motion.div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            {/* Stats Grid - 4 columnas para que sea par en mobile */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <div className="bg-card rounded-xl p-4 border border-border">
                     <div className="flex items-center gap-3">
-                        <div className="text-primary">
-                            <Gift className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{stats.total || 0}</p>
-                            <p className="text-xs text-muted-foreground">Total links</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-card rounded-xl p-4 border border-border">
-                    <div className="flex items-center gap-3">
-                        <div className="text-primary">
-                            <Megaphone className="w-6 h-6" />
-                        </div>
+                        <Megaphone className="w-5 h-5 text-purple-500" />
                         <div>
                             <p className="text-2xl font-bold">{stats.campanas || 0}</p>
                             <p className="text-xs text-muted-foreground">Campañas</p>
@@ -861,9 +725,7 @@ const AdminRegalos = () => {
 
                 <div className="bg-card rounded-xl p-4 border border-border">
                     <div className="flex items-center gap-3">
-                        <div className="text-primary">
-                            <Users className="w-6 h-6" />
-                        </div>
+                        <Users className="w-5 h-5 text-blue-500" />
                         <div>
                             <p className="text-2xl font-bold">{stats.total_canjes || 0}</p>
                             <p className="text-xs text-muted-foreground">Canjes totales</p>
@@ -873,9 +735,7 @@ const AdminRegalos = () => {
 
                 <div className="bg-card rounded-xl p-4 border border-border">
                     <div className="flex items-center gap-3">
-                        <div className="text-primary">
-                            <CheckCircle2 className="w-6 h-6" />
-                        </div>
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
                         <div>
                             <p className="text-2xl font-bold">{stats.beneficios_activos || 0}</p>
                             <p className="text-xs text-muted-foreground">Beneficios activos</p>
@@ -885,9 +745,7 @@ const AdminRegalos = () => {
 
                 <div className="bg-card rounded-xl p-4 border border-border">
                     <div className="flex items-center gap-3">
-                        <div className="text-primary">
-                            <Eye className="w-6 h-6" />
-                        </div>
+                        <Eye className="w-5 h-5 text-amber-500" />
                         <div>
                             <p className="text-2xl font-bold">{stats.total_vistas || 0}</p>
                             <p className="text-xs text-muted-foreground">Vistas totales</p>
@@ -899,8 +757,7 @@ const AdminRegalos = () => {
             {/* Lista de links */}
             <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
                 <div className="p-5 border-b border-border">
-                    <h2 className="font-bold text-lg flex items-center gap-2">
-                        <Gift className="w-5 h-5 text-primary" />
+                    <h2 className="font-bold text-lg">
                         Todos los Links ({links.length})
                     </h2>
                 </div>

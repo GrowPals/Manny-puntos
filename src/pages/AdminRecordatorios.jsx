@@ -9,12 +9,11 @@ import {
     Save,
     Clock,
     Wrench,
-    Settings,
     MessageSquare,
     Smartphone,
     Power,
     ChevronRight,
-    Info
+    Settings
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -390,49 +389,43 @@ const AdminRecordatorios = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Header - Enhanced with icon background */}
+            {/* Header */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                        <Bell className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                            Recordatorios Automáticos
-                        </h1>
-                        <p className="text-muted-foreground text-sm">
-                            Notificaciones push automáticas para servicios recurrentes
-                        </p>
-                    </div>
-                </div>
+                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                    <Bell className="w-7 h-7 text-primary" />
+                    Recordatorios Automáticos
+                </h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                    Notificaciones push automáticas para servicios recurrentes
+                </p>
             </motion.div>
 
-            {/* Control principal ON/OFF - Enhanced with gradient when active */}
-            <div className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
-                localConfig?.activo
-                    ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
-                    : 'bg-card border-border'
-            }`}>
+            {/* Control principal ON/OFF */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
+                    localConfig?.activo
+                        ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
+                        : 'bg-card border-border'
+                }`}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                        <div className={`relative p-3 rounded-xl transition-all duration-300 ${
                             localConfig?.activo
-                                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                                : 'bg-muted text-muted-foreground'
+                                ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
+                                : 'bg-muted'
                         }`}>
-                            <Power className="w-6 h-6" />
+                            <Power className={`w-6 h-6 transition-colors ${localConfig?.activo ? 'text-white' : 'text-muted-foreground'}`} />
+                            {localConfig?.activo && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                            )}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="font-bold text-lg text-foreground">
-                                    {localConfig?.activo ? 'Sistema Activo' : 'Sistema Inactivo'}
-                                </h2>
-                                {localConfig?.activo && (
-                                    <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-                                        ON
-                                    </span>
-                                )}
-                            </div>
+                            <h2 className="font-bold text-lg">
+                                {localConfig?.activo ? 'Sistema Activo' : 'Sistema Inactivo'}
+                            </h2>
                             <p className="text-sm text-muted-foreground">
                                 {localConfig?.activo
                                     ? `Envío diario a las ${localConfig.hora_envio}:00 hrs`
@@ -447,19 +440,15 @@ const AdminRecordatorios = () => {
                         className="scale-125"
                     />
                 </div>
-            </div>
+            </motion.div>
 
-            {/* Servicios configurados - Enhanced with better indicators */}
+            {/* Servicios configurados */}
             <div className="bg-card rounded-2xl shadow-sm border border-border p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                            <Wrench className="w-5 h-5 text-indigo-500" />
-                        </div>
-                        <h2 className="font-bold text-lg text-foreground">
-                            Servicios ({tiposRecurrentes.length})
-                        </h2>
-                    </div>
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                        <Wrench className="w-5 h-5 text-primary" />
+                        Servicios ({tiposRecurrentes.length})
+                    </h2>
                     <Button onClick={() => setShowAddDialog(true)} size="sm" variant="investment">
                         <Plus className="w-4 h-4 mr-1" />
                         Agregar
@@ -479,18 +468,9 @@ const AdminRecordatorios = () => {
                                 }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    {/* Enhanced status indicator */}
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                                        tipo.activo
-                                            ? 'bg-green-500/10'
-                                            : 'bg-muted'
-                                    }`}>
-                                        <div className={`w-3 h-3 rounded-full ${
-                                            tipo.activo
-                                                ? 'bg-green-500 shadow-lg shadow-green-500/50'
-                                                : 'bg-muted-foreground'
-                                        }`} />
-                                    </div>
+                                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                                        tipo.activo ? 'bg-green-500' : 'bg-muted-foreground'
+                                    }`} />
                                     <div>
                                         <p className="font-semibold text-foreground">{tipo.tipo_trabajo}</p>
                                         <p className="text-xs text-muted-foreground">
@@ -509,11 +489,9 @@ const AdminRecordatorios = () => {
                     </div>
                 ) : (
                     <div className="text-center py-10 text-muted-foreground">
-                        <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted flex items-center justify-center">
-                            <Wrench className="w-8 h-8 opacity-50" />
-                        </div>
+                        <Wrench className="w-12 h-12 mx-auto mb-3 opacity-30" />
                         <p className="text-sm font-medium">No hay servicios configurados</p>
-                        <p className="text-xs text-muted-foreground mt-1 mb-4">Agrega tipos de trabajo para enviar recordatorios</p>
+                        <p className="text-xs mt-1 mb-4">Agrega tipos de trabajo para enviar recordatorios</p>
                         <Button onClick={() => setShowAddDialog(true)} size="sm" variant="investment">
                             <Plus className="w-4 h-4 mr-1" />
                             Agregar servicio
@@ -522,14 +500,12 @@ const AdminRecordatorios = () => {
                 )}
             </div>
 
-            {/* Configuración del mensaje - Enhanced header */}
+            {/* Configuración del mensaje */}
             <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                        <MessageSquare className="w-5 h-5 text-purple-500" />
-                    </div>
-                    <h2 className="font-bold text-lg text-foreground">Mensaje General</h2>
-                </div>
+                <h2 className="font-bold text-lg flex items-center gap-2 mb-4">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    Mensaje General
+                </h2>
 
                 <div className="space-y-4">
                     {/* Título de la notificación */}
@@ -617,20 +593,13 @@ const AdminRecordatorios = () => {
                 </div>
             </div>
 
-            {/* Info footer - Enhanced with icon */}
-            <div className="mt-6 p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20">
-                <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <Info className="w-5 h-5 text-blue-500" />
-                    </div>
-                    <div>
-                        <p className="font-semibold text-foreground mb-1">¿Cómo funciona?</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                            El sistema revisa diariamente los servicios completados. Si han pasado los días configurados desde el último servicio de un cliente,
-                            reciben una notificación push con botón para contactarte por WhatsApp.
-                        </p>
-                    </div>
-                </div>
+            {/* Info footer */}
+            <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/50">
+                <p className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">¿Cómo funciona?</strong><br />
+                    El sistema revisa diariamente los servicios completados. Si han pasado los días configurados desde el último servicio de un cliente,
+                    reciben una notificación push con botón para contactarte por WhatsApp.
+                </p>
             </div>
         </>
     );

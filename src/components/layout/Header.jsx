@@ -80,6 +80,7 @@ const Header = () => {
             <NavLink to="/admin/recordatorios" compact><Bell className="w-4 h-4 mr-1.5" />Recordatorios</NavLink>
             <NavLink to="/admin/referidos" compact><UserPlus className="w-4 h-4 mr-1.5" />Referidos</NavLink>
             <NavLink to="/admin/regalos" compact><Gift className="w-4 h-4 mr-1.5" />Regalos</NavLink>
+            <NavLink to="/admin/gestion" compact><ShieldCheck className="w-4 h-4 mr-1.5" />Admins</NavLink>
             <div className="w-px h-6 bg-border mx-1" />
             <NavLink to="/dashboard" end compact><Shield className="w-4 h-4 mr-1.5" />Cliente</NavLink>
         </>
@@ -123,7 +124,7 @@ const Header = () => {
 
     return (
         <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
-            <nav className="container mx-auto px-4 h-14">
+            <nav className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-14">
                 <div className="flex items-center justify-between h-full gap-4">
                     <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0" aria-label="Ir a la página principal">
                         <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />

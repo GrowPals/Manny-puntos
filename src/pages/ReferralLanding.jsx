@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
 import { VALIDATION, STORAGE_CONFIG, isValidPhone } from '@/config';
 import { safeStorage } from '@/lib/utils';
+import AppDownloadStep from '@/components/AppDownloadStep';
 
 const ReferralLanding = () => {
   const { codigo } = useParams();
@@ -25,6 +26,8 @@ const ReferralLanding = () => {
   const [telefono, setTelefono] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false); // Prevent double submission
+  const [showDownloadStep, setShowDownloadStep] = useState(false);
+  const [registeredClienteId, setRegisteredClienteId] = useState(null);
 
   // Si ya está logueado, redirigir
   useEffect(() => {
@@ -108,7 +111,8 @@ const ReferralLanding = () => {
       }
 
       // Cliente nuevo - crear cuenta y aplicar código
-      const clienteData = await loginFirstTime(telefono);
+      // skipNavigation para mostrar primero el paso de descarga de app
+      const clienteData = await loginFirstTime(telefono, { skipNavigation: true });
 
       if (clienteData?.id) {
         // Aplicar código de referido
@@ -120,8 +124,14 @@ const ReferralLanding = () => {
             description: `Te registraste con el código de ${referralData.cliente?.nombre?.split(' ')[0]}. ¡Recibirás ${config.puntos_referido} puntos con tu primer servicio!`
           });
         }
+
+        // Guardar clienteId y mostrar paso de descarga
+        setRegisteredClienteId(clienteData.id);
+        setShowDownloadStep(true);
+        return;
       }
 
+      // Fallback si no hay clienteData (no debería pasar)
       navigate('/dashboard');
     } catch (err) {
       console.error('Error en registro:', err);
@@ -165,6 +175,18 @@ const ReferralLanding = () => {
   }
 
   const referrerName = referralData?.cliente?.nombre?.split(' ')[0] || 'Tu amigo';
+
+  // Mostrar paso de descarga después del registro exitoso
+  if (showDownloadStep) {
+    return (
+      <AppDownloadStep
+        clienteId={registeredClienteId}
+        colorTema="#E91E63"
+        benefitText={`tus ${config?.puntos_referido || 50} puntos de bienvenida`}
+        onComplete={() => navigate('/dashboard')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
