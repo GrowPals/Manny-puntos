@@ -50,10 +50,11 @@ const AdminReferidos = () => {
     });
 
     // Lista de referidos
-    const { data: referidos = [], isLoading: loadingReferidos, refetch: refetchReferidos } = useQuery({
+    const { data: referidosResponse, isLoading: loadingReferidos, refetch: refetchReferidos } = useQuery({
         queryKey: ['admin-referidos-list'],
         queryFn: api.referrals.getAllReferidos,
     });
+    const referidos = referidosResponse?.data || [];
 
     // Configuración del programa
     const { data: config = {}, isLoading: loadingConfig } = useQuery({

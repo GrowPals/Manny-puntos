@@ -702,11 +702,12 @@ const AdminClientes = () => {
 
     const presetsPuntos = globalConfig?.presets_puntos || [50, 100, 200, 500];
 
-    const { data: clientes = [], isLoading: loading } = useQuery({
+    const { data: clientesResponse, isLoading: loading } = useQuery({
         queryKey: ['admin-clientes'],
         queryFn: api.clients.getTodosLosClientes,
         staleTime: 30000,
     });
+    const clientes = clientesResponse?.data || [];
 
     // Calculate stats
     const stats = useMemo(() => {

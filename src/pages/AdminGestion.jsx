@@ -277,10 +277,11 @@ const AdminGestion = () => {
     const [adminToRemove, setAdminToRemove] = useState(null);
     const [removingId, setRemovingId] = useState(null);
 
-    const { data: clientes = [], isLoading: loading } = useQuery({
+    const { data: clientesResponse, isLoading: loading } = useQuery({
         queryKey: ['admin-gestion-clientes'],
         queryFn: api.clients.getTodosLosClientes,
     });
+    const clientes = clientesResponse?.data || [];
 
     // Filter only admins (excluding current user)
     const admins = useMemo(() => {

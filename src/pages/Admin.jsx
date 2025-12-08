@@ -260,10 +260,11 @@ const Admin = () => {
         staleTime: 30000,
     });
 
-    const { data: clientes = [], isLoading: loadingClientes } = useQuery({
+    const { data: clientesResponse, isLoading: loadingClientes } = useQuery({
         queryKey: ['admin-clientes'],
         queryFn: api.clients.getTodosLosClientes,
     });
+    const clientes = clientesResponse?.data || [];
 
     const { data: canjesResponse, isLoading: loadingCanjes } = useQuery({
         queryKey: ['admin-canjes-pendientes'],
