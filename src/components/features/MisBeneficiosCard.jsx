@@ -66,7 +66,8 @@ const MisBeneficiosCard = () => {
         ) : (
           <div className="space-y-3">
             {beneficiosActivos.map((beneficio) => {
-              const daysRemaining = getDaysRemaining(beneficio.fecha_expiracion);
+              // Use dias_restantes from RPC if available, otherwise calculate
+              const daysRemaining = beneficio.dias_restantes ?? getDaysRemaining(beneficio.fecha_expiracion);
               const isExpiringSoon = daysRemaining !== null && daysRemaining <= alertaVencimientoDias && daysRemaining > 0;
 
               return (
@@ -80,7 +81,7 @@ const MisBeneficiosCard = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-foreground truncate">
-                          {beneficio.nombre_beneficio}
+                          {beneficio.nombre || beneficio.nombre_beneficio}
                         </span>
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-500 border border-green-500/20 flex-shrink-0">
                           Activo
@@ -111,10 +112,10 @@ const MisBeneficiosCard = () => {
                       </div>
 
                       {/* Instrucciones de uso */}
-                      {beneficio.instrucciones_uso && (
+                      {(beneficio.instrucciones || beneficio.instrucciones_uso) && (
                         <div className="mt-3 p-2 bg-blue-500/5 rounded-lg border border-blue-500/20">
                           <p className="text-xs text-blue-600">
-                            <strong>Cómo usarlo:</strong> {beneficio.instrucciones_uso}
+                            <strong>Cómo usarlo:</strong> {beneficio.instrucciones || beneficio.instrucciones_uso}
                           </p>
                         </div>
                       )}
