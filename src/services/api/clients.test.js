@@ -6,6 +6,7 @@ import { ERROR_MESSAGES } from '@/constants/errors';
 const mockBuilder = {
   select: vi.fn().mockReturnThis(),
   order: vi.fn().mockReturnThis(),
+  range: vi.fn().mockReturnThis(),
   upsert: vi.fn().mockReturnThis(),
   single: vi.fn(),
 };
@@ -24,14 +25,16 @@ describe('Clients Service', () => {
   describe('getTodosLosClientes', () => {
     it('should return clients list on success', async () => {
       const mockData = [{ id: 1, nombre: 'Test' }];
-      mockBuilder.order.mockResolvedValue({ data: mockData, error: null });
+      mockBuilder.range.mockResolvedValue({ data: mockData, error: null, count: 1 });
 
       const result = await getTodosLosClientes();
-      expect(result).toEqual(mockData);
+      expect(result.data).toEqual(mockData);
+      expect(result.count).toBe(1);
+      expect(result.hasMore).toBe(false);
     });
 
     it('should throw error on DB failure', async () => {
-      mockBuilder.order.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+      mockBuilder.range.mockResolvedValue({ data: null, error: { message: 'DB Error' }, count: null });
       await expect(getTodosLosClientes()).rejects.toThrow(ERROR_MESSAGES.CLIENTS.LOAD_ERROR);
     });
   });

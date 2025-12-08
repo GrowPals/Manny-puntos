@@ -6,6 +6,7 @@ import { ERROR_MESSAGES } from '@/constants/errors';
 const mockBuilder = {
   select: vi.fn().mockReturnThis(),
   order: vi.fn().mockReturnThis(),
+  range: vi.fn().mockReturnThis(),
   in: vi.fn().mockReturnThis(),
   update: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
@@ -28,21 +29,23 @@ describe('Redemptions Service', () => {
 
   describe('getTodosLosCanjes', () => {
     it('should return mapped redemptions', async () => {
-      const mockData = [{ 
-        id: 1, 
-        created_at: '2023-01-01', 
+      const mockData = [{
+        id: 1,
+        created_at: '2023-01-01',
         clientes: { nombre: 'John', telefono: '123' },
         productos: { nombre: 'Prize', tipo: 'fisico' }
       }];
-      mockBuilder.order.mockResolvedValue({ data: mockData, error: null });
+      mockBuilder.range.mockResolvedValue({ data: mockData, error: null, count: 1 });
 
       const result = await getTodosLosCanjes();
-      expect(result[0].cliente_nombre).toBe('John');
-      expect(result[0].producto_nombre).toBe('Prize');
+      expect(result.data[0].cliente_nombre).toBe('John');
+      expect(result.data[0].producto_nombre).toBe('Prize');
+      expect(result.count).toBe(1);
+      expect(result.hasMore).toBe(false);
     });
 
     it('should throw error on failure', async () => {
-      mockBuilder.order.mockResolvedValue({ data: null, error: { message: 'Error' } });
+      mockBuilder.range.mockResolvedValue({ data: null, error: { message: 'Error' }, count: null });
       await expect(getTodosLosCanjes()).rejects.toThrow(ERROR_MESSAGES.REDEMPTIONS.LOAD_ERROR);
     });
   });

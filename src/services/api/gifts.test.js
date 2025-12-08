@@ -15,10 +15,19 @@ vi.mock('@/lib/customSupabaseClient', () => ({
   },
 }));
 
-// Mock withRetry to execute function directly
-vi.mock('@/lib/utils', () => ({
-  withRetry: vi.fn((fn) => fn()),
-}));
+// Mock utils - withRetry and callEdgeFunction
+vi.mock('@/lib/utils', async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    withRetry: vi.fn((fn) => fn()),
+    callEdgeFunction: vi.fn(async (supabase, functionName, body) => {
+      const { data, error } = await supabase.functions.invoke(functionName, { body });
+      if (error) throw error;
+      return data;
+    }),
+  };
+});
 
 // Mock logger
 vi.mock('@/lib/logger', () => ({

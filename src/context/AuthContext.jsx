@@ -30,6 +30,10 @@ export const AuthProvider = ({ children }) => {
     const storedUser = safeStorage.get(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
     if (storedUser && typeof storedUser === 'object' && storedUser.id && storedUser.telefono) {
       setUser(storedUser);
+      // Restaurar estado de onboarding si el usuario estaba en medio del proceso
+      if (storedUser.needsOnboarding) {
+        setNeedsOnboarding(true);
+      }
     } else {
       safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
     }
@@ -108,7 +112,13 @@ export const AuthProvider = ({ children }) => {
       setUser(clienteData);
       setNeedsOnboarding(true);
 
-      // NO guardamos en localStorage hasta que complete onboarding
+      // Guardamos sesión temporal para que si el usuario recarga, pueda continuar el onboarding
+      // Se marca con needsOnboarding: true para que al recargar sepa que debe completar el proceso
+      const tempUserData = { ...clienteData, needsOnboarding: true };
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, tempUserData);
+
+      // Refresh Supabase client headers with new user
+      refreshSupabaseHeaders();
 
       if (!skipNavigation) {
         const destination = clienteData.es_admin ? '/admin' : '/dashboard';

@@ -65,9 +65,9 @@ describe('Sync Queue Integration', () => {
       const result = await syncToNotion('client-123');
 
       expect(result).toEqual(mockData);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('sync-cliente-to-notion', {
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('sync-cliente-to-notion', expect.objectContaining({
         body: { cliente_id: 'client-123' },
-      });
+      }));
       // Should not have enqueued
       expect(supabase.rpc).not.toHaveBeenCalled();
     });
