@@ -11,6 +11,7 @@ import {
   extractDate,
   handleNotionChallenge,
   verifyWebhookSecret,
+  safeParseJson,
   jsonResponse,
   errorResponse,
   skippedResponse,
@@ -36,7 +37,10 @@ Deno.serve(async (req: Request) => {
     const supabase = createSupabaseAdmin();
     const notionToken = getNotionToken();
 
-    const payload: WebhookPayload = await req.json();
+    const { data: payload, errorResponse: parseError } = await safeParseJson<WebhookPayload>(req, corsHeaders);
+    if (parseError) return parseError;
+    if (!payload) return errorResponse('Empty request body', corsHeaders, 400);
+
     console.log('Canje status webhook received:', JSON.stringify(payload, null, 2));
 
     // Handle Notion challenge
@@ -57,6 +61,21 @@ Deno.serve(async (req: Request) => {
     const fechaEntrega = extractDate(properties, 'Fecha Entrega');
 
     console.log(`Canje Notion ID: ${canjeNotionPageId}, Supabase ID: ${supabaseId}, Estado: ${notionEstado}, Fecha Entrega: ${fechaEntrega}`);
+
+    // Idempotency check - prevent duplicate processing
+    const idempotencyKey = `canje_status_${canjeNotionPageId}_${notionEstado}`;
+    const { data: existingEvent } = await supabase
+      .from('ticket_events')
+      .select('id')
+      .eq('source', 'notion')
+      .eq('source_id', idempotencyKey)
+      .eq('event_type', 'canje_status_change')
+      .single();
+
+    if (existingEvent) {
+      console.log('Canje status change already processed');
+      return skippedResponse('already processed', corsHeaders);
+    }
 
     // Find canje in Supabase
     let canjeId = supabaseId;
@@ -96,6 +115,15 @@ Deno.serve(async (req: Request) => {
       console.error('Error updating canje:', updateError);
       return errorResponse(`Failed to update canje: ${updateError.message}`, corsHeaders, 500);
     }
+
+    // Record event for idempotency
+    await supabase.from('ticket_events').insert({
+      source: 'notion',
+      source_id: idempotencyKey,
+      event_type: 'canje_status_change',
+      payload: { canje_id: canjeId, estado: supabaseEstado, notion_page_id: canjeNotionPageId },
+      status: 'processed'
+    });
 
     return successResponse({
       canje_id: canjeId,

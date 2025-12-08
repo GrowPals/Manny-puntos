@@ -17,6 +17,7 @@ import {
   extractRichText,
   handleNotionChallenge,
   verifyWebhookSecret,
+  safeParseJson,
   withRetry,
   NOTION_DBS,
   errorResponse,
@@ -79,7 +80,10 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const notionToken = getNotionToken();
 
-    const payload: WebhookPayload = await req.json();
+    const { data: payload, errorResponse: parseError } = await safeParseJson<WebhookPayload>(req, corsHeaders);
+    if (parseError) return parseError;
+    if (!payload) return errorResponse('Empty request body', corsHeaders, 400);
+
     console.log('Ticket completed webhook:', JSON.stringify(payload, null, 2));
 
     // Handle Notion challenge
@@ -124,34 +128,81 @@ Deno.serve(async (req: Request) => {
       return skippedResponse('already processed', corsHeaders);
     }
 
-    // Find or create Manny Reward (with retry)
+    // Find or create Manny Reward (with lock to prevent race conditions)
     let rewardId = extractRelation(properties, 'Rewards');
 
     if (!rewardId) {
-      // Try to find existing reward by contacto
-      rewardId = await withRetry(async () => {
-        const rewards = await queryNotionDatabase(
-          NOTION_DBS.MANNY_REWARDS,
-          { property: 'Cliente', relation: { contains: contactoId } },
-          notionToken,
-          1
-        );
+      // Use a lock key to prevent concurrent reward creation for same contacto
+      const lockKey = `reward_creation_${contactoId}`;
 
-        if (rewards.length > 0) {
-          return rewards[0].id;
+      // Try to acquire lock by inserting into ticket_events
+      const { error: lockError } = await supabase
+        .from('ticket_events')
+        .insert({
+          source: 'lock',
+          source_id: lockKey,
+          event_type: 'reward_creation_lock',
+          payload: { contacto_id: contactoId, ticket_id: ticketId },
+          status: 'processing'
+        });
+
+      // If lock already exists, wait and retry finding the reward
+      if (lockError?.code === '23505') {
+        console.log('Lock exists, waiting for concurrent creation to complete...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Re-fetch ticket to get updated reward relation
+        const updatedTicket = await getNotionPage(ticketId, notionToken);
+        rewardId = extractRelation(updatedTicket?.properties || {}, 'Rewards');
+
+        if (!rewardId) {
+          // Still no reward, try to find by contacto
+          const rewards = await queryNotionDatabase(
+            NOTION_DBS.MANNY_REWARDS,
+            { property: 'Cliente', relation: { contains: contactoId } },
+            notionToken,
+            1
+          );
+          if (rewards.length > 0) {
+            rewardId = rewards[0].id;
+          }
         }
+      } else {
+        // Lock acquired, proceed with creation
+        try {
+          // Try to find existing reward by contacto first
+          rewardId = await withRetry(async () => {
+            const rewards = await queryNotionDatabase(
+              NOTION_DBS.MANNY_REWARDS,
+              { property: 'Cliente', relation: { contains: contactoId } },
+              notionToken,
+              1
+            );
 
-        // Create new Manny Reward
-        const { nombre } = await getContactoDetails(contactoId, notionToken);
-        const rewardPage = await createNotionPage(NOTION_DBS.MANNY_REWARDS, {
-          'Nombre': { title: [{ text: { content: nombre } }] },
-          'Cliente': { relation: [{ id: contactoId }] },
-          'Nivel': { select: { name: 'Partner' } },
-          'Puntos': { number: 0 }
-        }, notionToken);
-        console.log(`Created Manny Reward: ${rewardPage.id}`);
-        return rewardPage.id;
-      }, { maxAttempts: 3 });
+            if (rewards.length > 0) {
+              return rewards[0].id;
+            }
+
+            // Create new Manny Reward
+            const { nombre } = await getContactoDetails(contactoId, notionToken);
+            const rewardPage = await createNotionPage(NOTION_DBS.MANNY_REWARDS, {
+              'Nombre': { title: [{ text: { content: nombre } }] },
+              'Cliente': { relation: [{ id: contactoId }] },
+              'Nivel': { select: { name: 'Partner' } },
+              'Puntos': { number: 0 }
+            }, notionToken);
+            console.log(`Created Manny Reward: ${rewardPage.id}`);
+            return rewardPage.id;
+          }, { maxAttempts: 3 });
+        } finally {
+          // Release lock by deleting or updating status
+          await supabase
+            .from('ticket_events')
+            .delete()
+            .eq('source', 'lock')
+            .eq('source_id', lockKey);
+        }
+      }
 
       // Link ticket to reward (with retry)
       await withRetry(async () => {
@@ -216,11 +267,12 @@ Deno.serve(async (req: Request) => {
       }, { maxAttempts: 2 });
 
       if (!cliente) {
-        // Create new client in Supabase (with retry)
+        // Create new client in Supabase using upsert to handle race conditions
+        // The telefono column has a unique constraint, so ON CONFLICT will update if exists
         const newCliente = await withRetry(async () => {
           const { data, error } = await supabase
             .from('clientes')
-            .insert({
+            .upsert({
               nombre,
               telefono,
               puntos_actuales: 0,
@@ -229,6 +281,9 @@ Deno.serve(async (req: Request) => {
               notion_page_id: contactoId,
               notion_reward_id: rewardId,
               last_sync_at: new Date().toISOString()
+            }, {
+              onConflict: 'telefono',
+              ignoreDuplicates: false  // Update if exists
             })
             .select()
             .single();
@@ -239,15 +294,27 @@ Deno.serve(async (req: Request) => {
 
         if (newCliente) {
           cliente = newCliente;
-          clienteCreated = true;
-          console.log(`Created new client in Supabase: ${newCliente.id}`);
+          // Check if this was a new insert or an update by comparing created_at and updated_at
+          clienteCreated = !newCliente.created_at || newCliente.created_at === newCliente.updated_at;
+          console.log(`${clienteCreated ? 'Created new' : 'Found existing'} client in Supabase: ${newCliente.id}`);
 
-          // Update Notion Contacto with Supabase ID (fire and forget with retry)
+          // Update Notion Contacto with Supabase ID (tracked async operation)
           withRetry(async () => {
             await updateNotionPage(contactoId, {
               'Supabase ID': { rich_text: [{ text: { content: newCliente.id } }] }
             }, notionToken);
-          }, { maxAttempts: 2 }).catch(e => console.warn('Failed to update Notion with Supabase ID:', e));
+          }, { maxAttempts: 2 }).catch(async (e) => {
+            console.warn('Failed to update Notion with Supabase ID:', e);
+            // Record failed operation for later retry via sync queue
+            await supabase.from('sync_queue').insert({
+              entity_type: 'notion_update',
+              entity_id: contactoId,
+              operation: 'update_supabase_id',
+              payload: { supabase_id: newCliente.id },
+              status: 'pending',
+              error_message: (e as Error).message
+            }).catch(() => {}); // Ignore if queue insert also fails
+          });
         }
       } else {
         // Update existing client with Notion references if missing
@@ -259,13 +326,24 @@ Deno.serve(async (req: Request) => {
           if (error) throw error;
         }, { maxAttempts: 2 });
 
-        // Update Notion Contacto with Supabase ID if not set (fire and forget)
+        // Update Notion Contacto with Supabase ID if not set (tracked async operation)
         if (!supabaseId) {
           withRetry(async () => {
             await updateNotionPage(contactoId, {
               'Supabase ID': { rich_text: [{ text: { content: cliente.id } }] }
             }, notionToken);
-          }, { maxAttempts: 2 }).catch(e => console.warn('Failed to update Notion with Supabase ID:', e));
+          }, { maxAttempts: 2 }).catch(async (e) => {
+            console.warn('Failed to update Notion with Supabase ID:', e);
+            // Record failed operation for later retry via sync queue
+            await supabase.from('sync_queue').insert({
+              entity_type: 'notion_update',
+              entity_id: contactoId,
+              operation: 'update_supabase_id',
+              payload: { supabase_id: cliente.id },
+              status: 'pending',
+              error_message: (e as Error).message
+            }).catch(() => {});
+          });
         }
       }
 
@@ -287,12 +365,13 @@ Deno.serve(async (req: Request) => {
               if (error) throw error;
             }, { maxAttempts: 3 });
 
-            // Send push notification (fire and forget)
+            // Send push notification (tracked async - failures logged to notification_history)
             fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${supabaseServiceKey}`,
+                'x-cliente-id': cliente.id,  // Auth header for service-to-service calls
               },
               body: JSON.stringify({
                 tipo: 'puntos_recibidos',
@@ -300,7 +379,19 @@ Deno.serve(async (req: Request) => {
                 data: { puntos: puntosTicket, concepto: ticketName },
                 url: '/dashboard'
               }),
-            }).catch(e => console.warn('Push notification failed:', e));
+            }).catch(async (e) => {
+              console.warn('Push notification failed:', e);
+              // Log failed notification for debugging/retry
+              await supabase.from('notification_history').insert({
+                cliente_id: cliente.id,
+                tipo: 'puntos_recibidos',
+                titulo: `¡Ganaste ${puntosTicket} puntos!`,
+                mensaje: `Tu servicio "${ticketName}" ha sido registrado.`,
+                data: { puntos: puntosTicket, concepto: ticketName },
+                success: false,
+                error_message: (e as Error).message
+              }).catch(() => {});
+            });
           }
         } else {
           console.log(`Ticket ${ticketId} es Manny Reward - NO se acumulan puntos`);

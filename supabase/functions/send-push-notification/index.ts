@@ -245,7 +245,15 @@ Deno.serve(async (req: Request) => {
     }
     // =====================================================
 
-    const payload: PushPayload = await req.json();
+    let payload: PushPayload;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Push notification request:', { tipo: payload.tipo, to_admins: payload.to_admins });
 
@@ -254,6 +262,22 @@ Deno.serve(async (req: Request) => {
     if (!tipo || !NOTIFICATION_TEMPLATES[tipo]) {
       return new Response(JSON.stringify({ error: 'Invalid notification type' }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Security: Only admins can send notifications to all admins
+    if (to_admins && !caller.es_admin) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Only admins can send to_admins notifications' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Security: Users can only send notifications to themselves, admins can send to anyone
+    if (cliente_id && cliente_id !== callerClienteId && !caller.es_admin) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Cannot send notifications to other users' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

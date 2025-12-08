@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -59,6 +60,9 @@ const GiftDetailsDialog = ({
             )}
             {selectedLink?.es_campana ? 'Campaña Creada' : 'Link de Regalo Creado'}
           </DialogTitle>
+          <DialogDescription>
+            Comparte este link para otorgar el beneficio
+          </DialogDescription>
         </DialogHeader>
 
         {selectedLink && (

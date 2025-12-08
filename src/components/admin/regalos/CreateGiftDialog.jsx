@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -44,6 +45,9 @@ const CreateGiftDialog = ({
       <DialogContent className="bg-card border-border text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">Nuevo Link de Regalo</DialogTitle>
+          <DialogDescription>
+            Crea un link único o una campaña para regalar beneficios
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

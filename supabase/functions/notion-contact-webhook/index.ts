@@ -12,6 +12,7 @@ import {
   verifyWebhookSecret,
   queryNotionDatabase,
   createNotionPage,
+  safeParseJson,
   NOTION_DBS,
   errorResponse,
   successResponse,
@@ -37,7 +38,10 @@ Deno.serve(async (req: Request) => {
     const supabase = createSupabaseAdmin();
     const notionToken = getNotionToken();
 
-    const payload: WebhookPayload = await req.json();
+    const { data: payload, errorResponse: parseError } = await safeParseJson<WebhookPayload>(req, corsHeaders);
+    if (parseError) return parseError;
+    if (!payload) return errorResponse('Empty request body', corsHeaders, 400);
+
     console.log('Contact webhook received:', JSON.stringify(payload, null, 2));
 
     // Handle Notion challenge
@@ -63,6 +67,29 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`Processing contact: ${nombre} (${telefono})`);
+
+    // Idempotency check - prevent duplicate processing within short window
+    // Uses phone + page ID to allow updates if data changes significantly
+    const idempotencyKey = `contact_sync_${notionPageId}`;
+    const { data: existingEvent } = await supabase
+      .from('ticket_events')
+      .select('id, created_at')
+      .eq('source', 'notion')
+      .eq('source_id', idempotencyKey)
+      .eq('event_type', 'contact_sync')
+      .single();
+
+    // Skip if processed within last 5 minutes (debounce rapid webhook calls)
+    if (existingEvent) {
+      const createdAt = new Date(existingEvent.created_at);
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      if (createdAt > fiveMinutesAgo) {
+        console.log('Contact already processed recently');
+        return skippedResponse('recently processed', corsHeaders);
+      }
+      // Delete old event to allow reprocessing
+      await supabase.from('ticket_events').delete().eq('id', existingEvent.id);
+    }
 
     // Check if client exists by phone
     const { data: existing } = await supabase
@@ -136,6 +163,15 @@ Deno.serve(async (req: Request) => {
       mannyRewardId = rewardPage.id;
       console.log(`Created Manny Reward: ${mannyRewardId}`);
     }
+
+    // Record event for idempotency
+    await supabase.from('ticket_events').insert({
+      source: 'notion',
+      source_id: idempotencyKey,
+      event_type: 'contact_sync',
+      payload: { cliente_id: clienteId, telefono, notion_page_id: notionPageId },
+      status: 'processed'
+    });
 
     return jsonResponse({
       status: existing ? (existing.notion_page_id ? 'exists' : 'linked') : 'created',

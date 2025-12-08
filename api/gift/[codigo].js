@@ -52,6 +52,14 @@ export default async function handler(request) {
   const codigo = pathParts[pathParts.length - 1];
   const userAgent = request.headers.get('user-agent') || '';
 
+  // Debug logging
+  console.log('[gift-og] Request:', {
+    pathname: url.pathname,
+    codigo,
+    userAgent: userAgent.substring(0, 100),
+    isCrawler: isCrawler(userAgent)
+  });
+
   // Si no es un crawler, servir el index.html directamente (SPA takeover)
   if (!isCrawler(userAgent)) {
     // Fetch el index.html y servirlo (la SPA manejará el routing)
@@ -75,17 +83,24 @@ export default async function handler(request) {
 
   // Es un crawler - obtener datos del regalo y servir HTML con meta tags
   try {
-    // En Vercel Edge Functions, las variables VITE_* no están disponibles
-    // Usar SUPABASE_URL y SUPABASE_ANON_KEY configuradas en Vercel Dashboard
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    // Variables de entorno para Supabase
+    // Prioridad: SUPABASE_URL > VITE_SUPABASE_URL > hardcoded fallback
+    const supabaseUrl = process.env.SUPABASE_URL
+      || process.env.VITE_SUPABASE_URL
+      || 'https://kuftyqupibyjliaukpxn.supabase.co';
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase environment variables');
+    const supabaseKey = process.env.SUPABASE_ANON_KEY
+      || process.env.VITE_SUPABASE_ANON_KEY
+      || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseKey) {
+      console.error('Missing SUPABASE_ANON_KEY environment variable');
       return serveGenericHtml(codigo);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    console.log('[gift-og] Fetching gift:', codigo.toUpperCase());
 
     const { data: gift, error } = await supabase
       .from('links_regalo')
@@ -105,30 +120,47 @@ export default async function handler(request) {
       .eq('codigo', codigo.toUpperCase())
       .maybeSingle();
 
+    console.log('[gift-og] Query result:', {
+      found: !!gift,
+      error: error?.message,
+      nombre: gift?.nombre_campana || gift?.nombre_beneficio
+    });
+
     if (error || !gift) {
       // Regalo no encontrado - servir meta tags genéricos
+      console.log('[gift-og] Gift not found, serving generic HTML');
       return serveGenericHtml(codigo);
     }
 
-    // Construir meta tags dinámicos
-    const title = gift.es_campana && gift.nombre_campana
-      ? escapeHtml(gift.nombre_campana)
-      : gift.tipo === 'puntos'
-        ? `${gift.puntos_regalo?.toLocaleString()} Puntos Manny`
-        : escapeHtml(gift.nombre_beneficio) || 'Regalo Manny';
+    // Construir meta tags dinámicos con formato atractivo
+    let title = '🎁 ¡Tienes un regalo!';
+    let description = 'Alguien especial te envió un regalo de Manny Rewards. ¡Ábrelo ahora!';
 
-    const description = gift.mensaje_personalizado
-      ? escapeHtml(truncate(gift.mensaje_personalizado, 200))
-      : gift.descripcion_beneficio
+    // Título principal
+    if (gift.es_campana && gift.nombre_campana) {
+      title = `🎁 ${escapeHtml(gift.nombre_campana)}`;
+    } else if (gift.tipo === 'puntos' && gift.puntos_regalo) {
+      title = `🎁 ¡Te regalan ${gift.puntos_regalo.toLocaleString()} puntos!`;
+    } else if (gift.nombre_beneficio) {
+      title = `🎁 ${escapeHtml(gift.nombre_beneficio)}`;
+    }
+
+    // Descripción
+    if (gift.mensaje_personalizado) {
+      description = escapeHtml(truncate(gift.mensaje_personalizado, 200));
+    } else if (gift.tipo === 'puntos' && gift.puntos_regalo) {
+      description = `Te regalan ${gift.puntos_regalo.toLocaleString()} puntos Manny. Reclama tu regalo ahora.`;
+    } else if (gift.nombre_beneficio) {
+      const beneficio = escapeHtml(gift.nombre_beneficio);
+      description = gift.descripcion_beneficio
         ? escapeHtml(truncate(gift.descripcion_beneficio, 200))
-        : gift.es_campana
-          ? `${escapeHtml(gift.nombre_beneficio)} - Reclama tu regalo de Manny`
-          : 'Tienes un regalo especial de Manny Rewards. Reclámalo ahora.';
+        : `Te regalan: ${beneficio}. Reclama tu regalo de Manny Rewards.`;
+    }
 
     // Usar banner de campaña o imagen por defecto
     const image = gift.imagen_banner || 'https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png';
 
-    const canonicalUrl = `https://mannysoytupartner.com/g/${codigo}`;
+    const canonicalUrl = `https://recompensas.manny.mx/g/${codigo}`;
     const themeColor = gift.color_tema || '#e91e63';
 
     const html = `<!DOCTYPE html>
@@ -198,25 +230,38 @@ export default async function handler(request) {
 }
 
 function serveGenericHtml(codigo) {
+  const canonicalUrl = `https://recompensas.manny.mx/g/${codigo}`;
+  const image = 'https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png';
+  const title = '🎁 ¡Tienes un regalo!';
+  const description = 'Alguien especial te envió un regalo de Manny Rewards. ¡Ábrelo ahora!';
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Regalo Manny</title>
-  <meta name="description" content="Tienes un regalo especial de Manny Rewards">
+  <title>${title} | Manny Rewards</title>
+  <meta name="description" content="${description}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Manny Rewards">
-  <meta property="og:title" content="Tienes un regalo">
-  <meta property="og:description" content="Alguien te envió un regalo especial de Manny Rewards. Reclámalo ahora.">
-  <meta property="og:image" content="https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png">
-  <meta property="og:url" content="https://mannysoytupartner.com/g/${codigo}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:image" content="${image}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:locale" content="es_MX">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title}">
+  <meta name="twitter:description" content="${description}">
+  <meta name="twitter:image" content="${image}">
   <meta name="theme-color" content="#e91e63">
-  <meta http-equiv="refresh" content="0;url=/g/${codigo}">
+  <meta http-equiv="refresh" content="0;url=${canonicalUrl}">
 </head>
 <body>
-  <h1>Regalo Manny</h1>
-  <p><a href="/g/${codigo}">Ver regalo</a></p>
+  <h1>${title}</h1>
+  <p>${description}</p>
+  <p><a href="${canonicalUrl}">Abrir regalo</a></p>
 </body>
 </html>`;
 

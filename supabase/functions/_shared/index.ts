@@ -81,15 +81,30 @@ export function handleCors(req: Request): Response | null {
 // NOTION DATABASE IDs
 // ============================================================================
 
+/**
+ * Notion Database IDs - MUST be configured via environment variables.
+ * No fallback IDs for security - ensures production uses correct databases.
+ *
+ * Required env vars:
+ * - NOTION_MANNY_REWARDS_DB: ID of the Manny Rewards database
+ * - NOTION_CONTACTOS_DB: ID of the Contactos database
+ * - NOTION_TICKETS_DB: ID of the Tickets database
+ */
 export const NOTION_DBS = {
   get MANNY_REWARDS() {
-    return Deno.env.get('NOTION_MANNY_REWARDS_DB') || '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
+    const id = Deno.env.get('NOTION_MANNY_REWARDS_DB');
+    if (!id) throw new Error('NOTION_MANNY_REWARDS_DB environment variable not configured');
+    return id;
   },
   get CONTACTOS() {
-    return Deno.env.get('NOTION_CONTACTOS_DB') || '17ac6cfd-8c1e-8068-8bc0-d32488189164';
+    const id = Deno.env.get('NOTION_CONTACTOS_DB');
+    if (!id) throw new Error('NOTION_CONTACTOS_DB environment variable not configured');
+    return id;
   },
   get TICKETS() {
-    return Deno.env.get('NOTION_TICKETS_DB') || '17ac6cfd-8c1e-8162-b724-d4047a7e7635';
+    const id = Deno.env.get('NOTION_TICKETS_DB');
+    if (!id) throw new Error('NOTION_TICKETS_DB environment variable not configured');
+    return id;
   },
 } as const;
 
@@ -570,6 +585,31 @@ export async function withSupabaseRetry<T>(
   };
 
   return withRetry(operation, { ...options, shouldRetry });
+}
+
+// ============================================================================
+// REQUEST HELPERS
+// ============================================================================
+
+/**
+ * Safely parse JSON from request body with error handling
+ * Returns an object with either the parsed data or an error response
+ */
+export async function safeParseJson<T>(
+  req: Request,
+  corsHeaders: Record<string, string>,
+  defaults?: Partial<T>
+): Promise<{ data: T | null; errorResponse: Response | null }> {
+  try {
+    const data = await req.json() as T;
+    return { data: { ...defaults, ...data } as T, errorResponse: null };
+  } catch (error) {
+    console.error('Failed to parse JSON body:', error);
+    return {
+      data: defaults as T ?? null,
+      errorResponse: defaults ? null : errorResponse('Invalid JSON in request body', corsHeaders, 400)
+    };
+  }
 }
 
 // ============================================================================
