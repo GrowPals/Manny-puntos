@@ -3,7 +3,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from 'react-router-dom';
-import WhatsAppIcon from '@/assets/images/icons8-whatsapp.gif';
+import WhatsAppIcon from '@/assets/images/whatsapp-logo.svg';
 
 const WhatsAppButton = () => {
   const { user } = useAuth();
