@@ -60,25 +60,17 @@ export default async function handler(request) {
     isCrawler: isCrawler(userAgent)
   });
 
-  // Si no es un crawler, servir el index.html directamente (SPA takeover)
+  // Si no es un crawler, redirigir a /gift/:codigo (diferente path que SPA manejará)
+  // Esto evita el loop de rewrite ya que /g/* se reescribe pero /gift/* no
   if (!isCrawler(userAgent)) {
-    // Fetch el index.html y servirlo (la SPA manejará el routing)
-    try {
-      const indexResponse = await fetch(new URL('/index.html', url.origin));
-      const indexHtml = await indexResponse.text();
-      return new Response(indexHtml, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-        },
-      });
-    } catch {
-      // Fallback: redirigir al home si no podemos servir el index
-      return new Response(null, {
-        status: 302,
-        headers: { 'Location': '/' },
-      });
-    }
+    const codigo = pathParts[pathParts.length - 1];
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': `/gift/${codigo}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+    });
   }
 
   // Es un crawler - obtener datos del regalo y servir HTML con meta tags

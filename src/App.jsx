@@ -138,6 +138,7 @@ const AppRoutes = () => {
           {/* Rutas públicas de referidos y regalos */}
           <Route path="/r/:codigo" element={<ReferralLanding />} />
           <Route path="/g/:codigo" element={<GiftLanding />} />
+          <Route path="/gift/:codigo" element={<GiftLanding />} />
 
           <Route path="/dashboard" element={<ProtectedRoute><PageLayout seoTitle="Mis Recompensas"><Dashboard /></PageLayout></ProtectedRoute>} />
 
