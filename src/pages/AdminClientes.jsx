@@ -6,6 +6,7 @@ import {
     Users, Search, PlusCircle, Edit, Loader2, Gift, Crown, ChevronRight,
     Filter, ArrowUpDown, Coins, TrendingUp, X, Sparkles
 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -510,25 +511,16 @@ const AdminClientes = () => {
             </Helmet>
             <div className="container mx-auto px-4 py-6">
                 {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4"
+                <PageHeader
+                    icon={Users}
+                    title="Clientes"
+                    subtitle={`${stats.totalClientes} registrados`}
                 >
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <Users className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold">Clientes</h1>
-                            <p className="text-sm text-muted-foreground">{stats.totalClientes} registrados</p>
-                        </div>
-                    </div>
                     <Button variant="investment" onClick={() => setModalState({ type: 'create', client: null })} className="w-full md:w-auto">
                         <PlusCircle className="w-4 h-4 mr-2" />
                         Nuevo Cliente
                     </Button>
-                </motion.div>
+                </PageHeader>
 
                 {/* Stats Cards */}
                 <motion.div
@@ -718,7 +710,7 @@ const AdminClientes = () => {
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-medium text-foreground">{cliente.nombre}</span>
-                                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cliente.nivel === 'vip' ? 'bg-amber-500/10 text-amber-600' : 'bg-purple-500/10 text-purple-600'}`}>
+                                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold ${cliente.nivel === 'vip' ? 'bg-amber-500/10 text-amber-600' : 'bg-purple-500/10 text-purple-600'}`}>
                                                                     {cliente.nivel === 'vip' && <Crown className="w-3 h-3" />}
                                                                     {cliente.nivel === 'vip' ? 'VIP' : 'Partner'}
                                                                 </span>
@@ -728,7 +720,7 @@ const AdminClientes = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 text-right">
-                                                    <span className="font-bold text-primary text-lg">{cliente.puntos_actuales?.toLocaleString() || 0}</span>
+                                                    <span className="font-bold text-foreground text-lg">{cliente.puntos_actuales?.toLocaleString() || 0}</span>
                                                 </td>
                                                 <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex justify-center items-center gap-1">
@@ -780,7 +772,7 @@ const AdminClientes = () => {
                                             </div>
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                 <div className="text-right">
-                                                    <p className="font-bold text-primary text-lg">{cliente.puntos_actuales?.toLocaleString('es-MX') || 0}</p>
+                                                    <p className="font-bold text-foreground text-lg">{cliente.puntos_actuales?.toLocaleString('es-MX') || 0}</p>
                                                     <p className="text-xs text-muted-foreground">puntos</p>
                                                 </div>
                                                 <ChevronRight className="w-5 h-5 text-muted-foreground" />

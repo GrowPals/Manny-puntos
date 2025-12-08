@@ -22,7 +22,7 @@ const WhatsAppButton = () => {
       href="https://wa.me/5214625905222?text=%C2%A1Hola%21+manny+necesito+ayuda+con+mi+sistema+de+puntos+vip"
       target="_blank"
       rel="noopener noreferrer"
-      className={`fixed right-3 z-30 rounded-full shadow-lg hover:scale-110 transition-all ${
+      className={`fixed right-3 z-30 hover:scale-110 transition-all ${
         hasBottomNav ? 'bottom-[84px] lg:bottom-6' : 'bottom-6'
       }`}
       initial={{ opacity: 0, scale: 0 }}
@@ -30,7 +30,7 @@ const WhatsAppButton = () => {
       transition={{ delay: 1 }}
       aria-label="Contactar por WhatsApp"
     >
-      <img src={WhatsAppIcon} alt="WhatsApp" className="w-12 h-12" />
+      <img src={WhatsAppIcon} alt="WhatsApp" className="w-16 h-16" loading="lazy" decoding="async" />
     </motion.a>
   );
 };

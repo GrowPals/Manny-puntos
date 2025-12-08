@@ -317,6 +317,8 @@ const GiftLanding = () => {
                     src={giftData.imagen_banner}
                     alt="Promoción"
                     className="w-full h-40 object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </motion.div>
               )}

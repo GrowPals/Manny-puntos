@@ -70,7 +70,7 @@ const MisServicios = () => {
                     <div className="bg-card rounded-xl p-3 border border-border shadow-sm">
                         <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
                             <Wrench className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-medium uppercase tracking-wide">Servicios</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">Servicios</span>
                         </div>
                         <p className="text-xl font-bold text-foreground">{stats.total_servicios}</p>
                     </div>
@@ -79,9 +79,9 @@ const MisServicios = () => {
                     <div className="bg-card rounded-xl p-3 border border-border shadow-sm">
                         <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
                             <Coins className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-medium uppercase tracking-wide">Puntos</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">Puntos</span>
                         </div>
-                        <p className="text-xl font-bold text-primary">{stats.total_puntos.toLocaleString('es-MX')}</p>
+                        <p className="text-xl font-bold text-foreground">{stats.total_puntos.toLocaleString('es-MX')}</p>
                     </div>
                 )}
             </motion.div>
@@ -113,7 +113,7 @@ const MisServicios = () => {
                     <div className="flex-1 min-w-0">
                         {/* Tipo de trabajo como badge si existe */}
                         {hasTipo && (
-                            <span className="inline-block px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium rounded-md mb-1 uppercase tracking-wide">
+                            <span className="inline-block px-2 py-0.5 bg-muted text-muted-foreground text-xs font-medium rounded-md mb-1 uppercase tracking-wide">
                                 {servicio.tipo_trabajo}
                             </span>
                         )}
@@ -131,7 +131,7 @@ const MisServicios = () => {
                         )}
 
                         {/* Fecha */}
-                        <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
                             <Calendar className="w-3 h-3" />
                             <span>{formatDate(servicio.fecha_servicio)}</span>
                         </div>
@@ -142,7 +142,7 @@ const MisServicios = () => {
                         <div className="text-right flex-shrink-0">
                             <p className="font-bold text-sm text-foreground">{formatCurrency(servicio.monto)}</p>
                             {hasPuntos && (
-                                <p className="text-xs text-primary font-medium mt-0.5">+{servicio.puntos_generados} pts</p>
+                                <p className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">+{servicio.puntos_generados} pts</p>
                             )}
                         </div>
                     )}

@@ -39,7 +39,7 @@ const MisBeneficiosCard = () => {
       animate={{ opacity: 1, y: 0 }}
       className="mb-6 px-4 md:px-0"
     >
-      <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 rounded-2xl border border-purple-500/20 p-5 shadow-lg">
+      <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 rounded-2xl border border-purple-500/20 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-purple-500/20 rounded-xl">
             <Gift className="w-6 h-6 text-purple-500" />

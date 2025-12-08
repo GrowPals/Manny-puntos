@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Truck, Loader2, Wrench, Package, Calendar, CheckCircle, Hourglass, PackageCheck, Search } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -114,15 +115,16 @@ const AdminEntregas = () => {
     return (
         <>
             <Helmet><title>Gestión de Canjes - Admin Manny</title></Helmet>
-            <div className="container mx-auto px-0 sm:px-4 py-8">
-                <h1 className="text-3xl md:text-4xl mb-6 flex items-center gap-3 px-4 sm:px-0">
-                    <Truck className="w-8 h-8 text-primary" />
-                    Gestión de Canjes
-                </h1>
+            <div className="container mx-auto px-4 py-6">
+                <PageHeader
+                    icon={Truck}
+                    title="Canjes"
+                    subtitle={`${canjes.filter(c => c.estado !== 'entregado' && c.estado !== 'completado').length} pendientes`}
+                />
 
                 {/* Search */}
-                <div className="mb-4 px-4 sm:px-0 relative">
-                    <Search className="absolute left-7 sm:left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <div className="mb-4 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
                     <Input
                         placeholder="Buscar por cliente o producto..."
                         value={searchTerm}
@@ -132,7 +134,7 @@ const AdminEntregas = () => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-border mb-6 px-4 sm:px-0">
+                <div className="flex border-b border-border mb-6">
                     <button
                         onClick={() => setActiveTab('productos')}
                         className={`px-4 py-2 text-base md:text-lg font-semibold transition-colors ${activeTab === 'productos' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -154,11 +156,11 @@ const AdminEntregas = () => {
                         <Loader2 className="animate-spin h-8 w-8 mx-auto text-primary" />
                     </div>
                 ) : canjesFiltrados.length > 0 ? (
-                    <div className="space-y-4 px-4 sm:px-0">
+                    <div className="space-y-4">
                         {canjesFiltrados.map((canje) => <CanjeCard key={canje.id} canje={canje} />)}
                     </div>
                 ) : (
-                    <div className="text-center py-16 bg-card rounded-2xl shadow-sm border border-border mx-4 sm:mx-0">
+                    <div className="text-center py-16 bg-card rounded-2xl shadow-sm border border-border">
                         {searchTerm ? (
                             <>
                                 <Search className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />

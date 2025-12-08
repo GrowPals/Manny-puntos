@@ -41,7 +41,7 @@ const Dashboard = () => {
           <div className="p-4 pb-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl font-bold truncate">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight truncate">
                   ¡Hola, {firstName}!
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap">

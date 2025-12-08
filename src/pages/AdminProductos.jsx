@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Package, Plus, Edit, Trash2, Image as ImageIcon, Wrench, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -259,17 +260,17 @@ const AdminProductos = () => {
                 </DialogContent>
             </Dialog>
 
-            <div className="container mx-auto px-4 py-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <h1 className="text-3xl md:text-4xl flex items-center gap-3">
-                        <Package className="w-8 h-8 text-primary" />
-                        Gestión de Recompensas
-                    </h1>
-                    <Button onClick={handleAddNew} variant="investment">
+            <div className="container mx-auto px-4 py-6">
+                <PageHeader
+                    icon={Package}
+                    title="Recompensas"
+                    subtitle={`${productos.length} en catálogo`}
+                >
+                    <Button onClick={handleAddNew} variant="investment" className="w-full md:w-auto">
                         <Plus className="w-4 h-4 mr-2" />
                         Añadir Recompensa
                     </Button>
-                </div>
+                </PageHeader>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {productos.map((producto) => (

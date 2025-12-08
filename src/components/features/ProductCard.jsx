@@ -1,28 +1,28 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Gift, Lock, XCircle, Hammer, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-const ProductCard = ({ producto, userPoints = 0 }) => {
+const ProductCard = memo(({ producto, userPoints = 0 }) => {
   const navigate = useNavigate();
 
   if (!producto || typeof userPoints !== 'number') {
     console.error('ProductCard: Invalid props received.', { producto, userPoints });
     return null;
   }
-    
+
   const isService = producto.tipo === 'servicio';
   const canAfford = userPoints >= producto.puntos_requeridos;
   const isAvailable = producto.activo && (isService || producto.stock > 0);
   const canRedeem = canAfford && isAvailable;
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (canRedeem) {
         navigate(`/canjear/${producto.id}`);
     }
-  };
+  }, [canRedeem, navigate, producto.id]);
 
   const getButtonState = () => {
     if (!isAvailable) {
@@ -56,7 +56,13 @@ const ProductCard = ({ producto, userPoints = 0 }) => {
         <div className="relative aspect-[4/3]">
             <div className="absolute inset-0 bg-muted flex items-center justify-center">
                 {producto.imagen_url ? (
-                    <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-cover" />
+                    <img
+                      src={producto.imagen_url}
+                      alt={producto.nombre}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                 ) : (
                     isService ? <Wrench className="w-16 h-16 sm:w-20 sm:h-20 text-muted-foreground opacity-50" /> : <Hammer className="w-16 h-16 sm:w-20 sm:h-20 text-muted-foreground opacity-50" />
                 )}
@@ -78,7 +84,7 @@ const ProductCard = ({ producto, userPoints = 0 }) => {
         <p className="text-muted-foreground text-sm mb-4 flex-grow">{producto.descripcion}</p>
         
         <div className="flex items-center justify-between my-2">
-            <span className="text-xl sm:text-2xl font-black text-primary font-mono">
+            <span className="text-xl sm:text-2xl font-black text-foreground font-mono">
                 {producto.puntos_requeridos} pts
             </span>
              {!isService && isAvailable && producto.stock > 0 && producto.stock <= 10 && (
@@ -98,6 +104,8 @@ const ProductCard = ({ producto, userPoints = 0 }) => {
       </div>
     </motion.div>
   );
-};
+});
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

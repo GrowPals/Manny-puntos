@@ -21,10 +21,17 @@ export const API_CONFIG = {
 // CACHE CONFIGURATION (React Query)
 // ============================================
 export const CACHE_CONFIG = {
-  STALE_TIME: 5 * 60 * 1000, // 5 minutes
-  GC_TIME: 10 * 60 * 1000, // 10 minutes (garbage collection)
-  REFETCH_ON_WINDOW_FOCUS: true,
-  REFETCH_ON_MOUNT: true,
+  // Default cache times - optimized for performance
+  STALE_TIME: 15 * 60 * 1000, // 15 minutes - data doesn't change frequently
+  GC_TIME: 30 * 60 * 1000, // 30 minutes garbage collection
+  REFETCH_ON_WINDOW_FOCUS: false, // Prevent unnecessary refetches on tab switch
+  REFETCH_ON_MOUNT: 'always', // Only refetch if data is stale
+
+  // Specific cache times for different data types
+  PRODUCTS_STALE_TIME: 60 * 60 * 1000, // 1 hour - products rarely change
+  USER_STALE_TIME: 10 * 60 * 1000, // 10 minutes - points may update
+  REFERRALS_STALE_TIME: 5 * 60 * 1000, // 5 minutes - more dynamic
+  ADMIN_STALE_TIME: 2 * 60 * 1000, // 2 minutes - admins need fresher data
 };
 
 // ============================================

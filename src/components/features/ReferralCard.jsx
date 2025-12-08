@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Gift, Copy, Share2, Users, ChevronRight, Check, Loader2 } from 'lucide-react';
@@ -7,8 +7,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
+import { CACHE_CONFIG } from '@/config';
 
-const ReferralCard = () => {
+const ReferralCard = memo(() => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -17,13 +18,13 @@ const ReferralCard = () => {
     queryKey: ['referral-stats', user?.id],
     queryFn: () => api.referrals.getReferralStats(user.id),
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5,
+    staleTime: CACHE_CONFIG.REFERRALS_STALE_TIME,
   });
 
   const { data: config } = useQuery({
     queryKey: ['referral-config'],
     queryFn: api.referrals.getReferralConfig,
-    staleTime: 1000 * 60 * 30,
+    staleTime: CACHE_CONFIG.STALE_TIME,
   });
 
   if (config && !config.activo) {
@@ -34,7 +35,7 @@ const ReferralCard = () => {
     ? `${window.location.origin}/r/${stats.codigo}`
     : null;
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     if (!referralLink) return;
     try {
       await navigator.clipboard.writeText(referralLink);
@@ -44,9 +45,16 @@ const ReferralCard = () => {
     } catch {
       toast({ title: 'Error', description: 'No se pudo copiar el link', variant: 'destructive' });
     }
-  };
+  }, [referralLink, toast]);
 
-  const handleShare = async () => {
+  const openWhatsApp = useCallback(() => {
+    const message = encodeURIComponent(
+      `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`
+    );
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  }, [config?.mensaje_compartir, referralLink]);
+
+  const handleShare = useCallback(async () => {
     if (!referralLink || !config) return;
     const shareData = {
       title: 'Manny Rewards',
@@ -62,14 +70,7 @@ const ReferralCard = () => {
     } else {
       openWhatsApp();
     }
-  };
-
-  const openWhatsApp = () => {
-    const message = encodeURIComponent(
-      `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`
-    );
-    window.open(`https://wa.me/?text=${message}`, '_blank');
-  };
+  }, [referralLink, config, openWhatsApp]);
 
   const progressPercent = stats?.limite_mensual
     ? Math.min((stats.puntos_este_mes / stats.limite_mensual) * 100, 100)
@@ -118,12 +119,12 @@ const ReferralCard = () => {
         {stats && (
           <div className="flex gap-2">
             <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-primary">{stats.referidos_activos || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Referidos</p>
+              <p className="text-lg font-bold text-foreground">{stats.referidos_activos || 0}</p>
+              <p className="text-xs text-muted-foreground">Referidos</p>
             </div>
             <div className="flex-1 bg-muted/50 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-green-500">{stats.puntos_ganados || 0}</p>
-              <p className="text-[10px] text-muted-foreground">Pts ganados</p>
+              <p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.puntos_ganados || 0}</p>
+              <p className="text-xs text-muted-foreground">Pts ganados</p>
             </div>
           </div>
         )}
@@ -131,7 +132,7 @@ const ReferralCard = () => {
         {/* Monthly progress - More compact */}
         {stats?.limite_mensual && (
           <div>
-            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span>Este mes</span>
               <span>{stats.puntos_este_mes || 0} / {stats.limite_mensual} pts</span>
             </div>
@@ -156,7 +157,7 @@ const ReferralCard = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 shrink-0"
+                className="h-9 w-9 shrink-0"
                 onClick={handleCopy}
               >
                 {copied ? (
@@ -198,6 +199,8 @@ const ReferralCard = () => {
       </div>
     </motion.div>
   );
-};
+});
+
+ReferralCard.displayName = 'ReferralCard';
 
 export default ReferralCard;

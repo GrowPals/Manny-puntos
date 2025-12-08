@@ -70,7 +70,7 @@ const ChartCard = ({ title, children, className = "" }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-card rounded-2xl shadow-lg border border-border p-5 ${className}`}
+        className={`bg-card rounded-2xl shadow-sm border border-border p-5 ${className}`}
     >
         <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
         {children}
@@ -452,7 +452,7 @@ const Admin = () => {
                                 </div>
                                 <span className="text-sm text-muted-foreground">Entregados</span>
                             </div>
-                            <span className="text-xl font-bold text-primary">{stats?.canjesStats?.entregados || 0}</span>
+                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.entregados || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
@@ -461,7 +461,7 @@ const Admin = () => {
                                 </div>
                                 <span className="text-sm text-muted-foreground">Pendientes</span>
                             </div>
-                            <span className="text-xl font-bold text-primary">{stats?.canjesStats?.pendientes || 0}</span>
+                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.pendientes || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl">
                             <div className="flex items-center gap-3">
@@ -470,7 +470,7 @@ const Admin = () => {
                                 </div>
                                 <span className="text-sm text-muted-foreground">Puntos Canjeados</span>
                             </div>
-                            <span className="text-xl font-bold text-primary">
+                            <span className="text-xl font-bold text-foreground">
                                 {(stats?.canjesStats?.puntosCanjeados || 0).toLocaleString('es-MX')}
                             </span>
                         </div>

@@ -16,7 +16,7 @@ export const OfflineIndicator = () => {
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -50, opacity: 0 }}
-          className="fixed top-0 left-0 right-0 z-50 bg-red-500 text-white py-2 px-4 flex items-center justify-center gap-2 text-sm font-medium shadow-lg"
+          className="fixed top-0 left-0 right-0 z-50 bg-red-500 text-white py-2 px-4 flex items-center justify-center gap-2 text-sm font-medium"
         >
           <WifiOff className="w-4 h-4" />
           <span>Sin conexión a internet</span>
@@ -28,7 +28,7 @@ export const OfflineIndicator = () => {
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -50, opacity: 0 }}
-          className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white py-2 px-4 flex items-center justify-center gap-2 text-sm font-medium shadow-lg"
+          className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white py-2 px-4 flex items-center justify-center gap-2 text-sm font-medium"
         >
           <Loader2 className="w-4 h-4 animate-spin" />
           <span>Conexión lenta - algunas funciones pueden tardar</span>

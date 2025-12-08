@@ -105,8 +105,8 @@ const ConfirmarCanje = () => {
                         <>
                             <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6 mb-8">
                                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-muted rounded-2xl flex items-center justify-center flex-shrink-0">
-                                     {producto.imagen_url ? 
-                                        <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-cover rounded-2xl" /> :
+                                     {producto.imagen_url ?
+                                        <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-cover rounded-2xl" loading="lazy" decoding="async" /> :
                                         (producto.tipo === 'servicio' ? <Wrench className="w-12 h-12 sm:w-16 sm:h-16 text-primary" /> : <Hammer className="w-12 h-12 sm:w-16 sm:h-16 text-primary" />)
                                      }
                                 </div>
