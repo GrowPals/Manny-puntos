@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const NotificationBell = ({ clienteId, isAdmin = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const popoverRef = useRef(null);
 
   const {
@@ -18,7 +19,15 @@ const NotificationBell = ({ clienteId, isAdmin = false }) => {
     showLocalNotification
   } = usePushNotifications(clienteId, isAdmin);
 
-  // Close popover when clicking outside
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close popover when clicking outside (desktop only)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target)) {
@@ -26,11 +35,21 @@ const NotificationBell = ({ clienteId, isAdmin = false }) => {
       }
     };
 
-    if (isOpen) {
+    if (isOpen && !isMobile) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
+
+  // Prevent body scroll when mobile modal is open
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen, isMobile]);
 
   const handleToggleNotifications = async () => {
     if (isSubscribed) {
@@ -79,9 +98,126 @@ const NotificationBell = ({ clienteId, isAdmin = false }) => {
         )}
       </Button>
 
-      {/* Popover */}
+      {/* Mobile: Bottom Sheet with Backdrop */}
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && isMobile && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            {/* Bottom Sheet */}
+            <motion.div
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-50 bg-card rounded-t-2xl shadow-2xl overflow-hidden safe-area-inset-bottom"
+            >
+              {/* Drag Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pb-3 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <BellRing className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Notificaciones</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="h-9 w-9"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Content */}
+              <div className="px-5 py-6 pb-8">
+                {isDenied ? (
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+                      <BellOff className="w-8 h-8 text-destructive/70" />
+                    </div>
+                    <p className="text-base font-semibold text-destructive">Notificaciones bloqueadas</p>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                      Para activarlas, ve a la configuración de tu navegador y permite las notificaciones para este sitio.
+                    </p>
+                  </div>
+                ) : isEnabled ? (
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                      <Bell className="w-8 h-8 text-green-500" />
+                    </div>
+                    <p className="text-base font-semibold text-foreground">Notificaciones activas</p>
+                    <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-xs mx-auto">
+                      Recibirás alertas sobre tus puntos y recompensas
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={handleToggleNotifications}
+                      disabled={isLoading}
+                      className="w-full h-12 text-base"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        'Desactivar notificaciones'
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
+                      <BellOff className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-base font-semibold text-foreground">
+                      {permission === 'granted' ? 'Notificaciones pausadas' : 'Notificaciones desactivadas'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2 mb-6 max-w-xs mx-auto">
+                      {permission === 'granted'
+                        ? 'Reactívalas para seguir recibiendo alertas de tus puntos'
+                        : 'Actívalas para recibir alertas importantes sobre tus puntos y recompensas'
+                      }
+                    </p>
+                    <Button
+                      variant="investment"
+                      size="lg"
+                      onClick={handleToggleNotifications}
+                      disabled={isLoading}
+                      className="w-full h-12 text-base"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Bell className="w-5 h-5 mr-2" />
+                          {permission === 'granted' ? 'Reactivar' : 'Activar notificaciones'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop: Popover */}
+      <AnimatePresence>
+        {isOpen && !isMobile && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
