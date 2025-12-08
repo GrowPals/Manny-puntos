@@ -7,7 +7,8 @@ import {
   Calendar,
   AlertCircle,
   Gift,
-  Loader2
+  Loader2,
+  Bookmark
 } from 'lucide-react';
 
 /**
@@ -61,6 +62,13 @@ const StateBadge = ({
     },
     // Canje (redemption) states
     canje: {
+      guardado: {
+        label: 'Disponible',
+        icon: Bookmark,
+        bg: 'bg-indigo-500/10',
+        text: 'text-indigo-600',
+        darkText: 'dark:text-indigo-400'
+      },
       pendiente_entrega: {
         label: 'Próximo servicio',
         icon: Hourglass,
@@ -95,6 +103,13 @@ const StateBadge = ({
         bg: 'bg-green-500/10',
         text: 'text-green-600',
         darkText: 'dark:text-green-400'
+      },
+      cancelado: {
+        label: 'Cancelado',
+        icon: XCircle,
+        bg: 'bg-gray-500/10',
+        text: 'text-gray-600',
+        darkText: 'dark:text-gray-400'
       },
     },
     // Beneficio (benefit) states
@@ -243,11 +258,13 @@ export const getStateInfo = (estado, type = 'general') => {
       cancelado: { label: 'Cancelado', color: 'gray' },
     },
     canje: {
+      guardado: { label: 'Disponible', color: 'indigo' },
       pendiente_entrega: { label: 'Próximo servicio', color: 'yellow' },
       entregado: { label: 'Entregado', color: 'green' },
       en_lista: { label: 'Te contactaremos', color: 'blue' },
       agendado: { label: 'Agendado', color: 'purple' },
       completado: { label: 'Completado', color: 'green' },
+      cancelado: { label: 'Cancelado', color: 'gray' },
     },
     beneficio: {
       activo: { label: 'Activo', color: 'green' },

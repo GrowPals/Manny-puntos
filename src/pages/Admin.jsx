@@ -6,8 +6,9 @@ import {
     Users, TrendingUp, Gift, Truck, Loader2, Download, Upload,
     DollarSign, Wrench, ShoppingBag, LayoutDashboard, Crown,
     AlertTriangle, CheckCircle2, Clock, ChevronRight, Coins,
-    ArrowUpRight, ArrowDownRight, Calendar
+    Calendar
 } from 'lucide-react';
+import StatCard from '@/components/common/StatCard';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import {
@@ -48,48 +49,6 @@ const NIVEL_CONFIG = {
     normal: { color: '#6b7280', gradient: 'from-gray-500 to-gray-600', label: 'Normal' },
     partner: { color: '#3b82f6', gradient: 'from-cyan-500 to-blue-600', label: 'Partner' },
     vip: { color: '#f59e0b', gradient: 'from-amber-500 to-orange-600', label: 'VIP' }
-};
-
-// ============================================================================
-// STAT CARD - Consistent with AdminClientes
-// ============================================================================
-
-const StatCard = ({ icon: Icon, label, value, trend, color = "primary", subtitle, to }) => {
-    const colorClasses = {
-        primary: 'text-primary',
-        purple: 'text-purple-500',
-        green: 'text-green-500',
-        amber: 'text-amber-500',
-        red: 'text-red-500',
-        blue: 'text-blue-500',
-    };
-
-    const content = (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`bg-card rounded-xl p-4 border border-border hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full ${to ? 'cursor-pointer' : ''}`}
-        >
-            <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-5 h-5 ${colorClasses[color] || colorClasses.primary}`} />
-                <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            </div>
-            <div className="flex items-end justify-between">
-                <div>
-                    <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 min-h-[1rem]">{subtitle || '\u00A0'}</p>
-                </div>
-                {trend !== undefined && (
-                    <div className={`flex items-center gap-0.5 text-sm font-medium ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                        {Math.abs(trend)}%
-                    </div>
-                )}
-            </div>
-        </motion.div>
-    );
-
-    return to ? <Link to={to}>{content}</Link> : content;
 };
 
 // ============================================================================

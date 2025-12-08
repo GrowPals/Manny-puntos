@@ -1,186 +1,68 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleCors,
+  getCorsHeaders,
+  createSupabaseAdmin,
+  getNotionToken,
+  verifyAuth,
+  queryNotionDatabase,
+  createNotionPage,
+  updateNotionPage,
+  NOTION_DBS,
+  errorResponse,
+  successResponse,
+} from '../_shared/index.ts';
 
-// CORS with whitelist
-const ALLOWED_ORIGINS = [
-  'https://recompensas.manny.mx',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://[::]:3000',
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
-
-const CONTACTOS_DB = '17ac6cfd-8c1e-8068-8bc0-d32488189164';
-const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
-
-async function notionRequest(endpoint: string, method: string, body: any, token: string) {
-  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error(`Notion API error: ${error}`);
-    throw new Error(`Notion API error: ${error}`);
-  }
-
-  return response.json();
+interface SyncPayload {
+  cliente_id?: string;
+  telefono?: string;
+  nombre?: string;
 }
 
 async function findContactoByPhone(telefono: string, notionToken: string): Promise<string | null> {
   // Try exact match
-  const result = await notionRequest(`/databases/${CONTACTOS_DB}/query`, 'POST', {
-    filter: {
-      property: 'Teléfono',
-      phone_number: { equals: telefono }
-    },
-    page_size: 1
-  }, notionToken);
+  let results = await queryNotionDatabase(
+    NOTION_DBS.CONTACTOS,
+    { property: 'Teléfono', phone_number: { equals: telefono } },
+    notionToken,
+    1
+  );
 
-  if (result.results && result.results.length > 0) {
-    return result.results[0].id;
-  }
+  if (results.length > 0) return results[0].id;
 
   // Try with +52 prefix
-  const result2 = await notionRequest(`/databases/${CONTACTOS_DB}/query`, 'POST', {
-    filter: {
-      property: 'Teléfono',
-      phone_number: { equals: `+52${telefono}` }
-    },
-    page_size: 1
-  }, notionToken);
+  results = await queryNotionDatabase(
+    NOTION_DBS.CONTACTOS,
+    { property: 'Teléfono', phone_number: { equals: `+52${telefono}` } },
+    notionToken,
+    1
+  );
 
-  if (result2.results && result2.results.length > 0) {
-    return result2.results[0].id;
-  }
-
-  return null;
-}
-
-async function createContactoInNotion(nombre: string, telefono: string, notionToken: string): Promise<string> {
-  const result = await notionRequest('/pages', 'POST', {
-    parent: { database_id: CONTACTOS_DB },
-    properties: {
-      // El campo título en Contactos puede tener diferentes nombres
-      '': { title: [{ text: { content: nombre } }] },
-      'Teléfono': { phone_number: `+52${telefono}` }
-    }
-  }, notionToken);
-
-  console.log(`Created Contacto in Notion: ${result.id}`);
-  return result.id;
-}
-
-async function findMannyRewardByContacto(contactoId: string, notionToken: string): Promise<string | null> {
-  const result = await notionRequest(`/databases/${MANNY_REWARDS_DB}/query`, 'POST', {
-    filter: {
-      property: 'Cliente',
-      relation: { contains: contactoId }
-    },
-    page_size: 1
-  }, notionToken);
-
-  if (result.results && result.results.length > 0) {
-    return result.results[0].id;
-  }
-  return null;
-}
-
-async function createMannyReward(contactoId: string, nombre: string, supabaseId: string, notionToken: string): Promise<string> {
-  const result = await notionRequest('/pages', 'POST', {
-    parent: { database_id: MANNY_REWARDS_DB },
-    properties: {
-      'Nombre': { title: [{ text: { content: nombre } }] },
-      'Cliente': { relation: [{ id: contactoId }] },
-      'Nivel': { select: { name: 'Partner' } },
-      'Puntos': { number: 0 },
-      'Supabase ID': { rich_text: [{ text: { content: supabaseId } }] }
-    }
-  }, notionToken);
-
-  console.log(`Created Manny Reward: ${result.id} for ${nombre}`);
-  return result.id;
-}
-
-async function updateMannyRewardSupabaseId(rewardId: string, supabaseId: string, notionToken: string) {
-  await notionRequest(`/pages/${rewardId}`, 'PATCH', {
-    properties: {
-      'Supabase ID': { rich_text: [{ text: { content: supabaseId } }] }
-    }
-  }, notionToken);
-  console.log(`Updated Manny Reward ${rewardId} with Supabase ID ${supabaseId}`);
+  return results.length > 0 ? results[0].id : null;
 }
 
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const notionToken = Deno.env.get('NOTION_TOKEN');
+    const supabase = createSupabaseAdmin();
+    const notionToken = getNotionToken();
 
-    if (!notionToken) {
-      return new Response(JSON.stringify({ error: 'NOTION_TOKEN not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Validate authentication
+    const auth = await verifyAuth(req, supabase);
+    if (!auth.success) {
+      return errorResponse(auth.error!, corsHeaders, auth.statusCode!);
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Validate caller is authenticated
-    const callerClienteId = req.headers.get('x-cliente-id');
-    if (!callerClienteId) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Verify caller exists in database
-    const { data: caller, error: callerError } = await supabase
-      .from('clientes')
-      .select('id')
-      .eq('id', callerClienteId)
-      .single();
-
-    if (callerError || !caller) {
-      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const payload = await req.json();
-
-    console.log('Sync cliente to Notion payload:', JSON.stringify(payload, null, 2));
-
-    const { cliente_id, telefono, nombre } = payload;
+    const { cliente_id, telefono, nombre }: SyncPayload = await req.json();
+    console.log('Sync cliente to Notion:', { cliente_id, telefono });
 
     if (!cliente_id && !telefono) {
-      return new Response(JSON.stringify({ error: 'Missing cliente_id or telefono' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Missing cliente_id or telefono', corsHeaders, 400);
     }
 
     // Get cliente from Supabase
@@ -191,10 +73,7 @@ Deno.serve(async (req: Request) => {
         .select('*')
         .eq('id', cliente_id)
         .single();
-
-      if (error || !data) {
-        throw new Error(`Cliente not found: ${cliente_id}`);
-      }
+      if (error || !data) throw new Error(`Cliente not found: ${cliente_id}`);
       cliente = data;
     } else {
       const { data, error } = await supabase
@@ -202,16 +81,13 @@ Deno.serve(async (req: Request) => {
         .select('*')
         .eq('telefono', telefono)
         .single();
-
-      if (error || !data) {
-        throw new Error(`Cliente not found with telefono: ${telefono}`);
-      }
+      if (error || !data) throw new Error(`Cliente not found with telefono: ${telefono}`);
       cliente = data;
     }
 
     let contactoId = cliente.notion_page_id;
     let mannyRewardId = cliente.notion_reward_id;
-    let created = { contacto: false, reward: false };
+    const created = { contacto: false, reward: false };
 
     // Step 1: Find or create Contacto in Notion
     if (!contactoId) {
@@ -219,12 +95,14 @@ Deno.serve(async (req: Request) => {
 
       if (!contactoId) {
         // Create new Contacto
-        contactoId = await createContactoInNotion(
-          cliente.nombre || nombre || 'Nuevo Cliente',
-          cliente.telefono,
-          notionToken
-        );
+        const contactoPage = await createNotionPage(NOTION_DBS.CONTACTOS, {
+          '': { title: [{ text: { content: cliente.nombre || nombre || 'Nuevo Cliente' } }] },
+          'Teléfono': { phone_number: `+52${cliente.telefono}` }
+        }, notionToken);
+
+        contactoId = contactoPage.id;
         created.contacto = true;
+        console.log(`Created Contacto: ${contactoId}`);
       }
 
       // Update Supabase with notion_page_id
@@ -236,18 +114,31 @@ Deno.serve(async (req: Request) => {
 
     // Step 2: Find or create Manny Reward
     if (!mannyRewardId) {
-      mannyRewardId = await findMannyRewardByContacto(contactoId, notionToken);
+      const rewards = await queryNotionDatabase(
+        NOTION_DBS.MANNY_REWARDS,
+        { property: 'Cliente', relation: { contains: contactoId } },
+        notionToken,
+        1
+      );
+
+      if (rewards.length > 0) {
+        mannyRewardId = rewards[0].id;
+      }
     }
 
     if (!mannyRewardId) {
       // Create new Manny Reward
-      mannyRewardId = await createMannyReward(
-        contactoId,
-        cliente.nombre || nombre || 'Nuevo Cliente',
-        cliente.id,
-        notionToken
-      );
+      const rewardPage = await createNotionPage(NOTION_DBS.MANNY_REWARDS, {
+        'Nombre': { title: [{ text: { content: cliente.nombre || nombre || 'Nuevo Cliente' } }] },
+        'Cliente': { relation: [{ id: contactoId }] },
+        'Nivel': { select: { name: 'Partner' } },
+        'Puntos': { number: 0 },
+        'Supabase ID': { rich_text: [{ text: { content: cliente.id } }] }
+      }, notionToken);
+
+      mannyRewardId = rewardPage.id;
       created.reward = true;
+      console.log(`Created Manny Reward: ${mannyRewardId}`);
 
       // Update Supabase with notion_reward_id
       await supabase
@@ -256,24 +147,20 @@ Deno.serve(async (req: Request) => {
         .eq('id', cliente.id);
     } else {
       // Ensure Supabase ID is set in Manny Reward
-      await updateMannyRewardSupabaseId(mannyRewardId, cliente.id, notionToken);
+      await updateNotionPage(mannyRewardId, {
+        'Supabase ID': { rich_text: [{ text: { content: cliente.id } }] }
+      }, notionToken);
     }
 
-    return new Response(JSON.stringify({
-      status: 'success',
+    return successResponse({
       cliente_id: cliente.id,
       contacto_id: contactoId,
       manny_reward_id: mannyRewardId,
       created
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(error.message, corsHeaders, 500);
   }
 });

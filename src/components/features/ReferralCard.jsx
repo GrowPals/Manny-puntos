@@ -6,9 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { CACHE_CONFIG } from '@/config';
+import useWhatsAppShare from '@/hooks/useWhatsAppShare';
 
 const ReferralCard = memo(() => {
   const { user } = useAuth();
+  const { shareWithFallback } = useWhatsAppShare();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['referral-stats', user?.id],
@@ -31,31 +33,16 @@ const ReferralCard = memo(() => {
     ? `${window.location.origin}/r/${stats.codigo}`
     : null;
 
-  const openWhatsApp = useCallback(() => {
-    const message = encodeURIComponent(
-      `${config?.mensaje_compartir || '¡Únete a Manny Rewards!'}\n\n${referralLink}`
-    );
-    window.open(`https://wa.me/?text=${message}`, '_blank');
-  }, [config?.mensaje_compartir, referralLink]);
-
   const handleShare = useCallback(async (e) => {
     e.stopPropagation();
     if (!referralLink || !config) return;
-    const shareData = {
+
+    await shareWithFallback({
       title: 'Manny Rewards',
       text: config.mensaje_compartir || '¡Únete a Manny Rewards!',
       url: referralLink,
-    };
-    if (navigator.share && navigator.canShare?.(shareData)) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') openWhatsApp();
-      }
-    } else {
-      openWhatsApp();
-    }
-  }, [referralLink, config, openWhatsApp]);
+    });
+  }, [referralLink, config, shareWithFallback]);
 
   if (isLoading) {
     return (

@@ -1,23 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// CORS with whitelist
-const ALLOWED_ORIGINS = [
-  'https://recompensas.manny.mx',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://[::]:3000',
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+import {
+  handleCors,
+  getCorsHeaders,
+  createSupabaseAdmin,
+  getNotionToken,
+  verifyAuth,
+  supabaseEstadoToNotion,
+  updateNotionPage,
+  errorResponse,
+  successResponse,
+  skippedResponse,
+} from '../_shared/index.ts';
 
 interface UpdateData {
   canje_id: string;
@@ -25,114 +18,31 @@ interface UpdateData {
   fecha_entrega?: string;
 }
 
-function mapSupabaseEstadoToNotion(estado: string): string {
-  const mapping: Record<string, string> = {
-    'pendiente_entrega': 'Pendiente Entrega',
-    'en_lista': 'En Proceso',
-    'entregado': 'Entregado',
-    'completado': 'Completado',
-    'agendado': 'En Proceso'
-  };
-  return mapping[estado] || 'Pendiente Entrega';
-}
-
-async function updateNotionPage(
-  notionPageId: string,
-  nuevoEstado: string,
-  fechaEntrega: string | null,
-  notionToken: string
-): Promise<boolean> {
-  const estadoNotion = mapSupabaseEstadoToNotion(nuevoEstado);
-
-  const properties: Record<string, unknown> = {
-    'Estado': {
-      select: { name: estadoNotion }
-    }
-  };
-
-  if (fechaEntrega) {
-    properties['Fecha Entrega'] = {
-      date: { start: fechaEntrega.split('T')[0] }
-    };
-  }
-
-  const response = await fetch(`https://api.notion.com/v1/pages/${notionPageId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${notionToken}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ properties }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to update Notion page:', errorText);
-    return false;
-  }
-
-  return true;
-}
-
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const notionToken = Deno.env.get('NOTION_TOKEN');
+    const supabase = createSupabaseAdmin();
+    const notionToken = getNotionToken();
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration');
-    }
-
-    if (!notionToken) {
-      return new Response(JSON.stringify({ error: 'NOTION_TOKEN not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Validate caller is authenticated and is admin
-    const callerClienteId = req.headers.get('x-cliente-id');
-    if (!callerClienteId) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { data: caller, error: callerError } = await supabase
-      .from('clientes')
-      .select('id, es_admin')
-      .eq('id', callerClienteId)
-      .single();
-
-    if (callerError || !caller || !caller.es_admin) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Require admin auth
+    const auth = await verifyAuth(req, supabase, true);
+    if (!auth.success) {
+      return errorResponse(auth.error!, corsHeaders, auth.statusCode!);
     }
 
     const { canje_id, nuevo_estado, fecha_entrega }: UpdateData = await req.json();
     console.log('Update canje status in Notion:', canje_id, nuevo_estado);
 
     if (!canje_id || !nuevo_estado) {
-      return new Response(JSON.stringify({ error: 'canje_id and nuevo_estado are required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('canje_id and nuevo_estado are required', corsHeaders, 400);
     }
 
-    // Obtener el notion_page_id del canje
+    // Get notion_page_id from canje
     const { data: canje, error: canjeError } = await supabase
       .from('canjes')
       .select('notion_page_id')
@@ -140,49 +50,41 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (canjeError || !canje) {
-      return new Response(JSON.stringify({ error: 'Canje not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Canje not found', corsHeaders, 404);
     }
 
     if (!canje.notion_page_id) {
-      return new Response(JSON.stringify({
-        status: 'skipped',
-        reason: 'Canje not synced to Notion yet'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return skippedResponse('Canje not synced to Notion yet', corsHeaders);
     }
 
-    const success = await updateNotionPage(
-      canje.notion_page_id,
-      nuevo_estado,
-      fecha_entrega || null,
-      notionToken
-    );
+    // Map estado using centralized mapping (fixes the agendado bug!)
+    const estadoNotion = supabaseEstadoToNotion(nuevo_estado);
 
-    if (!success) {
-      return new Response(JSON.stringify({ error: 'Failed to update Notion' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Build properties to update
+    const properties: Record<string, unknown> = {
+      'Estado': {
+        select: { name: estadoNotion }
+      }
+    };
+
+    if (fecha_entrega) {
+      properties['Fecha Entrega'] = {
+        date: { start: fecha_entrega.split('T')[0] }
+      };
     }
 
-    return new Response(JSON.stringify({
-      status: 'success',
+    // Update Notion page
+    await updateNotionPage(canje.notion_page_id, properties, notionToken);
+
+    return successResponse({
       canje_id: canje_id,
       notion_page_id: canje.notion_page_id,
-      nuevo_estado: nuevo_estado
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      nuevo_estado: nuevo_estado,
+      estado_notion: estadoNotion
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error updating canje status in Notion:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(error.message, corsHeaders, 500);
   }
 });

@@ -1,238 +1,116 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleCors,
+  getCorsHeaders,
+  createSupabaseAdmin,
+  getNotionToken,
+  notionRequest,
+  getNotionPage,
+  queryNotionDatabase,
+  createNotionPage,
+  updateNotionPage,
+  extractNumber,
+  extractRelation,
+  extractTitle,
+  extractPhoneNumber,
+  extractEmail,
+  extractRichText,
+  handleNotionChallenge,
+  verifyWebhookSecret,
+  withRetry,
+  NOTION_DBS,
+  errorResponse,
+  successResponse,
+  skippedResponse,
+  type WebhookPayload,
+} from '../_shared/index.ts';
 
-// CORS con whitelist de orígenes permitidos
-const ALLOWED_ORIGINS = [
-  'https://recompensas.manny.mx',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://[::]:3000',
-  // Notion webhooks no envían origin, se permite sin origin para webhooks
-];
+// Operation tracking for partial failure recovery
+interface OperationResult {
+  step: string;
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
 
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  // Si no hay origin (webhook de Notion), usar el primer origen permitido
-  const allowedOrigin = !origin || ALLOWED_ORIGINS.includes(origin) ? (origin || ALLOWED_ORIGINS[0]) : ALLOWED_ORIGINS[0];
+// Track completed operations for logging/debugging
+const completedOps: OperationResult[] = [];
+
+// Ticket-specific extractors
+function extractTicketName(properties: Record<string, any>): string {
+  // Try different possible title field names
+  for (const fieldName of ['Ticket ', 'Ticket', 'title']) {
+    const field = properties[fieldName];
+    if (field?.title && field.title.length > 0) {
+      return field.title.map((t: any) => t.plain_text).join('') || 'Ticket';
+    }
+  }
+  return 'Ticket';
+}
+
+async function getContactoDetails(contactoId: string, notionToken: string) {
+  const page = await getNotionPage(contactoId, notionToken);
+  if (!page) throw new Error(`Contacto ${contactoId} not found`);
+
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    nombre: extractTitle(page.properties),
+    telefono: extractPhoneNumber(page.properties),
+    email: extractEmail(page.properties),
+    supabaseId: extractRichText(page.properties, 'Supabase ID'),
   };
 }
 
-const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
-const CONTACTOS_DB = '17ac6cfd-8c1e-8068-8bc0-d32488189164';
-
-interface NotionPage {
-  id: string;
-  properties: Record<string, any>;
-}
-
-async function notionRequest(endpoint: string, method: string, body: any, token: string) {
-  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error(`Notion API error: ${error}`);
-    throw new Error(`Notion API error: ${error}`);
-  }
-
-  return response.json();
-}
-
-function extractMonto(properties: any): number {
-  const montoField = properties['Monto'];
-  if (!montoField) return 0;
-  if (montoField.number !== undefined) return montoField.number;
-  if (montoField.formula?.number !== undefined) return montoField.formula.number;
-  if (montoField.rollup?.number !== undefined) return montoField.rollup.number;
-  return 0;
-}
-
-function extractContactoId(properties: any): string | null {
-  const contactoField = properties['Contacto'];
-  if (!contactoField?.relation || contactoField.relation.length === 0) return null;
-  return contactoField.relation[0].id;
-}
-
-function extractRewardsId(properties: any): string | null {
-  const rewardsField = properties['Rewards'];
-  if (!rewardsField?.relation || rewardsField.relation.length === 0) return null;
-  return rewardsField.relation[0].id;
-}
-
-function extractTicketName(properties: any): string {
-  const titleField = properties['Ticket '] || properties['Ticket'] || properties['title'];
-  if (!titleField?.title) return 'Ticket';
-  return titleField.title.map((t: any) => t.plain_text).join('') || 'Ticket';
-}
-
-async function findMannyRewardByContacto(contactoId: string, notionToken: string): Promise<string | null> {
-  const result = await notionRequest(`/databases/${MANNY_REWARDS_DB}/query`, 'POST', {
-    filter: {
-      property: 'Cliente',
-      relation: { contains: contactoId }
-    },
-    page_size: 1
-  }, notionToken);
-
-  if (result.results && result.results.length > 0) {
-    return result.results[0].id;
-  }
-  return null;
-}
-
-async function getContactoDetails(contactoId: string, notionToken: string): Promise<{ nombre: string; telefono: string | null; email: string | null; supabaseId: string | null }> {
-  const page = await notionRequest(`/pages/${contactoId}`, 'GET', null, notionToken);
-
-  // Extraer nombre
-  const titleField = page.properties[''] || page.properties['title'] || page.properties['Name'] || page.properties['Nombre'];
-  let nombre = 'Sin nombre';
-  if (titleField?.title && titleField.title.length > 0) {
-    nombre = titleField.title.map((t: any) => t.plain_text).join('');
-  }
-
-  // Extraer teléfono
-  const phoneField = page.properties['Teléfono'];
-  let telefono = null;
-  if (phoneField?.phone_number) {
-    telefono = phoneField.phone_number.replace(/\D/g, '');
-    if (telefono.startsWith('52') && telefono.length > 10) telefono = telefono.slice(2);
-    if (telefono.startsWith('1') && telefono.length > 10) telefono = telefono.slice(1);
-    if (telefono.length < 10) telefono = null;
-  }
-
-  // Extraer email
-  const emailField = page.properties['E-mail'];
-  const email = emailField?.email || null;
-
-  // Extraer Supabase ID si existe
-  const supabaseIdField = page.properties['Supabase ID'];
-  let supabaseId = null;
-  if (supabaseIdField?.rich_text?.[0]?.plain_text) {
-    supabaseId = supabaseIdField.rich_text[0].plain_text;
-  }
-
-  return { nombre, telefono, email, supabaseId };
-}
-
-async function updateContactoSupabaseId(contactoId: string, supabaseId: string, notionToken: string) {
-  await notionRequest(`/pages/${contactoId}`, 'PATCH', {
-    properties: {
-      'Supabase ID': { rich_text: [{ text: { content: supabaseId } }] }
-    }
-  }, notionToken);
-  console.log(`Updated Contacto ${contactoId} with Supabase ID ${supabaseId}`);
-}
-
-async function createMannyReward(contactoId: string, nombre: string, notionToken: string): Promise<string> {
-  const result = await notionRequest('/pages', 'POST', {
-    parent: { database_id: MANNY_REWARDS_DB },
-    properties: {
-      'Nombre': { title: [{ text: { content: nombre } }] },
-      'Cliente': { relation: [{ id: contactoId }] },
-      'Nivel': { select: { name: 'Partner' } },
-      'Puntos': { number: 0 }
-    }
-  }, notionToken);
-
-  console.log(`Created Manny Reward: ${result.id} for ${nombre}`);
-  return result.id;
-}
-
-async function linkTicketToReward(ticketId: string, rewardId: string, notionToken: string) {
-  await notionRequest(`/pages/${ticketId}`, 'PATCH', {
-    properties: {
-      'Rewards': { relation: [{ id: rewardId }] }
-    }
-  }, notionToken);
-  console.log(`Linked ticket ${ticketId} to reward ${rewardId}`);
-}
-
-async function updateRewardPoints(rewardId: string, notionToken: string): Promise<number> {
-  // Get the reward to read Monto Total rollup
-  const reward = await notionRequest(`/pages/${rewardId}`, 'GET', null, notionToken);
-  const montoTotal = reward.properties['Monto Total']?.rollup?.number || 0;
-  // 5% del monto total = puntos
-  const puntos = Math.round(montoTotal * 0.05);
-
-  // Update Puntos
-  await notionRequest(`/pages/${rewardId}`, 'PATCH', {
-    properties: {
-      'Puntos': { number: puntos }
-    }
-  }, notionToken);
-
-  console.log(`Updated reward ${rewardId}: Monto Total = ${montoTotal}, Puntos (5%) = ${puntos}`);
-  return puntos;
-}
-
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const notionToken = Deno.env.get('NOTION_TOKEN');
-
-    if (!notionToken) {
-      throw new Error('NOTION_TOKEN not configured');
+    // Verify webhook authenticity
+    if (!verifyWebhookSecret(req)) {
+      console.warn('Webhook verification failed');
+      return errorResponse('Unauthorized', corsHeaders, 401);
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const payload = await req.json();
+    const supabase = createSupabaseAdmin();
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const notionToken = getNotionToken();
 
+    const payload: WebhookPayload = await req.json();
     console.log('Ticket completed webhook:', JSON.stringify(payload, null, 2));
 
     // Handle Notion challenge
-    if (payload.challenge) {
-      return new Response(JSON.stringify({ challenge: payload.challenge }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const challengeResponse = handleNotionChallenge(payload, corsHeaders);
+    if (challengeResponse) return challengeResponse;
 
     // Extract ticket page ID
-    const ticketId = payload.data?.id || payload.id || payload.page_id;
+    const ticketId = payload.data?.id || payload.id || (payload as any).page_id;
     if (!ticketId) {
-      return new Response(JSON.stringify({ error: 'No ticket ID found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('No ticket ID found', corsHeaders, 400);
     }
 
     // Get ticket details
-    const ticket = await notionRequest(`/pages/${ticketId}`, 'GET', null, notionToken);
+    const ticket = await getNotionPage(ticketId, notionToken);
+    if (!ticket) {
+      return errorResponse('Ticket not found', corsHeaders, 404);
+    }
+
     const properties = ticket.properties;
     const ticketName = extractTicketName(properties);
-    const monto = extractMonto(properties);
-    const contactoId = extractContactoId(properties);
+    const monto = extractNumber(properties, 'Monto');
+    const contactoId = extractRelation(properties, 'Contacto');
     const esMannyReward = properties['Manny Rewards']?.checkbox || false;
 
     console.log(`Ticket: ${ticketName}, Monto: ${monto}, Contacto: ${contactoId}, Es Manny Reward: ${esMannyReward}`);
 
     if (!contactoId) {
-      return new Response(JSON.stringify({
-        status: 'skipped',
-        reason: 'No contacto linked to ticket'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return skippedResponse('No contacto linked to ticket', corsHeaders);
     }
 
-    // Check if already processed (idempotency)
+    // Check idempotency
     const { data: existingEvent } = await supabase
       .from('ticket_events')
       .select('id')
@@ -243,48 +121,73 @@ Deno.serve(async (req: Request) => {
 
     if (existingEvent) {
       console.log('Ticket already processed');
-      return new Response(JSON.stringify({ status: 'skipped', reason: 'already processed' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return skippedResponse('already processed', corsHeaders);
     }
 
-    // Find or create Manny Reward
-    let rewardId = extractRewardsId(properties);
+    // Find or create Manny Reward (with retry)
+    let rewardId = extractRelation(properties, 'Rewards');
 
     if (!rewardId) {
       // Try to find existing reward by contacto
-      rewardId = await findMannyRewardByContacto(contactoId, notionToken);
+      rewardId = await withRetry(async () => {
+        const rewards = await queryNotionDatabase(
+          NOTION_DBS.MANNY_REWARDS,
+          { property: 'Cliente', relation: { contains: contactoId } },
+          notionToken,
+          1
+        );
 
-      if (!rewardId) {
+        if (rewards.length > 0) {
+          return rewards[0].id;
+        }
+
         // Create new Manny Reward
         const { nombre } = await getContactoDetails(contactoId, notionToken);
-        rewardId = await createMannyReward(contactoId, nombre, notionToken);
-      }
+        const rewardPage = await createNotionPage(NOTION_DBS.MANNY_REWARDS, {
+          'Nombre': { title: [{ text: { content: nombre } }] },
+          'Cliente': { relation: [{ id: contactoId }] },
+          'Nivel': { select: { name: 'Partner' } },
+          'Puntos': { number: 0 }
+        }, notionToken);
+        console.log(`Created Manny Reward: ${rewardPage.id}`);
+        return rewardPage.id;
+      }, { maxAttempts: 3 });
 
-      // Link ticket to reward
-      await linkTicketToReward(ticketId, rewardId, notionToken);
+      // Link ticket to reward (with retry)
+      await withRetry(async () => {
+        await updateNotionPage(ticketId, {
+          'Rewards': { relation: [{ id: rewardId }] }
+        }, notionToken);
+        console.log(`Linked ticket ${ticketId} to reward ${rewardId}`);
+      }, { maxAttempts: 2 });
     }
 
-    // Small delay to let Notion update the rollup
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for Notion rollup to update, with polling instead of fixed delay
+    let montoTotal = 0;
+    let puntos = 0;
 
-    // Update points based on new Monto Total
-    const puntos = await updateRewardPoints(rewardId, notionToken);
+    await withRetry(async () => {
+      const reward = await getNotionPage(rewardId, notionToken);
+      montoTotal = reward?.properties['Monto Total']?.rollup?.number || 0;
+      puntos = Math.round(montoTotal * 0.05);
 
-    // Record event to prevent duplicates
-    await supabase.from('ticket_events').insert({
-      source: 'notion',
-      source_id: ticketId,
-      event_type: 'ticket_completed',
-      payload: {
-        ticket_name: ticketName,
-        monto,
-        contacto_id: contactoId,
-        reward_id: rewardId,
-        puntos
-      },
-      status: 'processed'
-    });
+      await updateNotionPage(rewardId, {
+        'Puntos': { number: puntos }
+      }, notionToken);
+      console.log(`Updated reward ${rewardId}: Monto Total = ${montoTotal}, Puntos (5%) = ${puntos}`);
+    }, { maxAttempts: 3, baseDelayMs: 800 });
+
+    // Record event to prevent duplicates (with retry)
+    await withRetry(async () => {
+      const { error } = await supabase.from('ticket_events').insert({
+        source: 'notion',
+        source_id: ticketId,
+        event_type: 'ticket_completed',
+        payload: { ticket_name: ticketName, monto, contacto_id: contactoId, reward_id: rewardId, puntos },
+        status: 'processed'
+      });
+      if (error) throw error;
+    }, { maxAttempts: 2 });
 
     // Get contact details and find/create Supabase client
     const { nombre, telefono, email, supabaseId } = await getContactoDetails(contactoId, notionToken);
@@ -293,101 +196,111 @@ Deno.serve(async (req: Request) => {
     let clienteCreated = false;
 
     if (telefono) {
-      // Try to find client by Supabase ID first, then by phone
-      let cliente;
+      // Try to find client by Supabase ID first, then by phone (with retry)
+      let cliente = await withRetry(async () => {
+        if (supabaseId) {
+          const { data, error } = await supabase
+            .from('clientes')
+            .select('id, puntos_actuales, notion_page_id')
+            .eq('id', supabaseId)
+            .single();
+          if (data) return data;
+        }
 
-      if (supabaseId) {
-        const { data } = await supabase
-          .from('clientes')
-          .select('id, puntos_actuales, notion_page_id')
-          .eq('id', supabaseId)
-          .single();
-        cliente = data;
-      }
-
-      if (!cliente) {
         const { data } = await supabase
           .from('clientes')
           .select('id, puntos_actuales, notion_page_id')
           .eq('telefono', telefono)
           .single();
-        cliente = data;
-      }
+        return data;
+      }, { maxAttempts: 2 });
 
       if (!cliente) {
-        // Create new client in Supabase
-        const { data: newCliente, error: insertError } = await supabase
-          .from('clientes')
-          .insert({
-            nombre: nombre,
-            telefono: telefono,
-            puntos_actuales: 0,
-            nivel: 'partner',
-            es_admin: false,
-            notion_page_id: contactoId,
-            notion_reward_id: rewardId,
-            last_sync_at: new Date().toISOString()
-          })
-          .select()
-          .single();
+        // Create new client in Supabase (with retry)
+        const newCliente = await withRetry(async () => {
+          const { data, error } = await supabase
+            .from('clientes')
+            .insert({
+              nombre,
+              telefono,
+              puntos_actuales: 0,
+              nivel: 'partner',
+              es_admin: false,
+              notion_page_id: contactoId,
+              notion_reward_id: rewardId,
+              last_sync_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-        if (!insertError && newCliente) {
+          if (error) throw error;
+          return data;
+        }, { maxAttempts: 2 });
+
+        if (newCliente) {
           cliente = newCliente;
           clienteCreated = true;
           console.log(`Created new client in Supabase: ${newCliente.id}`);
 
-          // Update Notion Contacto with Supabase ID
-          await updateContactoSupabaseId(contactoId, newCliente.id, notionToken);
+          // Update Notion Contacto with Supabase ID (fire and forget with retry)
+          withRetry(async () => {
+            await updateNotionPage(contactoId, {
+              'Supabase ID': { rich_text: [{ text: { content: newCliente.id } }] }
+            }, notionToken);
+          }, { maxAttempts: 2 }).catch(e => console.warn('Failed to update Notion with Supabase ID:', e));
         }
       } else {
         // Update existing client with Notion references if missing
-        const updates: any = { last_sync_at: new Date().toISOString() };
+        const updates: Record<string, unknown> = { last_sync_at: new Date().toISOString() };
         if (!cliente.notion_page_id) updates.notion_page_id = contactoId;
 
-        await supabase
-          .from('clientes')
-          .update(updates)
-          .eq('id', cliente.id);
+        await withRetry(async () => {
+          const { error } = await supabase.from('clientes').update(updates).eq('id', cliente.id);
+          if (error) throw error;
+        }, { maxAttempts: 2 });
 
-        // Update Notion Contacto with Supabase ID if not set
+        // Update Notion Contacto with Supabase ID if not set (fire and forget)
         if (!supabaseId) {
-          await updateContactoSupabaseId(contactoId, cliente.id, notionToken);
+          withRetry(async () => {
+            await updateNotionPage(contactoId, {
+              'Supabase ID': { rich_text: [{ text: { content: cliente.id } }] }
+            }, notionToken);
+          }, { maxAttempts: 2 }).catch(e => console.warn('Failed to update Notion with Supabase ID:', e));
         }
       }
 
       if (cliente) {
         clienteId = cliente.id;
 
-        // Solo acumular puntos si NO es un ticket de Manny Rewards (canje)
+        // Only accumulate points if NOT a Manny Rewards ticket (canje)
         if (!esMannyReward) {
-          // Calculate points for this ticket only (for Supabase) - 5% del monto
           const puntosTicket = Math.round(monto * 0.05);
 
           if (puntosTicket > 0) {
-            await supabase.rpc('asignar_puntos_atomico', {
-              p_cliente_telefono: telefono,
-              p_puntos_a_sumar: puntosTicket,
-              p_concepto: `Ticket completado: ${ticketName} - $${monto} (5%)`
-            });
-
-            // Send push notification
-            try {
-              await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({
-                  tipo: 'puntos_recibidos',
-                  cliente_id: cliente.id,
-                  data: { puntos: puntosTicket, concepto: ticketName },
-                  url: '/dashboard'
-                }),
+            // Asignar puntos with retry (critical operation)
+            await withRetry(async () => {
+              const { error } = await supabase.rpc('asignar_puntos_atomico', {
+                p_cliente_telefono: telefono,
+                p_puntos_a_sumar: puntosTicket,
+                p_concepto: `Ticket completado: ${ticketName} - $${monto} (5%)`
               });
-            } catch (e) {
-              console.warn('Push notification failed:', e);
-            }
+              if (error) throw error;
+            }, { maxAttempts: 3 });
+
+            // Send push notification (fire and forget)
+            fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                tipo: 'puntos_recibidos',
+                cliente_id: cliente.id,
+                data: { puntos: puntosTicket, concepto: ticketName },
+                url: '/dashboard'
+              }),
+            }).catch(e => console.warn('Push notification failed:', e));
           }
         } else {
           console.log(`Ticket ${ticketId} es Manny Reward - NO se acumulan puntos`);
@@ -395,8 +308,64 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({
-      status: 'success',
+    // Check if this ticket is linked to a beneficio_cliente and mark it as used
+    let beneficioUsado = false;
+    if (esMannyReward) {
+      // Check beneficios_cliente table (with retry)
+      const beneficio = await withRetry(async () => {
+        const { data } = await supabase
+          .from('beneficios_cliente')
+          .select('id, estado')
+          .eq('notion_ticket_id', ticketId)
+          .eq('estado', 'activo')
+          .single();
+        return data;
+      }, { maxAttempts: 2 });
+
+      if (beneficio) {
+        await withRetry(async () => {
+          const { error } = await supabase
+            .from('beneficios_cliente')
+            .update({
+              estado: 'usado',
+              fecha_uso: new Date().toISOString()
+            })
+            .eq('id', beneficio.id);
+          if (error) throw error;
+        }, { maxAttempts: 2 });
+
+        beneficioUsado = true;
+        console.log(`Marked beneficio ${beneficio.id} as used`);
+      }
+
+      // Also check canjes table for service canjes (with retry)
+      const canje = await withRetry(async () => {
+        const { data } = await supabase
+          .from('canjes')
+          .select('id, estado')
+          .eq('notion_ticket_id', ticketId)
+          .in('estado', ['guardado', 'en_lista', 'agendado'])
+          .single();
+        return data;
+      }, { maxAttempts: 2 });
+
+      if (canje) {
+        await withRetry(async () => {
+          const { error } = await supabase
+            .from('canjes')
+            .update({
+              estado: 'completado',
+              fecha_entrega: new Date().toISOString()
+            })
+            .eq('id', canje.id);
+          if (error) throw error;
+        }, { maxAttempts: 2 });
+
+        console.log(`Marked canje ${canje.id} as completado`);
+      }
+    }
+
+    return successResponse({
       ticket_id: ticketId,
       ticket_name: ticketName,
       monto,
@@ -404,16 +373,12 @@ Deno.serve(async (req: Request) => {
       puntos_totales: puntos,
       cliente_id: clienteId,
       cliente_created: clienteCreated,
-      contacto_id: contactoId
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      contacto_id: contactoId,
+      beneficio_usado: beneficioUsado
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(error.message, corsHeaders, 500);
   }
 });

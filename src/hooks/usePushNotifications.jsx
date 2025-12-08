@@ -162,16 +162,19 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
   // Check browser support and existing subscription on mount
   useEffect(() => {
+    let cancelled = false;
+
     const checkSupport = () => {
       const supported =
         'Notification' in window &&
         'serviceWorker' in navigator &&
         'PushManager' in window;
 
-      setIsSupported(supported);
-
-      if (supported) {
-        setPermission(Notification.permission);
+      if (!cancelled) {
+        setIsSupported(supported);
+        if (supported) {
+          setPermission(Notification.permission);
+        }
       }
 
       return supported;
@@ -180,8 +183,10 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
     const checkExistingSubscription = async () => {
       try {
         const registration = await waitForServiceWorker(SUBSCRIPTION_CHECK_TIMEOUT);
+        if (cancelled) return;
+
         const existingSub = await registration.pushManager.getSubscription();
-        if (existingSub) {
+        if (existingSub && !cancelled) {
           setSubscription(existingSub);
           subscriptionRef.current = existingSub;
         }
@@ -197,7 +202,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
     // Listen for subscription changes from service worker
     const handleMessage = (event) => {
-      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED' && !cancelled) {
         setSubscription(event.data.subscription);
         subscriptionRef.current = event.data.subscription;
         // Reset sync state so we re-sync with new subscription
@@ -207,16 +212,27 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
     navigator.serviceWorker?.addEventListener('message', handleMessage);
     return () => {
+      cancelled = true;
       navigator.serviceWorker?.removeEventListener('message', handleMessage);
     };
   }, []);
 
   // Sync subscription when clienteId becomes available or changes
   useEffect(() => {
-    const currentSub = subscriptionRef.current || subscription;
-    if (currentSub && clienteId && permission === 'granted') {
-      syncSubscriptionWithDB(currentSub, clienteId, isAdmin);
-    }
+    let cancelled = false;
+
+    const doSync = async () => {
+      const currentSub = subscriptionRef.current || subscription;
+      if (currentSub && clienteId && permission === 'granted' && !cancelled) {
+        await syncSubscriptionWithDB(currentSub, clienteId, isAdmin);
+      }
+    };
+
+    doSync();
+
+    return () => {
+      cancelled = true;
+    };
   }, [clienteId, subscription, permission, isAdmin, syncSubscriptionWithDB]);
 
   /**

@@ -1,187 +1,107 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-// CORS with whitelist
-const ALLOWED_ORIGINS = [
-  'https://recompensas.manny.mx',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://[::]:3000',
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
-
-const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
-
-interface NotionPage {
-  id: string;
-  properties: Record<string, any>;
-}
-
-async function notionRequest(endpoint: string, method: string, body: any, token: string) {
-  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Notion API error: ${error}`);
-  }
-
-  return response.json();
-}
-
-async function getTicketDetails(ticketId: string, notionToken: string): Promise<NotionPage> {
-  return await notionRequest(`/pages/${ticketId}`, 'GET', null, notionToken);
-}
-
-async function getRewardByRelation(ticketId: string, notionToken: string): Promise<string | null> {
-  // Get the ticket to find its Rewards relation
-  const ticket = await getTicketDetails(ticketId, notionToken);
-  const rewardsRelation = ticket.properties['Rewards']?.relation;
-
-  if (rewardsRelation && rewardsRelation.length > 0) {
-    return rewardsRelation[0].id;
-  }
-
-  // If no direct Rewards relation, try to find via Contacto
-  const contactoRelation = ticket.properties['Contacto']?.relation;
-  if (!contactoRelation || contactoRelation.length === 0) {
-    return null;
-  }
-
-  const contactoId = contactoRelation[0].id;
-
-  // Find the Manny Reward linked to this Contacto
-  const searchResult = await notionRequest('/databases/' + MANNY_REWARDS_DB + '/query', 'POST', {
-    filter: {
-      property: 'Cliente',
-      relation: {
-        contains: contactoId
-      }
-    },
-    page_size: 1
-  }, notionToken);
-
-  if (searchResult.results && searchResult.results.length > 0) {
-    return searchResult.results[0].id;
-  }
-
-  return null;
-}
-
-async function calculateTotalPoints(rewardId: string, notionToken: string): Promise<number> {
-  // Get the Manny Reward page to read the Monto Total rollup
-  const reward = await notionRequest(`/pages/${rewardId}`, 'GET', null, notionToken);
-
-  // Monto Total is a rollup that sums all linked ticket amounts
-  const montoTotal = reward.properties['Monto Total']?.rollup?.number || 0;
-
-  // Calculate points: 5% del monto total
-  const puntos = Math.round(montoTotal * 0.05);
-
-  return puntos;
-}
-
-async function updateRewardPoints(rewardId: string, puntos: number, notionToken: string) {
-  await notionRequest(`/pages/${rewardId}`, 'PATCH', {
-    properties: {
-      'Puntos': {
-        number: puntos
-      }
-    }
-  }, notionToken);
-}
+import {
+  handleCors,
+  getCorsHeaders,
+  getNotionToken,
+  getNotionPage,
+  queryNotionDatabase,
+  updateNotionPage,
+  extractRelation,
+  verifyWebhookSecret,
+  NOTION_DBS,
+  errorResponse,
+  successResponse,
+  skippedResponse,
+} from '../_shared/index.ts';
 
 // NOTE: This function is called by Notion Automations, not by frontend
-// No user auth required, but CORS is restricted
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const notionToken = Deno.env.get('NOTION_TOKEN');
-    if (!notionToken) {
-      throw new Error('NOTION_TOKEN not configured');
+    // Verify webhook authenticity for Notion automations
+    if (!verifyWebhookSecret(req)) {
+      console.warn('Webhook verification failed');
+      return errorResponse('Unauthorized', corsHeaders, 401);
     }
 
+    const notionToken = getNotionToken();
     const payload = await req.json();
     console.log('Received payload:', JSON.stringify(payload, null, 2));
 
-    // Handle Notion automation payload
-    // Notion Automations send: { data: { id: "page-id" } } or { page_id: "..." }
+    // Handle Notion automation payload formats
     let ticketId = payload.data?.id || payload.page_id || payload.id || payload.ticket_id;
-
-    // Also accept reward_id directly for manual updates
     let rewardId = payload.reward_id;
 
     if (!ticketId && !rewardId) {
-      return new Response(JSON.stringify({
-        error: 'Missing ticket_id or reward_id'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Missing ticket_id or reward_id', corsHeaders, 400);
     }
 
     // If we have a ticket ID, find the associated reward
     if (ticketId && !rewardId) {
       console.log(`Finding reward for ticket: ${ticketId}`);
-      rewardId = await getRewardByRelation(ticketId, notionToken);
+
+      const ticket = await getNotionPage(ticketId, notionToken);
+      if (!ticket) {
+        return skippedResponse('Ticket not found', corsHeaders);
+      }
+
+      // Check direct Rewards relation
+      rewardId = extractRelation(ticket.properties, 'Rewards');
 
       if (!rewardId) {
-        console.log('No reward found for this ticket');
-        return new Response(JSON.stringify({
-          status: 'skipped',
-          reason: 'No Manny Reward associated with this ticket'
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        // Try to find via Contacto relation
+        const contactoId = extractRelation(ticket.properties, 'Contacto');
+        if (contactoId) {
+          const rewards = await queryNotionDatabase(
+            NOTION_DBS.MANNY_REWARDS,
+            { property: 'Cliente', relation: { contains: contactoId } },
+            notionToken,
+            1
+          );
+          if (rewards.length > 0) {
+            rewardId = rewards[0].id;
+          }
+        }
+      }
+
+      if (!rewardId) {
+        return skippedResponse('No Manny Reward associated with this ticket', corsHeaders);
       }
     }
 
     console.log(`Calculating points for reward: ${rewardId}`);
 
-    // Calculate total points from all linked tickets
-    const puntos = await calculateTotalPoints(rewardId, notionToken);
+    // Get the Manny Reward page to read the Monto Total rollup
+    const reward = await getNotionPage(rewardId!, notionToken);
+    if (!reward) {
+      return errorResponse('Reward not found', corsHeaders, 404);
+    }
+
+    const montoTotal = reward.properties['Monto Total']?.rollup?.number || 0;
+    const puntos = Math.round(montoTotal * 0.05);
 
     console.log(`Calculated points: ${puntos}`);
 
     // Update the Puntos field
-    await updateRewardPoints(rewardId, puntos, notionToken);
+    await updateNotionPage(rewardId!, {
+      'Puntos': { number: puntos }
+    }, notionToken);
 
     console.log(`Updated reward ${rewardId} with ${puntos} points`);
 
-    return new Response(JSON.stringify({
-      status: 'success',
+    return successResponse({
       reward_id: rewardId,
-      puntos: puntos,
+      puntos,
       ticket_id: ticketId
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(error.message, corsHeaders, 500);
   }
 });

@@ -1,140 +1,67 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface NotionPage {
-  id: string;
-  properties: {
-    [key: string]: any;
-  };
-}
-
-function mapNotionEstadoToSupabase(notionEstado: string): string | null {
-  const mapping: Record<string, string> = {
-    'Pendiente Entrega': 'pendiente_entrega',
-    'En Proceso': 'en_lista',
-    'Entregado': 'entregado',
-    'Completado': 'completado'
-  };
-  return mapping[notionEstado] || null;
-}
-
-function extractEstado(properties: any): string | null {
-  const estadoField = properties['Estado'];
-  if (!estadoField) return null;
-
-  if (estadoField.select?.name) return estadoField.select.name;
-  if (estadoField.status?.name) return estadoField.status.name;
-
-  return null;
-}
-
-function extractSupabaseId(properties: any): string | null {
-  const supabaseIdField = properties['Supabase ID'];
-  if (!supabaseIdField || !supabaseIdField.rich_text) return null;
-
-  return supabaseIdField.rich_text.map((t: any) => t.plain_text).join('') || null;
-}
-
-function extractFechaEntrega(properties: any): string | null {
-  const fechaField = properties['Fecha Entrega'];
-  if (!fechaField || !fechaField.date) return null;
-
-  return fechaField.date.start || null;
-}
-
-async function getPageFromNotion(pageId: string, notionToken: string): Promise<NotionPage | null> {
-  const response = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
-    headers: {
-      'Authorization': `Bearer ${notionToken}`,
-      'Notion-Version': '2022-06-28',
-    },
-  });
-
-  if (!response.ok) {
-    console.error('Failed to fetch page from Notion:', await response.text());
-    return null;
-  }
-
-  return await response.json();
-}
+import {
+  handleCors,
+  getCorsHeaders,
+  createSupabaseAdmin,
+  getNotionToken,
+  notionEstadoToSupabase,
+  extractWebhookPage,
+  extractSelect,
+  extractRichText,
+  extractDate,
+  handleNotionChallenge,
+  verifyWebhookSecret,
+  jsonResponse,
+  errorResponse,
+  skippedResponse,
+  successResponse,
+  type WebhookPayload,
+} from '../_shared/index.ts';
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  // Handle CORS
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const notionToken = Deno.env.get('NOTION_TOKEN');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Verify webhook authenticity
+    if (!verifyWebhookSecret(req)) {
+      console.warn('Webhook verification failed');
+      return errorResponse('Unauthorized', corsHeaders, 401);
+    }
 
-    const payload = await req.json();
+    const supabase = createSupabaseAdmin();
+    const notionToken = getNotionToken();
+
+    const payload: WebhookPayload = await req.json();
     console.log('Canje status webhook received:', JSON.stringify(payload, null, 2));
 
-    // Notion webhook verification
-    if (payload.challenge) {
-      return new Response(JSON.stringify({ challenge: payload.challenge }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Handle Notion challenge
+    const challengeResponse = handleNotionChallenge(payload, corsHeaders);
+    if (challengeResponse) return challengeResponse;
+
+    // Extract page from payload
+    const extracted = await extractWebhookPage(payload, notionToken);
+    if (!extracted) {
+      return errorResponse('Could not extract page from payload', corsHeaders, 400);
     }
 
-    let page: NotionPage | null = null;
-    let canjeNotionPageId: string | null = null;
+    const { pageId: canjeNotionPageId, page } = extracted;
+    const properties = page.properties;
 
-    // Extraer página de diferentes estructuras de payload
-    if (payload.data?.properties) {
-      page = payload.data;
-      canjeNotionPageId = page.id;
-    } else if (payload.properties) {
-      page = payload;
-      canjeNotionPageId = page.id;
-    } else if (payload.page?.properties) {
-      page = payload.page;
-      canjeNotionPageId = page.id;
-    } else {
-      // Notion Automations envía solo el page_id
-      canjeNotionPageId = payload.data?.id || payload.id || payload.page_id || payload.page?.id;
-
-      if (canjeNotionPageId && notionToken) {
-        console.log('Fetching canje page from Notion API...');
-        page = await getPageFromNotion(canjeNotionPageId, notionToken);
-
-        if (!page) {
-          return new Response(JSON.stringify({
-            status: 'error',
-            reason: 'failed to fetch page from Notion',
-            page_id: canjeNotionPageId
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        return new Response(JSON.stringify({
-          status: 'error',
-          reason: 'could not extract page_id from payload'
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    const properties = page!.properties;
-    const notionEstado = extractEstado(properties);
-    const supabaseId = extractSupabaseId(properties);
-    const fechaEntrega = extractFechaEntrega(properties);
+    const notionEstado = extractSelect(properties, 'Estado');
+    const supabaseId = extractRichText(properties, 'Supabase ID');
+    const fechaEntrega = extractDate(properties, 'Fecha Entrega');
 
     console.log(`Canje Notion ID: ${canjeNotionPageId}, Supabase ID: ${supabaseId}, Estado: ${notionEstado}, Fecha Entrega: ${fechaEntrega}`);
 
-    if (!supabaseId) {
-      // Buscar por notion_page_id
+    // Find canje in Supabase
+    let canjeId = supabaseId;
+
+    if (!canjeId) {
       const { data: canje } = await supabase
         .from('canjes')
         .select('id')
@@ -142,30 +69,20 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (!canje) {
-        return new Response(JSON.stringify({
-          status: 'skipped',
-          reason: 'canje not found in Supabase'
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return skippedResponse('canje not found in Supabase', corsHeaders);
       }
+      canjeId = canje.id;
     }
 
-    const canjeId = supabaseId;
-    const supabaseEstado = notionEstado ? mapNotionEstadoToSupabase(notionEstado) : null;
+    // Map estado
+    const supabaseEstado = notionEstado ? notionEstadoToSupabase(notionEstado) : null;
 
     if (!supabaseEstado) {
-      return new Response(JSON.stringify({
-        status: 'skipped',
-        reason: 'unknown estado',
-        notion_estado: notionEstado
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return skippedResponse('unknown estado', corsHeaders, { notion_estado: notionEstado });
     }
 
-    // Actualizar el canje en Supabase
-    const updateData: any = { estado: supabaseEstado };
+    // Update canje in Supabase
+    const updateData: Record<string, unknown> = { estado: supabaseEstado };
     if (fechaEntrega) {
       updateData.fecha_entrega = fechaEntrega;
     }
@@ -177,30 +94,17 @@ Deno.serve(async (req: Request) => {
 
     if (updateError) {
       console.error('Error updating canje:', updateError);
-      return new Response(JSON.stringify({
-        status: 'error',
-        reason: 'failed to update canje',
-        error: updateError.message
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse(`Failed to update canje: ${updateError.message}`, corsHeaders, 500);
     }
 
-    return new Response(JSON.stringify({
-      status: 'success',
+    return successResponse({
       canje_id: canjeId,
       nuevo_estado: supabaseEstado,
       fecha_entrega: fechaEntrega
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error processing canje webhook:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(error.message, corsHeaders, 500);
   }
 });

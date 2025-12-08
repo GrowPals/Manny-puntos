@@ -181,97 +181,14 @@ export const getTiposTrabajoDisponibles = async () => {
 };
 
 // ESTADÍSTICAS DEL DASHBOARD
+// Usa RPC para calcular estadísticas en el servidor, no en el browser
 export const getDashboardStats = async () => {
-    // Obtener todos los datos necesarios en paralelo
-    const [
-        { data: clientes },
-        { data: canjes },
-        { data: historialServicios },
-        { data: productos }
-    ] = await Promise.all([
-        supabase.from('clientes').select('id, puntos_actuales, nivel, es_admin, created_at'),
-        supabase.from('canjes').select('id, created_at, puntos_usados, estado, producto_id, productos(tipo)'),
-        supabase.from('historial_servicios').select('id, fecha_servicio, monto, puntos_generados, tipo_trabajo'),
-        supabase.from('productos').select('id, tipo, activo')
-    ]);
+    const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-    const clientesActivos = clientes?.filter(c => !c.es_admin) || [];
-    const totalPuntos = clientesActivos.reduce((sum, c) => sum + (Number(c.puntos_actuales) || 0), 0);
-
-    // Estadísticas de niveles de cliente
-    const niveles = {
-        normal: clientesActivos.filter(c => c.nivel === 'normal' || !c.nivel).length,
-        partner: clientesActivos.filter(c => c.nivel === 'partner').length,
-        vip: clientesActivos.filter(c => c.nivel === 'vip').length
-    };
-
-    // Estadísticas de canjes por estado
-    const canjesStats = {
-        total: canjes?.length || 0,
-        pendientes: canjes?.filter(c => c.estado === 'pendiente_entrega' || c.estado === 'en_lista').length || 0,
-        entregados: canjes?.filter(c => c.estado === 'entregado').length || 0,
-        puntosCanjeados: canjes?.reduce((sum, c) => sum + (Number(c.puntos_usados) || 0), 0) || 0
-    };
-
-    // Canjes por tipo de producto
-    const canjesPorTipo = {};
-    canjes?.forEach(c => {
-        const tipo = c.productos?.tipo || 'Otro';
-        canjesPorTipo[tipo] = (canjesPorTipo[tipo] || 0) + 1;
-    });
-
-    // Ingresos y servicios por mes (últimos 6 meses)
-    const hoy = new Date();
-    const serviciosPorMes = [];
-    for (let i = 5; i >= 0; i--) {
-        const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-        const mesAnio = fecha.toLocaleDateString('es-MX', { month: 'short', year: '2-digit' });
-        const inicioMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
-        const finMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0, 23, 59, 59);
-
-        const serviciosMes = historialServicios?.filter(s => {
-            const fechaServicio = new Date(s.fecha_servicio);
-            return fechaServicio >= inicioMes && fechaServicio <= finMes;
-        }) || [];
-
-        serviciosPorMes.push({
-            mes: mesAnio,
-            servicios: serviciosMes.length,
-            ingresos: serviciosMes.reduce((sum, s) => sum + (Number(s.monto) || 0), 0),
-            puntos: serviciosMes.reduce((sum, s) => sum + (Number(s.puntos_generados) || 0), 0)
-        });
+    if (error) {
+        logger.error('Error obteniendo estadísticas del dashboard', { error: error.message });
+        throw new Error(ERROR_MESSAGES.ADMIN.STATS_ERROR || 'Error al cargar estadísticas');
     }
 
-    // Servicios por tipo de trabajo
-    const serviciosPorTipo = {};
-    historialServicios?.forEach(s => {
-        const tipo = s.tipo_trabajo || 'Sin categoría';
-        serviciosPorTipo[tipo] = (serviciosPorTipo[tipo] || 0) + 1;
-    });
-
-    // Total ingresos
-    const totalIngresos = historialServicios?.reduce((sum, s) => sum + (Number(s.monto) || 0), 0) || 0;
-    const totalServicios = historialServicios?.length || 0;
-
-    // Nuevos clientes este mes
-    const inicioMesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    const clientesNuevosMes = clientesActivos.filter(c =>
-        new Date(c.created_at) >= inicioMesActual
-    ).length;
-
-    return {
-        resumen: {
-            totalClientes: clientesActivos.length,
-            totalPuntos,
-            clientesNuevosMes,
-            totalIngresos,
-            totalServicios
-        },
-        niveles,
-        canjesStats,
-        canjesPorTipo: Object.entries(canjesPorTipo).map(([tipo, cantidad]) => ({ tipo, cantidad })),
-        serviciosPorMes,
-        serviciosPorTipo: Object.entries(serviciosPorTipo).map(([tipo, cantidad]) => ({ tipo, cantidad })),
-        productosActivos: productos?.filter(p => p.activo).length || 0
-    };
+    return data;
 };

@@ -19,6 +19,9 @@ export const EventType = {
 
   // Gift events - used
   GIFT_CLAIMED: 'gift.claimed',
+
+  // Push notification events - used in notifications.js
+  PUSH_NOTIFICATION: 'push.notification',
 };
 
 /**

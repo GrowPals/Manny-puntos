@@ -1,88 +1,49 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  handleCors,
+  getCorsHeaders,
+  createSupabaseAdmin,
+  getNotionToken,
+  verifyAuth,
+  notionRequest,
+  updateNotionPage,
+  NOTION_DBS,
+  errorResponse,
+  jsonResponse,
+} from '../_shared/index.ts';
 
-// CORS with whitelist
-const ALLOWED_ORIGINS = [
-  'https://recompensas.manny.mx',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://[::]:3000',
-];
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
-
-const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
-
-async function notionRequest(endpoint: string, method: string, body: any, token: string) {
-  const response = await fetch(`https://api.notion.com/v1${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Notion API error: ${error}`);
-  }
-
-  return response.json();
-}
-
-async function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Admin-only function for batch point sync
+/**
+ * Admin-only function for batch point sync in Notion.
+ *
+ * IMPORTANT: This function ONLY updates the "Puntos" field in Notion's Manny Rewards database.
+ * It does NOT update Supabase's puntos_actuales - that's handled by:
+ * - notion-ticket-completed webhook (asignar_puntos_atomico RPC)
+ * - Direct RPC calls from the app
+ *
+ * This ensures NO double counting:
+ * - Notion Puntos = calculated from "Monto Total" rollup (5%)
+ * - Supabase puntos_actuales = accumulated via atomic RPC on each ticket completion
+ *
+ * Use cases:
+ * - Fix discrepancies in Notion's Puntos field after manual ticket edits
+ * - Recalculate after bulk imports
+ * - Always run with dry_run=true first!
+ */
 Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const notionToken = Deno.env.get('NOTION_TOKEN');
+    const supabase = createSupabaseAdmin();
+    const notionToken = getNotionToken();
 
-    if (!notionToken) {
-      throw new Error('NOTION_TOKEN not configured');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Validate caller is admin
-    const callerClienteId = req.headers.get('x-cliente-id');
-    if (!callerClienteId) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const { data: caller, error: callerError } = await supabase
-      .from('clientes')
-      .select('id, es_admin')
-      .eq('id', callerClienteId)
-      .single();
-
-    if (callerError || !caller || !caller.es_admin) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Require admin auth
+    const auth = await verifyAuth(req, supabase, true);
+    if (!auth.success) {
+      return errorResponse(auth.error!, corsHeaders, auth.statusCode!);
     }
 
     const payload = await req.json().catch(() => ({}));
@@ -92,20 +53,24 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Syncing points - limit: ${limit}, dry_run: ${dryRun}`);
 
-    // Get all Manny Rewards
-    const queryBody: any = { page_size: Math.min(limit, 100) };
+    // Query Manny Rewards database
+    const queryBody: Record<string, unknown> = { page_size: Math.min(limit, 100) };
     if (startCursor) {
       queryBody.start_cursor = startCursor;
     }
 
-    const rewardsResponse = await notionRequest(
-      `/databases/${MANNY_REWARDS_DB}/query`,
+    const rewardsResponse = await notionRequest<{
+      results: Array<{ id: string; properties: Record<string, any> }>;
+      has_more: boolean;
+      next_cursor: string | null;
+    }>(
+      `/databases/${NOTION_DBS.MANNY_REWARDS}/query`,
       'POST',
       queryBody,
       notionToken
     );
 
-    const results: any[] = [];
+    const results: Array<Record<string, unknown>> = [];
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -115,7 +80,6 @@ Deno.serve(async (req: Request) => {
       const nombre = reward.properties['Nombre']?.title?.[0]?.plain_text || 'Sin nombre';
       const montoTotal = reward.properties['Monto Total']?.rollup?.number || 0;
       const currentPuntos = reward.properties['Puntos']?.number || 0;
-      // 5% del monto total
       const calculatedPuntos = Math.round(montoTotal * 0.05);
 
       if (currentPuntos === calculatedPuntos) {
@@ -139,10 +103,8 @@ Deno.serve(async (req: Request) => {
         updated++;
       } else {
         try {
-          await notionRequest(`/pages/${rewardId}`, 'PATCH', {
-            properties: {
-              'Puntos': { number: calculatedPuntos }
-            }
+          await updateNotionPage(rewardId, {
+            'Puntos': { number: calculatedPuntos }
           }, notionToken);
 
           results.push({
@@ -152,19 +114,21 @@ Deno.serve(async (req: Request) => {
             to: calculatedPuntos
           });
           updated++;
-          await delay(350); // Rate limiting
+
+          // Rate limiting delay
+          await new Promise(resolve => setTimeout(resolve, 350));
         } catch (e) {
           results.push({
             nombre,
             status: 'error',
-            error: e.message
+            error: (e as Error).message
           });
           errors++;
         }
       }
     }
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       status: dryRun ? 'dry_run' : 'completed',
       total_processed: rewardsResponse.results.length,
       updated,
@@ -173,15 +137,10 @@ Deno.serve(async (req: Request) => {
       has_more: rewardsResponse.has_more,
       next_cursor: rewardsResponse.next_cursor,
       results: results.slice(0, 20) // Only show first 20 for brevity
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, corsHeaders);
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse((error as Error).message, corsHeaders, 500);
   }
 });

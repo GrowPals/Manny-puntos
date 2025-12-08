@@ -7,6 +7,7 @@ import {
     ArrowUpDown, Coins, X, Star, TrendingUp, Phone, UserPlus,
     ArrowUpCircle, MoreHorizontal
 } from 'lucide-react';
+import StatCard from '@/components/common/StatCard';
 import { PageHeader } from '@/components/ui/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -85,30 +86,6 @@ const LevelBadge = ({ nivel, showLabel = true, onClick, clickable = false }) => 
 
     return content;
 };
-
-// Stats Card Component - Enhanced design
-const StatCard = ({ icon: Icon, label, value, color, subtext, bgAccent }) => (
-    <div className="relative bg-card rounded-xl p-4 border border-border overflow-hidden group hover:border-border/80 transition-colors">
-        {/* Subtle gradient accent */}
-        <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-10 -translate-y-1/2 translate-x-1/2 ${bgAccent || 'bg-primary'}`} />
-
-        <div className="relative flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">{label}</p>
-                <p className={`text-3xl font-bold ${color} tabular-nums`}>{value}</p>
-                {subtext && (
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                        {subtext}
-                    </p>
-                )}
-            </div>
-            <div className={`p-2.5 rounded-xl ${color} bg-current/10 flex-shrink-0`}>
-                <Icon className="w-5 h-5" />
-            </div>
-        </div>
-    </div>
-);
 
 // Filter Tab Component
 const FilterTab = ({ active, onClick, children, count, color }) => (
@@ -800,31 +777,31 @@ const AdminClientes = () => {
                         icon={Users}
                         label="Total Clientes"
                         value={stats.totalClientes}
-                        color="text-foreground"
-                        bgAccent="bg-gray-500"
+                        color="gray"
+                        variant="accent"
                     />
                     <StatCard
                         icon={Star}
                         label="Partners"
                         value={stats.partnerCount}
-                        color="text-blue-500"
-                        bgAccent="bg-blue-500"
+                        color="blue"
+                        variant="accent"
                         subtext={`${stats.totalClientes > 0 ? Math.round(stats.partnerCount / stats.totalClientes * 100) : 0}% del total`}
                     />
                     <StatCard
                         icon={Crown}
                         label="VIP"
                         value={stats.vipCount}
-                        color="text-amber-500"
-                        bgAccent="bg-amber-500"
+                        color="amber"
+                        variant="accent"
                         subtext={`${stats.totalClientes > 0 ? Math.round(stats.vipCount / stats.totalClientes * 100) : 0}% del total`}
                     />
                     <StatCard
                         icon={TrendingUp}
                         label="Puntos Totales"
                         value={stats.totalPuntos.toLocaleString()}
-                        color="text-primary"
-                        bgAccent="bg-primary"
+                        color="primary"
+                        variant="accent"
                         subtext={`~${stats.avgPuntos} promedio`}
                     />
                 </motion.div>

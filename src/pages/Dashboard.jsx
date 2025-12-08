@@ -122,7 +122,7 @@ const Dashboard = () => {
         {/* Services for Partner/VIP */}
         {showServices && <ServicesList />}
 
-        {/* Benefits from gifts */}
+        {/* Benefits from gifts (guardables - cliente activa cuando quiera) */}
         <MisBeneficiosCard />
 
         {/* Referral Card */}

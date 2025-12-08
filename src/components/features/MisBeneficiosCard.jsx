@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, Clock, CheckCircle2, AlertTriangle, ChevronRight, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Gift, Clock, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 const MisBeneficiosCard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activatingId, setActivatingId] = useState(null);
 
   const { data: beneficios = [], isLoading } = useQuery({
     queryKey: ['mis-beneficios', user?.id],
@@ -22,6 +26,34 @@ const MisBeneficiosCard = () => {
     queryFn: api.config.getConfigGlobal,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Mutation para activar beneficio
+  const activarMutation = useMutation({
+    mutationFn: ({ tipo, id }) => api.gifts.activarRecompensa(tipo, id, user?.id),
+    onSuccess: (data) => {
+      toast({
+        title: '¡Beneficio activado!',
+        description: 'Te contactaremos pronto para coordinar tu servicio.',
+      });
+      // Refrescar la lista de beneficios
+      queryClient.invalidateQueries({ queryKey: ['mis-beneficios'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'No se pudo activar el beneficio',
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      setActivatingId(null);
+    }
+  });
+
+  const handleActivar = (beneficio) => {
+    setActivatingId(beneficio.id);
+    activarMutation.mutate({ tipo: 'beneficio', id: beneficio.id });
+  };
 
   const alertaVencimientoDias = config?.alerta_vencimiento_dias || 30;
 
@@ -119,9 +151,31 @@ const MisBeneficiosCard = () => {
                           </p>
                         </div>
                       )}
-                    </div>
 
-                    <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                      {/* Botón de activar - solo para beneficios de servicio con notion_ticket_id */}
+                      {beneficio.notion_ticket_id && beneficio.tipo === 'servicio' && (
+                        <div className="mt-3">
+                          <Button
+                            onClick={() => handleActivar(beneficio)}
+                            disabled={activatingId === beneficio.id}
+                            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                            size="sm"
+                          >
+                            {activatingId === beneficio.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Activando...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Usar Ahora
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );
@@ -131,7 +185,7 @@ const MisBeneficiosCard = () => {
 
         {/* Mensaje informativo */}
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Para usar un beneficio, simplemente envía un mensaje por WhatsApp mencionando que tienes este regalo.
+          Presiona "Usar Ahora" cuando estés listo para tu servicio, o contáctanos por WhatsApp.
         </p>
       </div>
     </motion.div>

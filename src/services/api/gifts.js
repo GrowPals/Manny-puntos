@@ -471,3 +471,36 @@ export const expireOldGiftLinks = async () => {
   return data;
 };
 
+/**
+ * Activa un beneficio o canje guardado - lo mueve de "Guardado" a "Ticket" en Notion
+ * Esto indica que el cliente quiere usar su recompensa AHORA
+ *
+ * @param {'beneficio' | 'canje'} tipo - Tipo de item a activar
+ * @param {string} id - UUID del beneficio o canje
+ * @param {string} clienteId - UUID del cliente (para autenticación)
+ */
+export const activarRecompensa = async (tipo, id, clienteId) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('activate-beneficio', {
+      body: { tipo, id },
+      headers: {
+        'x-cliente-id': clienteId
+      }
+    });
+
+    if (error) {
+      logger.error('Error activando recompensa', { error: error.message, tipo, id });
+      throw new Error(error.message || 'Error al activar la recompensa');
+    }
+
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    return data;
+  } catch (error) {
+    logger.error('Error en activarRecompensa', { error: error.message, tipo, id });
+    throw error;
+  }
+};
+

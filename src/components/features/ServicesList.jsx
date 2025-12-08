@@ -18,10 +18,12 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { CONTACT_CONFIG } from '@/config';
+import useWhatsAppShare from '@/hooks/useWhatsAppShare';
 
 const ServicesList = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { shareViaWhatsApp } = useWhatsAppShare();
   const [confirmDialog, setConfirmDialog] = useState({ open: false, service: null });
   const queryClient = useQueryClient();
 
@@ -39,10 +41,9 @@ const ServicesList = () => {
         description: `Has canjeado: ${variables.nombre}. Te contactaremos pronto.`,
       });
 
-      // Abrir WhatsApp con mensaje pre-llenado
+      // Abrir WhatsApp con mensaje pre-llenado usando el hook
       const message = `Hola, soy ${user.nombre} (Tel: ${user.telefono}). Acabo de canjear mi beneficio Partner: ${variables.nombre}`;
-      const whatsappUrl = `https://wa.me/${CONTACT_CONFIG.WHATSAPP_SERVICES}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
+      shareViaWhatsApp(message, CONTACT_CONFIG.WHATSAPP_SERVICES);
 
       await queryClient.invalidateQueries(['services', user.id]);
       setConfirmDialog({ open: false, service: null });
