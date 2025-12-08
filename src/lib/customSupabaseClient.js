@@ -27,27 +27,55 @@ const getCurrentClienteId = () => {
   return null;
 };
 
+// Supabase client instance - will be recreated when user changes
+let _supabaseClient = null;
+let _currentClienteId = null;
+
 /**
- * Cliente Supabase con headers dinámicos
- * Envía x-cliente-id en cada request para RLS
+ * Creates a new Supabase client with the current user's headers
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
-    headers: () => {
-      const clienteId = getCurrentClienteId();
-      if (clienteId) {
-        return { 'x-cliente-id': clienteId };
-      }
-      return {};
-    }
+const createSupabaseClient = (clienteId) => {
+  const headers = clienteId ? { 'x-cliente-id': clienteId } : {};
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers }
+  });
+};
+
+/**
+ * Gets the Supabase client, recreating it if the user changed
+ * This ensures headers are always in sync with the current user
+ */
+const getSupabaseClient = () => {
+  const clienteId = getCurrentClienteId();
+
+  // Recreate client if user changed
+  if (_supabaseClient === null || _currentClienteId !== clienteId) {
+    _currentClienteId = clienteId;
+    _supabaseClient = createSupabaseClient(clienteId);
+  }
+
+  return _supabaseClient;
+};
+
+/**
+ * Proxy that always returns the current Supabase client
+ * This allows using `supabase.from(...)` syntax while ensuring
+ * the client is always up-to-date with the current user
+ */
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    const value = client[prop];
+    // Bind methods to the client instance
+    return typeof value === 'function' ? value.bind(client) : value;
   }
 });
 
 /**
- * Actualiza los headers del cliente cuando el usuario cambia
- * Llamar después de login/logout
+ * Forces recreation of the Supabase client
+ * Call this after login/logout to ensure headers are updated
  */
 export const refreshSupabaseHeaders = () => {
-  // Los headers se obtienen dinámicamente en cada request
-  // Esta función existe para compatibilidad futura si se necesita
+  _currentClienteId = null;
+  _supabaseClient = null;
 };

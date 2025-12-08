@@ -5,6 +5,7 @@ import { api } from '@/services/api';
 import { safeStorage } from '@/lib/utils';
 import { STORAGE_CONFIG } from '@/config';
 import { offlineStorage } from '@/lib/offlineStorage';
+import { refreshSupabaseHeaders } from '@/lib/customSupabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -51,6 +52,9 @@ export const AuthProvider = ({ children }) => {
       setNeedsOnboarding(false);
 
       safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, clienteData);
+
+      // Refresh Supabase client headers with new user
+      refreshSupabaseHeaders();
 
       // Check for pending referral code and apply it
       const pendingReferralCode = safeStorage.getString(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
@@ -139,6 +143,9 @@ export const AuthProvider = ({ children }) => {
       // Ahora sí guardamos en localStorage
       safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, updatedUser);
 
+      // Refresh Supabase client headers with new user
+      refreshSupabaseHeaders();
+
       return true;
     } catch (error) {
       console.error('Register PIN failed:', error);
@@ -161,6 +168,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setNeedsOnboarding(false);
     safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
+
+    // Refresh Supabase client headers (removes user headers)
+    refreshSupabaseHeaders();
 
     // Clear offline cache (non-blocking, fire-and-forget)
     if (offlineStorage.isAvailable()) {

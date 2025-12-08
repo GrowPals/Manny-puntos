@@ -13,7 +13,8 @@ import {
     MessageSquare,
     Smartphone,
     Power,
-    ChevronRight
+    ChevronRight,
+    Info
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -389,31 +390,45 @@ const AdminRecordatorios = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Header */}
+            {/* Header - Enhanced with icon background */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-                <h1 className="text-2xl md:text-3xl flex items-center gap-3">
-                    <Bell className="w-7 h-7 text-primary" />
-                    Recordatorios Automáticos
-                </h1>
-                <p className="text-muted-foreground mt-1 text-sm">
-                    Notificaciones push automáticas para servicios recurrentes
-                </p>
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                        <Bell className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                            Recordatorios Automáticos
+                        </h1>
+                        <p className="text-muted-foreground text-sm">
+                            Notificaciones push automáticas para servicios recurrentes
+                        </p>
+                    </div>
+                </div>
             </motion.div>
 
-            {/* Control principal ON/OFF */}
-            <div className="bg-card rounded-2xl p-5 mb-6 border border-border shadow-sm">
+            {/* Control principal ON/OFF - Enhanced with gradient when active */}
+            <div className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
+                localConfig?.activo
+                    ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
+                    : 'bg-card border-border'
+            }`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl transition-colors ${localConfig?.activo ? 'bg-primary/10' : 'bg-muted/50'}`}>
-                            <Power className={`w-6 h-6 transition-colors ${localConfig?.activo ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                            localConfig?.activo
+                                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                                : 'bg-muted text-muted-foreground'
+                        }`}>
+                            <Power className="w-6 h-6" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h2 className="font-bold text-lg">
+                                <h2 className="font-bold text-lg text-foreground">
                                     {localConfig?.activo ? 'Sistema Activo' : 'Sistema Inactivo'}
                                 </h2>
                                 {localConfig?.activo && (
-                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                                    <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
                                         ON
                                     </span>
                                 )}
@@ -429,19 +444,23 @@ const AdminRecordatorios = () => {
                         checked={localConfig?.activo || false}
                         onCheckedChange={handleToggleActive}
                         disabled={saving}
-                        className="scale-110"
+                        className="scale-125"
                     />
                 </div>
             </div>
 
-            {/* Servicios configurados */}
+            {/* Servicios configurados - Enhanced with better indicators */}
             <div className="bg-card rounded-2xl shadow-sm border border-border p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="font-bold text-lg flex items-center gap-2">
-                        <Wrench className="w-5 h-5 text-primary" />
-                        Servicios ({tiposRecurrentes.length})
-                    </h2>
-                    <Button onClick={() => setShowAddDialog(true)} size="sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                            <Wrench className="w-5 h-5 text-indigo-500" />
+                        </div>
+                        <h2 className="font-bold text-lg text-foreground">
+                            Servicios ({tiposRecurrentes.length})
+                        </h2>
+                    </div>
+                    <Button onClick={() => setShowAddDialog(true)} size="sm" variant="investment">
                         <Plus className="w-4 h-4 mr-1" />
                         Agregar
                     </Button>
@@ -453,29 +472,49 @@ const AdminRecordatorios = () => {
                             <button
                                 key={tipo.id}
                                 onClick={() => setEditingTipo(tipo)}
-                                className={`w-full p-4 rounded-xl border text-left transition-all hover:bg-muted/50 flex items-center justify-between group ${
-                                    tipo.activo ? 'border-border bg-muted/20' : 'border-border/50 bg-muted/10 opacity-60'
+                                className={`w-full p-4 rounded-xl border text-left transition-all hover:shadow-md flex items-center justify-between group ${
+                                    tipo.activo
+                                        ? 'border-border bg-card hover:border-primary/30'
+                                        : 'border-border/50 bg-muted/30 opacity-70'
                                 }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${tipo.activo ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                                    {/* Enhanced status indicator */}
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                                        tipo.activo
+                                            ? 'bg-green-500/10'
+                                            : 'bg-muted'
+                                    }`}>
+                                        <div className={`w-3 h-3 rounded-full ${
+                                            tipo.activo
+                                                ? 'bg-green-500 shadow-lg shadow-green-500/50'
+                                                : 'bg-muted-foreground'
+                                        }`} />
+                                    </div>
                                     <div>
-                                        <p className="font-medium">{tipo.tipo_trabajo}</p>
+                                        <p className="font-semibold text-foreground">{tipo.tipo_trabajo}</p>
                                         <p className="text-xs text-muted-foreground">
                                             Recordar cada {formatDays(tipo.dias_recordatorio)}
-                                            {tipo.mensaje_personalizado && ' • Mensaje personalizado'}
+                                            {tipo.mensaje_personalizado && (
+                                                <span className="ml-2 px-1.5 py-0.5 bg-purple-500/10 text-purple-500 rounded text-[10px] font-medium">
+                                                    Personalizado
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                             </button>
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                        <Wrench className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No hay servicios configurados</p>
-                        <Button onClick={() => setShowAddDialog(true)} className="mt-3" size="sm">
+                    <div className="text-center py-10 text-muted-foreground">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted flex items-center justify-center">
+                            <Wrench className="w-8 h-8 opacity-50" />
+                        </div>
+                        <p className="text-sm font-medium">No hay servicios configurados</p>
+                        <p className="text-xs text-muted-foreground mt-1 mb-4">Agrega tipos de trabajo para enviar recordatorios</p>
+                        <Button onClick={() => setShowAddDialog(true)} size="sm" variant="investment">
                             <Plus className="w-4 h-4 mr-1" />
                             Agregar servicio
                         </Button>
@@ -483,11 +522,13 @@ const AdminRecordatorios = () => {
                 )}
             </div>
 
-            {/* Configuración del mensaje */}
+            {/* Configuración del mensaje - Enhanced header */}
             <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
-                <div className="flex items-center gap-2 mb-4">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                    <h2 className="font-bold text-lg">Mensaje General</h2>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5 text-purple-500" />
+                    </div>
+                    <h2 className="font-bold text-lg text-foreground">Mensaje General</h2>
                 </div>
 
                 <div className="space-y-4">
@@ -576,13 +617,20 @@ const AdminRecordatorios = () => {
                 </div>
             </div>
 
-            {/* Info footer */}
-            <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/50">
-                <p className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">¿Cómo funciona?</strong><br />
-                    El sistema revisa diariamente los servicios completados. Si han pasado los días configurados desde el último servicio de un cliente,
-                    reciben una notificación push con botón para contactarte por WhatsApp.
-                </p>
+            {/* Info footer - Enhanced with icon */}
+            <div className="mt-6 p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20">
+                <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                        <Info className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-foreground mb-1">¿Cómo funciona?</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            El sistema revisa diariamente los servicios completados. Si han pasado los días configurados desde el último servicio de un cliente,
+                            reciben una notificación push con botón para contactarte por WhatsApp.
+                        </p>
+                    </div>
+                </div>
             </div>
         </>
     );

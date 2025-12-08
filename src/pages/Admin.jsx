@@ -40,26 +40,26 @@ const AdminMetricCard = ({ icon, title, value, subtitle, loading, trend }) => (
         animate={{ opacity: 1, y: 0 }}
         className="bg-card rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200"
     >
-        <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <div className="text-primary">
-                {React.cloneElement(icon, { className: "w-6 h-6" })}
+        <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-foreground/80">{title}</p>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                {React.cloneElement(icon, { className: "w-5 h-5 text-primary" })}
             </div>
         </div>
-        
+
         {loading ? (
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
         ) : (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
                 <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
                 <div className="flex items-center gap-2">
                      {trend && (
-                        <span className={`text-xs font-medium flex items-center ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+                        <span className={`text-xs font-semibold flex items-center px-1.5 py-0.5 rounded ${trend > 0 ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
+                            {trend > 0 ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
                             {Math.abs(trend)}%
                         </span>
                     )}
-                    {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                    {subtitle && <p className="text-xs font-medium text-muted-foreground">{subtitle}</p>}
                 </div>
             </div>
         )}
@@ -272,7 +272,7 @@ const Admin = () => {
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={serviciosPorMesData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                <AreaChart data={serviciosPorMesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
@@ -284,9 +284,9 @@ const Admin = () => {
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                    <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                                    <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                                    <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={35} tickFormatter={(v) => v.toLocaleString()} />
+                                    <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={40} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Area
                                         yAxisId="right"
@@ -321,28 +321,34 @@ const Admin = () => {
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={topClients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <BarChart data={topClients} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.toLocaleString()} />
                                     <YAxis
                                         dataKey="nombre"
                                         type="category"
                                         stroke="hsl(var(--muted-foreground))"
-                                        fontSize={12}
-                                        width={80}
-                                        tickFormatter={(value) => value.length > 10 ? value.slice(0, 10) + '...' : value}
+                                        fontSize={11}
+                                        width={90}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => {
+                                            const firstName = value.split(' ')[0];
+                                            return firstName.length > 12 ? firstName.slice(0, 12) + '.' : firstName;
+                                        }}
                                     />
-                                    <Tooltip content={<CustomTooltip />} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
                                     <Bar
                                         dataKey="puntos_actuales"
                                         name="Puntos"
                                         fill="url(#barGradient)"
-                                        radius={[0, 4, 4, 0]}
+                                        radius={[0, 6, 6, 0]}
+                                        barSize={20}
                                     />
                                     <defs>
                                         <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
-                                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
-                                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                                            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1}/>
+                                            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.5}/>
                                         </linearGradient>
                                     </defs>
                                 </BarChart>
@@ -386,8 +392,9 @@ const Admin = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex justify-center items-center text-muted-foreground">
-                                Sin datos de niveles
+                            <div className="h-full flex flex-col justify-center items-center text-muted-foreground">
+                                <Users className="w-10 h-10 mb-2 opacity-30" />
+                                <p className="text-sm font-medium">Sin datos de niveles</p>
                             </div>
                         )}
                     </div>
@@ -426,8 +433,9 @@ const Admin = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex justify-center items-center text-muted-foreground">
-                                Sin canjes registrados
+                            <div className="h-full flex flex-col justify-center items-center text-muted-foreground">
+                                <ShoppingBag className="w-10 h-10 mb-2 opacity-30" />
+                                <p className="text-sm font-medium">Sin canjes registrados</p>
                             </div>
                         )}
                     </div>
@@ -435,40 +443,40 @@ const Admin = () => {
 
                 {/* Estadísticas de Canjes */}
                 <ChartCard title="Resumen de Canjes">
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="text-primary">
-                                    <ShoppingBag className="w-6 h-6" />
+                                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                                    <ShoppingBag className="w-5 h-5 text-indigo-500" />
                                 </div>
-                                <span className="text-sm text-muted-foreground">Total Canjes</span>
+                                <span className="text-sm font-medium text-foreground/80">Total Canjes</span>
                             </div>
-                            <span className="text-xl font-bold">{stats?.canjesStats?.total || 0}</span>
+                            <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.total || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="text-primary">
-                                    <Gift className="w-6 h-6" />
+                                <div className="w-9 h-9 rounded-xl bg-green-500/10 flex items-center justify-center">
+                                    <Gift className="w-5 h-5 text-green-500" />
                                 </div>
-                                <span className="text-sm text-muted-foreground">Entregados</span>
+                                <span className="text-sm font-medium text-foreground/80">Entregados</span>
                             </div>
                             <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.entregados || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="text-primary">
-                                    <Truck className="w-6 h-6" />
+                                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                                    <Truck className="w-5 h-5 text-amber-500" />
                                 </div>
-                                <span className="text-sm text-muted-foreground">Pendientes</span>
+                                <span className="text-sm font-medium text-foreground/80">Pendientes</span>
                             </div>
                             <span className="text-xl font-bold text-foreground">{stats?.canjesStats?.pendientes || 0}</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                                <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
                                     <TrendingUp className="w-5 h-5 text-primary" />
                                 </div>
-                                <span className="text-sm text-muted-foreground">Puntos Canjeados</span>
+                                <span className="text-sm font-medium text-foreground/80">Puntos Canjeados</span>
                             </div>
                             <span className="text-xl font-bold text-foreground">
                                 {(stats?.canjesStats?.puntosCanjeados || 0).toLocaleString('es-MX')}
@@ -556,11 +564,17 @@ const Admin = () => {
                                 disabled={loading}
                             />
                         </div>
-                        <div className="p-4 bg-destructive/10 rounded-xl border border-destructive/20">
-                            <p className="text-xs text-destructive">
-                                <strong>Advertencia:</strong> La importación sobreescribirá los datos existentes.
-                                Asegúrate de tener un respaldo antes de importar.
-                            </p>
+                        <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30 flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Upload className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-amber-600 mb-1">Advertencia</p>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    La importación sobreescribirá los datos existentes.
+                                    Asegúrate de tener un respaldo antes de importar.
+                                </p>
+                            </div>
                         </div>
 
                         {/* Resumen rápido del sistema */}

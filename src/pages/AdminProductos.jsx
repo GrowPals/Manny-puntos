@@ -272,30 +272,84 @@ const AdminProductos = () => {
                     </Button>
                 </PageHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                     {productos.map((producto) => (
-                         <div key={producto.id} className="bg-card rounded-2xl shadow-sm p-4 flex flex-col border">
-                            <div className="flex-grow">
-                                <div className="h-40 bg-muted rounded-lg flex items-center justify-center mb-4">
-                                    {producto.imagen_url ? (
-                                        <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-cover rounded-lg" />
-                                    ) : (
-                                        producto.tipo === 'servicio' ? <Wrench className="w-16 h-16 text-muted-foreground" /> : <ImageIcon className="w-16 h-16 text-muted-foreground" />
+                         <div key={producto.id} className="bg-card rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden border border-border group">
+                            {/* Image container with fixed aspect ratio */}
+                            <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                                {producto.imagen_url ? (
+                                    <img
+                                        src={producto.imagen_url}
+                                        alt={producto.nombre}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        {producto.tipo === 'servicio' ? (
+                                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                                <Wrench className="w-8 h-8 text-primary/60" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-2xl bg-muted-foreground/10 flex items-center justify-center">
+                                                <ImageIcon className="w-8 h-8 text-muted-foreground/60" />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {/* Type badge overlay */}
+                                <div className="absolute top-3 left-3">
+                                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-sm capitalize ${
+                                        producto.tipo === 'servicio'
+                                            ? 'bg-indigo-500/90 text-white'
+                                            : 'bg-amber-500/90 text-white'
+                                    }`}>
+                                        {producto.tipo}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-4">
+                                <h3 className="text-base font-bold text-foreground line-clamp-2 min-h-[2.5rem]">
+                                    {producto.nombre}
+                                </h3>
+
+                                {/* Price and Stock row */}
+                                <div className="flex items-center justify-between mt-3 mb-3">
+                                    <span className="font-bold text-xl text-primary">{producto.puntos_requeridos.toLocaleString()} pts</span>
+                                    {producto.tipo === 'producto' && (
+                                        <span className="font-semibold text-sm px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                            Stock: {producto.stock}
+                                        </span>
                                     )}
                                 </div>
-                                <h3 className="text-lg font-bold text-foreground">{producto.nombre}</h3>
-                                <p className="text-sm text-muted-foreground mt-1 capitalize">{producto.tipo}</p>
-                            </div>
-                            <div className="mt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                     <span className="font-bold text-lg text-primary">{producto.puntos_requeridos} pts</span>
-                                     {producto.tipo === 'producto' && <span className="font-semibold text-sm px-3 py-1 rounded-full bg-blue-500/10 text-blue-600">Stock: {producto.stock}</span>}
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className={`font-semibold text-sm px-3 py-1 rounded-full ${producto.activo ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{producto.activo ? 'Activo' : 'Pausado'}</span>
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(producto)}><Edit className="w-4 h-4" /></Button>
-                                        <Button variant="destructive" size="icon" onClick={() => handleDeleteClick(producto)}><Trash2 className="w-4 h-4" /></Button>
+
+                                {/* Status and Actions row */}
+                                <div className="flex items-center justify-between pt-3 border-t border-border">
+                                    <span className={`font-semibold text-xs px-2.5 py-1.5 rounded-lg ${
+                                        producto.activo
+                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                    }`}>
+                                        {producto.activo ? 'Activo' : 'Pausado'}
+                                    </span>
+                                    <div className="flex gap-1.5">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEdit(producto)}
+                                            className="h-9 w-9 hover:bg-primary/10 hover:text-primary"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDeleteClick(producto)}
+                                            className="h-9 w-9 hover:bg-red-500/10 hover:text-red-500"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

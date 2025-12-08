@@ -17,7 +17,8 @@ import {
     RefreshCw,
     Edit2,
     Coins,
-    UserPlus
+    UserPlus,
+    Info
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -328,20 +329,25 @@ const AdminReferidos = () => {
                 className="mb-6"
             >
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl flex items-center gap-3">
-                            <Users className="w-7 h-7 text-primary" />
-                            Programa de Referidos
-                        </h1>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                            Gestiona invitaciones y recompensas
-                        </p>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <Users className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+                                Programa de Referidos
+                            </h1>
+                            <p className="text-muted-foreground text-sm">
+                                Gestiona invitaciones y recompensas
+                            </p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => refetchReferidos()}
+                            className="hover:bg-muted"
                         >
                             <RefreshCw className="w-4 h-4 mr-1" />
                             Actualizar
@@ -358,11 +364,19 @@ const AdminReferidos = () => {
             </motion.div>
 
             {/* Control ON/OFF */}
-            <div className="bg-card rounded-2xl p-5 mb-6 border border-border shadow-sm">
+            <div className={`rounded-2xl p-5 mb-6 border shadow-sm transition-all duration-300 ${
+                localConfig?.activo
+                    ? 'bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-transparent border-green-500/30'
+                    : 'bg-card border-border'
+            }`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl transition-colors ${localConfig?.activo ? 'bg-primary/10' : 'bg-muted/50'}`}>
-                            <Gift className={`w-6 h-6 transition-colors ${localConfig?.activo ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                            localConfig?.activo
+                                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                                : 'bg-muted text-muted-foreground'
+                        }`}>
+                            <Gift className="w-6 h-6" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
@@ -370,12 +384,12 @@ const AdminReferidos = () => {
                                     {localConfig?.activo ? 'Programa Activo' : 'Programa Inactivo'}
                                 </h2>
                                 {localConfig?.activo && (
-                                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                                    <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-lg shadow-sm">
                                         ON
                                     </span>
                                 )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground mt-0.5">
                                 {localConfig?.activo
                                     ? `${localConfig.puntos_referidor} pts para referidor • ${localConfig.puntos_referido} pts para referido`
                                     : 'Activa para que los clientes puedan invitar amigos'}

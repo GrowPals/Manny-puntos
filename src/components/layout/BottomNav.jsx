@@ -38,26 +38,26 @@ const BottomNav = () => {
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-            <div className="bg-card border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
-                <div className={cn("grid h-[64px] max-w-lg mx-auto", gridCols)}>
+            <div className="bg-card/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-[env(safe-area-inset-bottom)]">
+                <div className={cn("grid h-[68px] max-w-lg mx-auto", gridCols)}>
                     {navItems.map(({ to, icon: Icon, label, exact }) => {
                         const isActive = isActiveRoute(to, exact);
                         return (
                             <NavLink
                                 key={to}
                                 to={to}
-                                className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95"
+                                className="flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
                             >
                                 <div className={cn(
-                                    "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200",
+                                    "flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200",
                                     isActive
-                                        ? "bg-primary text-white shadow-md shadow-primary/25"
-                                        : "bg-transparent text-muted-foreground"
+                                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
+                                        : "bg-transparent text-muted-foreground hover:bg-muted"
                                 )}>
-                                    <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+                                    <Icon className={cn("w-5 h-5", isActive && "w-[22px] h-[22px]")} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
                                 <span className={cn(
-                                    "text-[10px] font-medium transition-colors",
+                                    "text-[11px] font-semibold transition-colors",
                                     isActive ? "text-primary" : "text-muted-foreground"
                                 )}>
                                     {label}
@@ -70,12 +70,12 @@ const BottomNav = () => {
                     {!isAdmin && (
                         <button
                             onClick={logout}
-                            className="flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95"
+                            className="flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
                         >
-                            <div className="flex items-center justify-center w-10 h-10 rounded-xl text-muted-foreground transition-colors active:bg-red-500/10 active:text-red-500">
+                            <div className="flex items-center justify-center w-11 h-11 rounded-2xl text-muted-foreground transition-all hover:bg-red-500/10 active:bg-red-500/20 active:text-red-500">
                                 <LogOut className="w-5 h-5" strokeWidth={2} />
                             </div>
-                            <span className="text-[10px] font-medium text-muted-foreground">
+                            <span className="text-[11px] font-semibold text-muted-foreground">
                                 Salir
                             </span>
                         </button>
