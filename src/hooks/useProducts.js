@@ -4,6 +4,7 @@ import { api } from '@/services/api';
 import { useNetworkStatus } from './useNetworkStatus';
 import { offlineStorage } from '@/lib/offlineStorage';
 import { CACHE_CONFIG } from '@/config';
+import { logger } from '@/lib/logger';
 
 export const useProducts = () => {
   const { isOnline } = useNetworkStatus();
@@ -19,7 +20,7 @@ export const useProducts = () => {
         // Cache to IndexedDB on success (non-blocking)
         if (data && data.length && offlineStorage.isAvailable()) {
           offlineStorage.saveProducts(data).catch((err) => {
-            console.warn('Failed to cache products to IndexedDB:', err);
+            logger.warn('Failed to cache products to IndexedDB', { error: err.message });
           });
         }
 
@@ -33,7 +34,7 @@ export const useProducts = () => {
               return cached;
             }
           } catch (cacheErr) {
-            console.warn('Failed to get products from cache:', cacheErr);
+            logger.warn('Failed to get products from cache', { error: cacheErr.message });
           }
         }
         throw err;
@@ -45,10 +46,11 @@ export const useProducts = () => {
     retry: isOnline ? 2 : 0,
   });
 
-  // Prefill from cache on mount (runs only once)
+  // Prefill from cache on mount (runs only once, before query completes)
   useEffect(() => {
     if (hasPrefilled.current) return;
     if (!offlineStorage.isAvailable()) return;
+    hasPrefilled.current = true; // Mark immediately to prevent race conditions
 
     const prefillFromCache = async () => {
       const currentData = queryClient.getQueryData(['productos']);
@@ -57,11 +59,14 @@ export const useProducts = () => {
       try {
         const cached = await offlineStorage.getActiveProducts();
         if (cached && cached.length) {
-          queryClient.setQueryData(['productos'], cached);
-          hasPrefilled.current = true;
+          // Only set if still no data (query might have completed during async operation)
+          const freshData = queryClient.getQueryData(['productos']);
+          if (!freshData || freshData.length === 0) {
+            queryClient.setQueryData(['productos'], cached);
+          }
         }
       } catch (err) {
-        console.warn('Failed to prefill products from cache:', err);
+        logger.warn('Failed to prefill products from cache', { error: err.message });
       }
     };
 

@@ -34,6 +34,8 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { formatDate } from '@/lib/utils';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import EmptyState from '@/components/common/EmptyState';
 
 const AdminReferidos = () => {
     const { toast } = useToast();
@@ -133,11 +135,7 @@ const AdminReferidos = () => {
     };
 
     if (loading && !localConfig) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <Loader2 className="animate-spin h-8 w-8 text-primary" />
-            </div>
-        );
+        return <LoadingSpinner size="md" />;
     }
 
     return (
@@ -176,10 +174,13 @@ const AdminReferidos = () => {
                                             <Input
                                                 type="number"
                                                 value={localConfig.puntos_referidor || 0}
-                                                onChange={(e) => setLocalConfig({
-                                                    ...localConfig,
-                                                    puntos_referidor: parseInt(e.target.value) || 0
-                                                })}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setLocalConfig({
+                                                        ...localConfig,
+                                                        puntos_referidor: Math.max(0, val)
+                                                    });
+                                                }}
                                                 className="pl-10"
                                                 min={0}
                                             />
@@ -197,10 +198,13 @@ const AdminReferidos = () => {
                                             <Input
                                                 type="number"
                                                 value={localConfig.puntos_referido || 0}
-                                                onChange={(e) => setLocalConfig({
-                                                    ...localConfig,
-                                                    puntos_referido: parseInt(e.target.value) || 0
-                                                })}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setLocalConfig({
+                                                        ...localConfig,
+                                                        puntos_referido: Math.max(0, val)
+                                                    });
+                                                }}
                                                 className="pl-10"
                                                 min={0}
                                             />
@@ -227,10 +231,13 @@ const AdminReferidos = () => {
                                             <Input
                                                 type="number"
                                                 value={localConfig.limite_mensual || 0}
-                                                onChange={(e) => setLocalConfig({
-                                                    ...localConfig,
-                                                    limite_mensual: parseInt(e.target.value) || 0
-                                                })}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setLocalConfig({
+                                                        ...localConfig,
+                                                        limite_mensual: Math.max(0, val)
+                                                    });
+                                                }}
                                                 className="pl-10"
                                                 min={0}
                                             />
@@ -248,10 +255,13 @@ const AdminReferidos = () => {
                                             <Input
                                                 type="number"
                                                 value={localConfig.limite_total || 0}
-                                                onChange={(e) => setLocalConfig({
-                                                    ...localConfig,
-                                                    limite_total: parseInt(e.target.value) || 0
-                                                })}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setLocalConfig({
+                                                        ...localConfig,
+                                                        limite_total: Math.max(0, val)
+                                                    });
+                                                }}
                                                 className="pl-10"
                                                 min={0}
                                             />
@@ -273,10 +283,13 @@ const AdminReferidos = () => {
                                     <Input
                                         type="number"
                                         value={localConfig.dias_expiracion || 30}
-                                        onChange={(e) => setLocalConfig({
-                                            ...localConfig,
-                                            dias_expiracion: parseInt(e.target.value) || 30
-                                        })}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 30;
+                                            setLocalConfig({
+                                                ...localConfig,
+                                                dias_expiracion: Math.min(365, Math.max(1, val))
+                                            });
+                                        }}
                                         className="pl-10"
                                         min={1}
                                         max={365}
@@ -575,13 +588,12 @@ const AdminReferidos = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                        <p className="text-lg font-medium">Sin referidos aún</p>
-                        <p className="text-sm">
-                            Los referidos aparecerán aquí cuando los clientes inviten a sus amigos.
-                        </p>
-                    </div>
+                    <EmptyState
+                        icon={Users}
+                        title="Sin referidos aún"
+                        description="Los referidos aparecerán aquí cuando los clientes inviten a sus amigos."
+                        animate={false}
+                    />
                 )}
             </div>
 

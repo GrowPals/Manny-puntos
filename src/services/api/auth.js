@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { logger } from '@/lib/logger';
 
 // Verificar si el cliente existe y si tiene PIN registrado
 export const checkClienteExists = async (telefono) => {
@@ -13,7 +14,7 @@ export const checkClienteExists = async (telefono) => {
   });
 
   if (error) {
-    console.error('Error checking cliente:', error);
+    logger.error('Error checking cliente', { error: error.message, telefono: telefonoLimpio });
     throw new Error(ERROR_MESSAGES.AUTH.CONNECTION_ERROR);
   }
 
@@ -30,7 +31,7 @@ export const loginWithPin = async (telefono, pin) => {
   });
 
   if (error) {
-    console.error('Error verifying PIN:', error);
+    logger.error('Error verifying PIN', { error: error.message });
     throw new Error(ERROR_MESSAGES.AUTH.CONNECTION_ERROR);
   }
 
@@ -73,7 +74,7 @@ export const registerPin = async (telefono, newPin) => {
   });
 
   if (error) {
-    console.error('Error registering PIN:', error);
+    logger.error('Error registering PIN', { error: error.message });
     throw new Error(ERROR_MESSAGES.AUTH.CONNECTION_ERROR);
   }
 
@@ -91,7 +92,7 @@ export const resetClientPin = async (clienteId) => {
   });
 
   if (error) {
-    console.error('Error resetting PIN:', error);
+    logger.error('Error resetting PIN', { error: error.message, clienteId });
     throw new Error('Error al resetear PIN');
   }
 

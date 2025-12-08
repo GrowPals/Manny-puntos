@@ -20,6 +20,43 @@ vi.mock('@/lib/utils', () => ({
   withRetry: vi.fn((fn) => fn()),
 }));
 
+// Mock logger
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    audit: vi.fn(),
+    giftClaimed: vi.fn(),
+    giftClaimFailed: vi.fn(),
+    syncQueued: vi.fn(),
+    syncFailed: vi.fn(),
+  },
+  LogLevel: {
+    DEBUG: 'debug',
+    INFO: 'info',
+    WARN: 'warn',
+    ERROR: 'error',
+  },
+  EventType: {
+    LOGIN_SUCCESS: 'auth.login_success',
+    LOGIN_FAILED: 'auth.login_failed',
+    LOGOUT: 'auth.logout',
+    PIN_REGISTERED: 'auth.pin_registered',
+    GIFT_VIEWED: 'gift.viewed',
+    GIFT_CLAIMED: 'gift.claimed',
+    GIFT_CLAIM_FAILED: 'gift.claim_failed',
+    REFERRAL_APPLIED: 'referral.applied',
+    REFERRAL_FAILED: 'referral.failed',
+    SYNC_QUEUED: 'sync.queued',
+    SYNC_COMPLETED: 'sync.completed',
+    SYNC_FAILED: 'sync.failed',
+    REDEMPTION_SUCCESS: 'redemption.success',
+    REDEMPTION_FAILED: 'redemption.failed',
+  },
+}));
+
 const mockBuilder = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
@@ -195,13 +232,12 @@ describe('Gifts Service', () => {
       });
     });
 
-    it('should return null and not throw on enqueue failure', async () => {
+    it('should throw on enqueue failure', async () => {
       supabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
 
-      const result = await enqueueSyncOperation('sync_cliente', 'client-123', {}, 'test_source');
-
-      expect(result).toBeNull();
-      // Should not throw
+      await expect(
+        enqueueSyncOperation('sync_cliente', 'client-123', {}, 'test_source')
+      ).rejects.toThrow('Error al encolar operación de sincronización: RPC error');
     });
   });
 });

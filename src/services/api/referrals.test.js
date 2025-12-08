@@ -20,6 +20,41 @@ vi.mock('@/lib/utils', () => ({
   withRetry: vi.fn((fn) => fn()),
 }));
 
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    audit: vi.fn(),
+    referralApplied: vi.fn(),
+    syncQueued: vi.fn(),
+    syncFailed: vi.fn(),
+  },
+  LogLevel: {
+    DEBUG: 'debug',
+    INFO: 'info',
+    WARN: 'warn',
+    ERROR: 'error',
+  },
+  EventType: {
+    LOGIN_SUCCESS: 'auth.login_success',
+    LOGIN_FAILED: 'auth.login_failed',
+    LOGOUT: 'auth.logout',
+    PIN_REGISTERED: 'auth.pin_registered',
+    GIFT_VIEWED: 'gift.viewed',
+    GIFT_CLAIMED: 'gift.claimed',
+    GIFT_CLAIM_FAILED: 'gift.claim_failed',
+    REFERRAL_APPLIED: 'referral.applied',
+    REFERRAL_FAILED: 'referral.failed',
+    SYNC_QUEUED: 'sync.queued',
+    SYNC_COMPLETED: 'sync.completed',
+    SYNC_FAILED: 'sync.failed',
+    REDEMPTION_SUCCESS: 'redemption.success',
+    REDEMPTION_FAILED: 'redemption.failed',
+  },
+}));
+
 const mockBuilder = {
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
@@ -57,7 +92,7 @@ describe('Referrals Service', () => {
   });
 
   describe('validateReferralCode', () => {
-    it('should return code data when valid', async () => {
+    it('should return valid=true with code data when valid', async () => {
       const mockData = {
         codigo: 'TESTCODE',
         activo: true,
@@ -67,25 +102,41 @@ describe('Referrals Service', () => {
 
       const result = await validateReferralCode('testcode');
 
-      expect(result).toEqual(mockData);
+      expect(result.valid).toBe(true);
+      expect(result.data).toEqual(mockData);
+      expect(result.reason).toBeNull();
       expect(mockBuilder.eq).toHaveBeenCalledWith('codigo', 'TESTCODE');
-      expect(mockBuilder.eq).toHaveBeenCalledWith('activo', true);
     });
 
-    it('should return null for invalid/inactive code', async () => {
+    it('should return valid=false with reason not_found for non-existent code', async () => {
       mockBuilder.maybeSingle.mockResolvedValue({ data: null, error: null });
 
       const result = await validateReferralCode('INVALID');
 
-      expect(result).toBeNull();
+      expect(result.valid).toBe(false);
+      expect(result.data).toBeNull();
+      expect(result.reason).toBe('not_found');
     });
 
-    it('should return null on database error', async () => {
-      mockBuilder.maybeSingle.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+    it('should return valid=false with reason inactive for inactive code', async () => {
+      const mockData = {
+        codigo: 'TESTCODE',
+        activo: false,
+        cliente: { id: 'client-123', nombre: 'Test User' },
+      };
+      mockBuilder.maybeSingle.mockResolvedValue({ data: mockData, error: null });
 
       const result = await validateReferralCode('TESTCODE');
 
-      expect(result).toBeNull();
+      expect(result.valid).toBe(false);
+      expect(result.data).toBeNull();
+      expect(result.reason).toBe('inactive');
+    });
+
+    it('should throw error on database error', async () => {
+      mockBuilder.maybeSingle.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+
+      await expect(validateReferralCode('TESTCODE')).rejects.toThrow('Error al validar código');
     });
   });
 
@@ -152,12 +203,10 @@ describe('Referrals Service', () => {
       expect(mockBuilder.eq).toHaveBeenCalledWith('activo', true);
     });
 
-    it('should return null on error', async () => {
+    it('should throw error on database error', async () => {
       mockBuilder.maybeSingle.mockResolvedValue({ data: null, error: { message: 'Error' } });
 
-      const result = await getReferralConfig();
-
-      expect(result).toBeNull();
+      await expect(getReferralConfig()).rejects.toThrow('Error al cargar configuración');
     });
   });
 

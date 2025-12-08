@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { logger } from '@/lib/logger';
 
 export const getProductosCanje = async () => {
   const { data, error } = await supabase
@@ -39,7 +40,7 @@ export const crearOActualizarProducto = async (productoData) => {
 
   const { data, error } = await supabase.from('productos').upsert(productoData).select().single();
   if (error) {
-    console.error("Error en crearOActualizarProducto:", error);
+    logger.error('Error creando/actualizando producto', { error: error.message, nombre: productoData.nombre });
     if (error.message.includes('violates row-level security policy')) {
         throw new Error(ERROR_MESSAGES.PRODUCTS.CREATE_PERMISSION_DENIED);
     }
@@ -82,7 +83,7 @@ export const subirImagenProducto = async (file) => {
     });
 
   if (uploadError) {
-    console.error('Error subiendo imagen:', uploadError);
+    logger.error('Error subiendo imagen de producto', { error: uploadError.message, fileName });
     throw new Error('Error al subir la imagen. Inténtalo de nuevo.');
   }
 

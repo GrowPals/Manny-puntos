@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { logger } from '@/lib/logger';
 
 // SERVICIOS ASIGNADOS (Para Partners/VIP)
 export const getServiciosCliente = async (clienteId) => {
@@ -75,19 +76,28 @@ export const getHistorialServiciosStats = async (clienteId) => {
     });
 
     if (error) {
-        console.error('Error en get_historial_stats:', error);
+        logger.warn('Error en get_historial_stats, usando fallback', { error: error.message, clienteId });
         // Fallback: calcular manualmente si la función no existe
-        const { data: servicios } = await supabase
+        const { data: servicios, error: fallbackError } = await supabase
             .from('historial_servicios')
             .select('monto, puntos_generados')
             .eq('cliente_id', clienteId);
 
-        if (!servicios) return { total_servicios: 0, total_invertido: 0, total_puntos: 0 };
+        if (fallbackError) {
+            logger.error('Error en fallback de stats', { error: fallbackError.message, clienteId });
+            throw new Error(ERROR_MESSAGES.SERVICES.STATS_ERROR || 'Error al obtener estadísticas');
+        }
+
+        // servicios puede ser [] (vacío) que es válido, o null que es un problema
+        if (servicios === null) {
+            logger.error('Fallback retornó null inesperadamente', { clienteId });
+            throw new Error(ERROR_MESSAGES.SERVICES.STATS_ERROR || 'Error al obtener estadísticas');
+        }
 
         return {
             total_servicios: servicios.length,
-            total_invertido: servicios.reduce((sum, s) => sum + (s.monto && s.monto > 0 ? Number(s.monto) : 0), 0),
-            total_puntos: servicios.reduce((sum, s) => sum + (s.puntos_generados && s.puntos_generados > 0 ? s.puntos_generados : 0), 0)
+            total_invertido: servicios.reduce((sum, s) => sum + (s.monto > 0 ? Number(s.monto) : 0), 0),
+            total_puntos: servicios.reduce((sum, s) => sum + (s.puntos_generados > 0 ? s.puntos_generados : 0), 0)
         };
     }
 

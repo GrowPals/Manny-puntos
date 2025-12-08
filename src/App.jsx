@@ -41,6 +41,10 @@ const GiftLanding = React.lazy(() => import('@/pages/GiftLanding'));
 const AdminReferidos = React.lazy(() => import('@/pages/AdminReferidos'));
 const AdminRegalos = React.lazy(() => import('@/pages/AdminRegalos'));
 
+// Configuración y Ayuda
+const Configuracion = React.lazy(() => import('@/pages/Configuracion'));
+const Ayuda = React.lazy(() => import('@/pages/Ayuda'));
+
 const LoadingFallback = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-background text-foreground z-[200]">
     <div className="flex flex-col items-center gap-4">
@@ -121,6 +125,8 @@ const AppRoutes = () => {
           <Route path="/mis-canjes" element={<ProtectedRoute><PageLayout seoTitle="Mi Historial"><MisCanjes /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-servicios" element={<ProtectedRoute><PageLayout seoTitle="Mis Servicios"><MisServicios /></PageLayout></ProtectedRoute>} />
           <Route path="/mis-referidos" element={<ProtectedRoute><PageLayout seoTitle="Mis Referidos"><MisReferidos /></PageLayout></ProtectedRoute>} />
+          <Route path="/configuracion" element={<ProtectedRoute><PageLayout seoTitle="Configuración"><Configuracion /></PageLayout></ProtectedRoute>} />
+          <Route path="/ayuda" element={<ProtectedRoute><PageLayout seoTitle="Ayuda"><Ayuda /></PageLayout></ProtectedRoute>} />
 
           <Route path="/admin" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Panel de Administrador" isAdminRoute><Admin /></PageLayout></ProtectedRoute>} />
           <Route path="/admin/productos" element={<ProtectedRoute adminOnly><PageLayout seoTitle="Gestión de Productos" isAdminRoute><AdminProductos /></PageLayout></ProtectedRoute>} />

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { logger } from '@/lib/logger';
 
 export const exportMannyData = async () => {
     const { data: clientes, error: e1 } = await supabase.from('clientes').select('*');
@@ -37,11 +38,11 @@ export const importMannyData = async (data) => {
     }
     if (data.canjes) {
             const { error } = await supabase.from('canjes').upsert(data.canjes, { onConflict: 'id' });
-            if (error) console.error(`Error importando canjes: ${error.message}`);
+            if (error) throw new Error(`${ERROR_MESSAGES.ADMIN.IMPORT_REDEMPTIONS_ERROR || 'Error importando canjes'}: ${error.message}`);
     }
     if (data.historial_puntos) {
             const { error } = await supabase.from('historial_puntos').upsert(data.historial_puntos, { onConflict: 'id' });
-            if (error) console.error(`Error importando historial: ${error.message}`);
+            if (error) throw new Error(`${ERROR_MESSAGES.ADMIN.IMPORT_HISTORY_ERROR || 'Error importando historial'}: ${error.message}`);
     }
     return true;
 };
@@ -170,7 +171,10 @@ export const getTiposTrabajoDisponibles = async () => {
         .not('tipo_trabajo', 'is', null)
         .order('tipo_trabajo');
 
-    if (error) return [];
+    if (error) {
+        logger.error('Error obteniendo tipos de trabajo', { error: error.message });
+        throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_LOAD_ERROR || 'Error al cargar tipos de trabajo');
+    }
 
     const unicos = [...new Set(data.map(d => d.tipo_trabajo).filter(Boolean))];
     return unicos.sort();

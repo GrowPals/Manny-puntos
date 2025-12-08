@@ -16,6 +16,15 @@ const MisBeneficiosCard = () => {
     enabled: !!user?.id,
   });
 
+  // Obtener configuración global para el umbral de alerta
+  const { data: config } = useQuery({
+    queryKey: ['config-global'],
+    queryFn: api.config.getConfigGlobal,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const alertaVencimientoDias = config?.alerta_vencimiento_dias || 30;
+
   // Solo mostrar beneficios activos
   const beneficiosActivos = beneficios.filter(b => b.estado === 'activo');
 
@@ -58,7 +67,7 @@ const MisBeneficiosCard = () => {
           <div className="space-y-3">
             {beneficiosActivos.map((beneficio) => {
               const daysRemaining = getDaysRemaining(beneficio.fecha_expiracion);
-              const isExpiringSoon = daysRemaining !== null && daysRemaining <= 30;
+              const isExpiringSoon = daysRemaining !== null && daysRemaining <= alertaVencimientoDias && daysRemaining > 0;
 
               return (
                 <motion.div

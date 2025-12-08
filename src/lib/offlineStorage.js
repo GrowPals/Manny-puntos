@@ -3,6 +3,8 @@
  * Provides persistent offline caching for critical data
  */
 
+import { logger } from '@/lib/logger';
+
 const DB_NAME = 'manny-rewards-offline';
 const DB_VERSION = 1;
 
@@ -54,7 +56,7 @@ const openDB = () => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => {
-        console.error('IndexedDB error:', request.error);
+        logger.error('IndexedDB error', { error: request.error?.message });
         dbOpenPromise = null;
         reject(request.error);
       };
@@ -112,7 +114,7 @@ const openDB = () => {
       };
 
       request.onblocked = () => {
-        console.warn('IndexedDB blocked - close other tabs');
+        logger.warn('IndexedDB blocked - close other tabs');
         dbOpenPromise = null;
         reject(new Error('Database blocked'));
       };
@@ -147,7 +149,7 @@ const saveToStore = async (storeName, data) => {
       tx.onerror = () => reject(tx.error);
     });
   } catch (error) {
-    console.error(`Error saving to ${storeName}:`, error);
+    logger.error(`Error saving to ${storeName}`, { error: error.message });
     return false;
   }
 };
@@ -167,7 +169,7 @@ const getFromStore = async (storeName, key = null) => {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    console.error(`Error reading from ${storeName}:`, error);
+    logger.error(`Error reading from ${storeName}`, { error: error.message });
     return key ? null : [];
   }
 };
@@ -187,7 +189,7 @@ const clearStore = async (storeName) => {
       tx.onerror = () => reject(tx.error);
     });
   } catch (error) {
-    console.error(`Error clearing ${storeName}:`, error);
+    logger.error(`Error clearing ${storeName}`, { error: error.message });
     return false;
   }
 };
@@ -278,7 +280,7 @@ export const offlineStorage = {
         tx.onerror = () => reject(tx.error);
       });
     } catch (error) {
-      console.error('Error adding to sync queue:', error);
+      logger.error('Error adding to sync queue', { error: error.message });
       return false;
     }
   },
@@ -296,7 +298,7 @@ export const offlineStorage = {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error('Error getting pending sync actions:', error);
+      logger.error('Error getting pending sync actions', { error: error.message });
       return [];
     }
   },
@@ -313,7 +315,7 @@ export const offlineStorage = {
         tx.onerror = () => reject(tx.error);
       });
     } catch (error) {
-      console.error('Error removing sync action:', error);
+      logger.error('Error removing sync action', { error: error.message });
       return false;
     }
   },
@@ -336,7 +338,7 @@ export const offlineStorage = {
         tx.onerror = () => reject(tx.error);
       });
     } catch (error) {
-      console.error('Error updating sync action:', error);
+      logger.error('Error updating sync action', { error: error.message });
       return false;
     }
   },
@@ -348,6 +350,7 @@ export const offlineStorage = {
   isAvailable: isIndexedDBAvailable,
 
   // Clear all offline data (logout)
+  // IMPORTANT: Also clears sync queue to prevent actions from wrong user being synced
   async clearAll() {
     if (!isIndexedDBAvailable()) return;
 
@@ -357,11 +360,17 @@ export const offlineStorage = {
         clearStore(STORES.PRODUCTS),
         clearStore(STORES.SERVICES),
         clearStore(STORES.REFERRAL_STATS),
-        // Don't clear sync queue - we want to preserve pending actions
+        clearStore(STORES.SYNC_QUEUE), // Clear pending actions to prevent cross-account sync issues
       ]);
     } catch (error) {
-      console.error('Error clearing offline storage:', error);
+      logger.error('Error clearing offline storage', { error: error.message });
     }
+  },
+
+  // Clear only sync queue (use when user cancels pending operations)
+  async clearSyncQueue() {
+    if (!isIndexedDBAvailable()) return;
+    return clearStore(STORES.SYNC_QUEUE);
   },
 };
 

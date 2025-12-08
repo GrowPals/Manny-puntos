@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { withRetry } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
+import { logger } from '@/lib/logger';
 
 // ==================== CLIENTE ====================
 
@@ -13,7 +14,7 @@ export const getOrCreateReferralCode = async (clienteId) => {
   });
 
   if (error) {
-    console.error('Error obteniendo código de referido:', error);
+    logger.error('Error obteniendo código de referido', { error: error.message, clienteId });
     throw new Error(ERROR_MESSAGES.REFERRALS.CODE_ERROR);
   }
 
@@ -35,7 +36,7 @@ export const getReferralStats = async (clienteId) => {
     .eq('referidor_id', clienteId);
 
   if (refError) {
-    console.error('Error obteniendo referidos:', refError);
+    logger.error('Error obteniendo referidos para stats', { error: refError.message, clienteId });
   }
 
   // Obtener config para límites
@@ -89,7 +90,7 @@ export const getMisReferidos = async (clienteId) => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error obteniendo referidos:', error);
+    logger.error('Error obteniendo mis referidos', { error: error.message, clienteId });
     throw new Error(ERROR_MESSAGES.REFERRALS.LOAD_ERROR);
   }
 
@@ -98,8 +99,11 @@ export const getMisReferidos = async (clienteId) => {
 
 /**
  * Valida un código de referido (para landing page)
+ * Retorna objeto con status para diferenciar entre código inexistente vs inactivo
+ * @returns {{ valid: boolean, data: object|null, reason: string|null }}
  */
 export const validateReferralCode = async (codigo) => {
+  // Primero buscar el código sin filtrar por activo
   const { data, error } = await supabase
     .from('codigos_referido')
     .select(`
@@ -111,15 +115,26 @@ export const validateReferralCode = async (codigo) => {
       )
     `)
     .eq('codigo', codigo.toUpperCase())
-    .eq('activo', true)
     .maybeSingle();
 
   if (error) {
-    console.error('Error validando código:', error);
-    return null;
+    logger.error('Error validando código de referido', { error: error.message, codigo });
+    throw new Error(ERROR_MESSAGES.REFERRALS.VALIDATION_ERROR || 'Error al validar código');
   }
 
-  return data;
+  // Código no existe
+  if (!data) {
+    return { valid: false, data: null, reason: 'not_found' };
+  }
+
+  // Código existe pero está inactivo
+  if (!data.activo) {
+    logger.info('Código de referido inactivo', { codigo });
+    return { valid: false, data: null, reason: 'inactive' };
+  }
+
+  // Código válido y activo
+  return { valid: true, data, reason: null };
 };
 
 /**
@@ -141,7 +156,7 @@ export const applyReferralCode = async (referidoId, codigo) => {
       });
 
       if (error) {
-        console.error('Error aplicando código:', error);
+        logger.error('Error aplicando código de referido', { error: error.message, codigo: codigoLimpio, referidoId });
         throw new Error(ERROR_MESSAGES.REFERRALS.APPLY_ERROR);
       }
 
@@ -162,6 +177,8 @@ export const applyReferralCode = async (referidoId, codigo) => {
 
 /**
  * Obtiene la configuración del programa (pública)
+ * Returns null if no active config exists (not an error)
+ * Throws on database errors
  */
 export const getReferralConfig = async () => {
   const { data, error } = await supabase
@@ -171,10 +188,11 @@ export const getReferralConfig = async () => {
     .maybeSingle();
 
   if (error) {
-    console.error('Error obteniendo config:', error);
-    return null;
+    logger.error('Error obteniendo config de referidos', { error: error.message });
+    throw new Error(ERROR_MESSAGES.REFERRALS.CONFIG_LOAD_ERROR || 'Error al cargar configuración');
   }
 
+  // null is valid - means no active config
   return data;
 };
 
@@ -251,7 +269,7 @@ export const getAllReferidos = async () => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error obteniendo todos los referidos:', error);
+    logger.error('Error obteniendo todos los referidos (admin)', { error: error.message });
     throw new Error(ERROR_MESSAGES.REFERRALS.ALL_LOAD_ERROR);
   }
 
@@ -269,7 +287,7 @@ export const getAdminReferralConfig = async () => {
     .single();
 
   if (error) {
-    console.error('Error obteniendo config admin:', error);
+    logger.error('Error obteniendo config admin de referidos', { error: error.message });
     throw new Error(ERROR_MESSAGES.REFERRALS.CONFIG_LOAD_ERROR);
   }
 
@@ -294,7 +312,7 @@ export const updateReferralConfig = async (config) => {
     .single();
 
   if (error) {
-    console.error('Error actualizando config:', error);
+    logger.error('Error actualizando config de referidos', { error: error.message, configId: id });
     throw new Error(ERROR_MESSAGES.REFERRALS.CONFIG_SAVE_ERROR);
   }
 

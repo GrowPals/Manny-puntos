@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Gift, History, Wrench, LogOut, LayoutDashboard, Users, Truck, Package } from 'lucide-react';
+import { Gift, History, Wrench, LayoutDashboard, Users, Truck, Package } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
 const BottomNav = () => {
-    const { user, isAdmin, logout } = useAuth();
+    const { user, isAdmin } = useAuth();
     const location = useLocation();
 
     // Don't show on login page or if no user
@@ -29,7 +29,7 @@ const BottomNav = () => {
     ];
 
     const navItems = isAdmin ? adminNavItems : clientNavItems;
-    const gridCols = isAdmin ? 'grid-cols-4' : 'grid-cols-4';
+    const gridCols = isAdmin ? 'grid-cols-4' : 'grid-cols-3';
 
     const isActiveRoute = (to, exact) => {
         if (exact) return location.pathname === to;
@@ -65,21 +65,6 @@ const BottomNav = () => {
                             </NavLink>
                         );
                     })}
-
-                    {/* Logout button - only for clients */}
-                    {!isAdmin && (
-                        <button
-                            onClick={logout}
-                            className="flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
-                        >
-                            <div className="flex items-center justify-center w-11 h-11 rounded-2xl text-muted-foreground transition-all hover:bg-red-500/10 active:bg-red-500/20 active:text-red-500">
-                                <LogOut className="w-5 h-5" strokeWidth={2} />
-                            </div>
-                            <span className="text-[11px] font-semibold text-muted-foreground">
-                                Salir
-                            </span>
-                        </button>
-                    )}
                 </div>
             </div>
         </nav>

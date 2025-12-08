@@ -2,12 +2,13 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone, normalizePhone } from '@/config';
 import { enqueueSyncOperation } from './sync';
-import { notifyClienteNivelCambiado } from './notifications';
+import { notifyClienteNivelCambiado, notifyClientePuntosRecibidos } from './notifications';
+import { logger } from '@/lib/logger';
 
 export const getTodosLosClientes = async () => {
   const { data, error } = await supabase.from('clientes').select('*').order('created_at', { ascending: false });
   if (error) {
-    console.error("Error en getTodosLosClientes:", error);
+    logger.error('Error obteniendo todos los clientes', { error: error.message });
     throw new Error(ERROR_MESSAGES.CLIENTS.LOAD_ERROR);
   }
   return data || [];
@@ -28,7 +29,7 @@ export const crearOActualizarCliente = async (clienteData) => {
   const { data, error } = await supabase.from('clientes').upsert(upsertPayload).select().single();
 
   if (error) {
-    console.error("Error en crearOActualizarCliente:", error);
+    logger.error('Error creando/actualizando cliente', { error: error.message, telefono: clienteData.telefono });
     if (error.code === '23505') {
         throw new Error(ERROR_MESSAGES.CLIENTS.PHONE_EXISTS);
     }
@@ -51,9 +52,15 @@ export const asignarPuntosManualmente = async (clienteTelefono, puntos, concepto
   });
 
   if (error) {
-    console.error('Error en RPC asignar_puntos_atomico:', error);
+    logger.error('Error asignando puntos', { error: error.message, telefono: clienteTelefono, puntos });
     throw new Error(error.message || ERROR_MESSAGES.CLIENTS.ASSIGN_POINTS_ERROR);
   }
+
+  // Fire and forget: Notify client about points received
+  if (data?.cliente_id && Number(puntos) > 0) {
+    notifyClientePuntosRecibidos(data.cliente_id, Number(puntos), concepto, data.nuevo_saldo);
+  }
+
   return data;
 };
 
@@ -158,7 +165,7 @@ export const cambiarNivelCliente = async (clienteId, nuevoNivel) => {
     });
 
     if (error) {
-        console.error('Error en cambiarNivelCliente:', error);
+        logger.error('Error cambiando nivel de cliente', { error: error.message, clienteId, nuevoNivel });
         throw new Error(ERROR_MESSAGES.CLIENTS.LEVEL_CHANGE_ERROR);
     }
 
@@ -185,7 +192,7 @@ export const cambiarRolAdmin = async (clienteId, esAdmin, changedById) => {
             changed_by_id: changedById,
             action: esAdmin ? 'granted' : 'revoked'
         }).then(({ error: logError }) => {
-            if (logError) console.warn('Error logging admin role change:', logError);
+            if (logError) logger.warn('Error logging admin role change', { error: logError.message });
         });
     }
 
@@ -209,7 +216,7 @@ export const syncToNotion = async (clienteId) => {
 
         return data;
     } catch (error) {
-        console.warn('Direct Notion sync failed, queueing for retry:', error.message);
+        logger.warn('Direct Notion sync failed, queueing for retry', { error: error.message, clienteId });
 
         // Queue for retry instead of failing silently
         await enqueueSyncOperation('sync_cliente', clienteId, {

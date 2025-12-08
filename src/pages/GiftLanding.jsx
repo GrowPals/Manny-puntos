@@ -97,7 +97,7 @@ const GiftLanding = () => {
           }
         }
       } catch (err) {
-        console.error('Error loading gift:', err);
+        logger.error('Error loading gift', { error: err.message, codigo });
         setError('Error al cargar el regalo');
       } finally {
         setLoading(false);
@@ -246,7 +246,7 @@ const GiftLanding = () => {
           frame();
         } catch (confettiError) {
           // Confetti is non-critical, don't block on errors
-          console.warn('Confetti animation failed:', confettiError);
+          logger.debug('Confetti animation failed', { error: confettiError.message });
         }
 
         // Ir al paso de descarga/notificaciones después del confetti
@@ -255,7 +255,7 @@ const GiftLanding = () => {
         }, 2000);
       }
     } catch (err) {
-      console.error('Error claiming gift:', err);
+      logger.error('Error claiming gift', { error: err.message, codigo });
       toast({
         title: 'Error',
         description: err.message || 'No pudimos canjear el regalo',

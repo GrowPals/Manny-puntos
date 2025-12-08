@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,11 +10,28 @@ import ServicesList from '@/components/features/ServicesList';
 import NotificationSettings from '@/components/NotificationSettings';
 import ReferralCard from '@/components/features/ReferralCard';
 import MisBeneficiosCard from '@/components/features/MisBeneficiosCard';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import EmptyState from '@/components/common/EmptyState';
 import { useProducts } from '@/hooks/useProducts';
+import { useToast } from '@/components/ui/use-toast';
+import { logger } from '@/lib/logger';
 
 const Dashboard = () => {
   const { user, logout, isPartner, isVIP } = useAuth();
-  const { productos, loading } = useProducts();
+  const { productos, loading, error } = useProducts();
+  const { toast } = useToast();
+
+  // Handle products loading error
+  useEffect(() => {
+    if (error) {
+      logger.error('Error loading products', { error: error.message });
+      toast({
+        title: 'Error',
+        description: 'No pudimos cargar el catálogo de recompensas.',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   const telefonoMasked = user?.telefono ? `${user.telefono.slice(0, 3)}***${user.telefono.slice(-4)}` : 'No disponible';
   const firstName = user?.nombre?.trim()?.split(' ')[0] || 'Usuario';
@@ -118,9 +136,7 @@ const Dashboard = () => {
           </div>
 
           {loading ? (
-            <div className="text-center py-8">
-              <Loader2 className="animate-spin h-6 w-6 mx-auto text-primary" />
-            </div>
+            <LoadingSpinner size="sm" />
           ) : productos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {productos.map((producto) => (
@@ -132,10 +148,11 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 bg-card rounded-xl border border-border">
-              <Gift className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">Pronto tendremos nuevas recompensas para ti.</p>
-            </div>
+            <EmptyState
+              icon={Gift}
+              title="Sin recompensas disponibles"
+              description="Pronto tendremos nuevas recompensas para ti."
+            />
           )}
         </section>
       </div>

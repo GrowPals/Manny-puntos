@@ -2,12 +2,13 @@ import { memo, useCallback } from 'react';
 import { Gift, Lock, XCircle, Wrench, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/lib/logger';
 
 const ProductCard = memo(({ producto, userPoints = 0 }) => {
   const navigate = useNavigate();
 
   if (!producto || typeof userPoints !== 'number') {
-    console.error('ProductCard: Invalid props received.', { producto, userPoints });
+    logger.error('ProductCard: Invalid props received', { producto, userPoints });
     return null;
   }
 

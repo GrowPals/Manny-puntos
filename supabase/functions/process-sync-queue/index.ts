@@ -1,10 +1,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS with whitelist
+const ALLOWED_ORIGINS = [
+  'https://recompensas.manny.mx',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://[::]:3000',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 // Default DB IDs if not set in env
 const DEFAULT_CONTACTOS_DB = '17ac6cfd-8c1e-8068-8bc0-d32488189164';
@@ -217,7 +230,10 @@ async function processItem(
   }
 }
 
+// Admin-only function for processing sync queue
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -232,6 +248,28 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate caller is admin
+    const callerClienteId = req.headers.get('x-cliente-id');
+    if (!callerClienteId) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: caller, error: callerError } = await supabase
+      .from('clientes')
+      .select('id, es_admin')
+      .eq('id', callerClienteId)
+      .single();
+
+    if (callerError || !caller || !caller.es_admin) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Parse batch size from request or use default
     let batchSize = 10;

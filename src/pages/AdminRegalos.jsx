@@ -36,6 +36,8 @@ import {
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import EmptyState from '@/components/common/EmptyState';
 
 const AdminRegalos = () => {
     const { toast } = useToast();
@@ -47,24 +49,43 @@ const AdminRegalos = () => {
     const [copiedId, setCopiedId] = useState(null);
     const [expandedLinkId, setExpandedLinkId] = useState(null);
 
-    // Form state para crear
+    // Obtener configuración global
+    const { data: globalConfig } = useQuery({
+        queryKey: ['config-global'],
+        queryFn: api.config.getConfigGlobal,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    // Valores de config con defaults
+    const configDefaults = {
+        puntos_regalo: globalConfig?.puntos_regalo_default || 100,
+        dias_expiracion: globalConfig?.dias_expiracion_link_default || 30,
+        max_canjes: globalConfig?.max_canjes_campana_default || 100,
+        vigencia_beneficio: globalConfig?.vigencia_beneficio_dias || 365,
+        color_tema: globalConfig?.color_tema_default || '#E91E63',
+        presets_puntos: globalConfig?.presets_puntos || [50, 100, 200, 500],
+        presets_dias: globalConfig?.presets_dias_regalo || [7, 30, 90],
+        colores_tema: globalConfig?.colores_tema_opciones || ['#E91E63', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800'],
+    };
+
+    // Form state para crear (inicializado con valores de config)
     const [newLink, setNewLink] = useState({
         tipo: 'servicio',
         nombre_beneficio: '',
         descripcion_beneficio: '',
-        puntos_regalo: 100,
+        puntos_regalo: configDefaults.puntos_regalo,
         mensaje_personalizado: '',
         destinatario_telefono: '',
-        dias_expiracion: 30,
+        dias_expiracion: configDefaults.dias_expiracion,
         // Campos de campaña
         es_campana: false,
         nombre_campana: '',
-        max_canjes: 100,
+        max_canjes: configDefaults.max_canjes,
         terminos_condiciones: '',
         instrucciones_uso: '',
-        vigencia_beneficio: 365,
+        vigencia_beneficio: configDefaults.vigencia_beneficio,
         imagen_banner: '',
-        color_tema: '#E91E63'
+        color_tema: configDefaults.color_tema
     });
 
     // Beneficiarios de campaña seleccionada
@@ -149,18 +170,18 @@ const AdminRegalos = () => {
             tipo: 'servicio',
             nombre_beneficio: '',
             descripcion_beneficio: '',
-            puntos_regalo: 100,
+            puntos_regalo: configDefaults.puntos_regalo,
             mensaje_personalizado: '',
             destinatario_telefono: '',
-            dias_expiracion: 30,
+            dias_expiracion: configDefaults.dias_expiracion,
             es_campana: false,
             nombre_campana: '',
-            max_canjes: 100,
+            max_canjes: configDefaults.max_canjes,
             terminos_condiciones: '',
             instrucciones_uso: '',
-            vigencia_beneficio: 365,
+            vigencia_beneficio: configDefaults.vigencia_beneficio,
             imagen_banner: '',
-            color_tema: '#E91E63'
+            color_tema: configDefaults.color_tema
         });
     };
 
@@ -283,7 +304,8 @@ const AdminRegalos = () => {
         );
     };
 
-    const formatDate = (dateString) => {
+    // Helper para formatear fechas con hora (formatDate de utils solo hace fecha)
+    const formatDateTime = (dateString) => {
         if (!dateString) return '-';
         return new Date(dateString).toLocaleDateString('es-MX', {
             day: 'numeric',
@@ -295,11 +317,7 @@ const AdminRegalos = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <Loader2 className="animate-spin h-8 w-8 text-primary" />
-            </div>
-        );
+        return <LoadingSpinner size="md" />;
     }
 
     return (
@@ -393,12 +411,15 @@ const AdminRegalos = () => {
                                 <Input
                                     type="number"
                                     value={newLink.puntos_regalo}
-                                    onChange={(e) => setNewLink({ ...newLink, puntos_regalo: parseInt(e.target.value) || 0 })}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value) || 0;
+                                        setNewLink({ ...newLink, puntos_regalo: Math.max(1, val) });
+                                    }}
                                     placeholder="Cantidad de puntos *"
                                     min={1}
                                 />
                                 <div className="flex gap-1.5">
-                                    {[50, 100, 200, 500].map(pts => (
+                                    {configDefaults.presets_puntos.map(pts => (
                                         <Button
                                             key={pts}
                                             type="button"
@@ -418,7 +439,7 @@ const AdminRegalos = () => {
                         <div className="flex items-center gap-3">
                             <span className="text-sm text-muted-foreground whitespace-nowrap">Vigencia:</span>
                             <div className="flex gap-1.5 flex-1">
-                                {[7, 30, 90].map(dias => (
+                                {configDefaults.presets_dias.map(dias => (
                                     <Button
                                         key={dias}
                                         type="button"
@@ -449,7 +470,10 @@ const AdminRegalos = () => {
                                         <Input
                                             type="number"
                                             value={newLink.max_canjes}
-                                            onChange={(e) => setNewLink({ ...newLink, max_canjes: parseInt(e.target.value) || 0 })}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value) || 0;
+                                                setNewLink({ ...newLink, max_canjes: Math.max(0, val) });
+                                            }}
                                             placeholder="Sin límite"
                                             min={0}
                                         />
@@ -517,7 +541,7 @@ const AdminRegalos = () => {
                                         <div>
                                             <label className="text-xs text-muted-foreground mb-1.5 block">Color del tema</label>
                                             <div className="flex gap-2">
-                                                {['#E91E63', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800'].map(color => (
+                                                {configDefaults.colores_tema.map(color => (
                                                     <button
                                                         key={color}
                                                         type="button"
@@ -654,7 +678,7 @@ const AdminRegalos = () => {
                                             </span>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Canjeado: {formatDate(b.fecha_canje)}
+                                            Canjeado: {formatDateTime(b.fecha_canje)}
                                         </p>
                                     </div>
                                 ))}
@@ -818,7 +842,7 @@ const AdminRegalos = () => {
                                             )}
 
                                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                                                <span>Creado: {formatDate(link.created_at)}</span>
+                                                <span>Creado: {formatDateTime(link.created_at)}</span>
                                                 {link.veces_visto > 0 && (
                                                     <span className="flex items-center gap-1">
                                                         <Eye className="w-3 h-3" /> {link.veces_visto}

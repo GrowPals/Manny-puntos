@@ -17,6 +17,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/lib/logger';
 
 
 const ProductForm = ({ product, onFinished }) => {
@@ -36,7 +37,7 @@ const ProductForm = ({ product, onFinished }) => {
             onFinished();
         },
         onError: (error) => {
-            console.error("Error submitting product:", error);
+            logger.error('Error submitting product', { error: error.message });
             toast({ title: 'Error al guardar', description: error.message, variant: 'destructive' });
         }
     });
@@ -67,7 +68,7 @@ const ProductForm = ({ product, onFinished }) => {
             setImagePreview(publicUrl);
             toast({ title: 'Imagen subida', description: 'La imagen se cargó correctamente.' });
         } catch (error) {
-            console.error('Error uploading image:', error);
+            logger.error('Error uploading image', { error: error.message });
             toast({ title: 'Error al subir imagen', description: error.message, variant: 'destructive' });
         } finally {
             setIsUploading(false);
@@ -294,7 +295,7 @@ const AdminProductos = () => {
             setDeleteConfirm({ open: false, producto: null });
         },
         onError: (error) => {
-            console.error("Error deleting product:", error);
+            logger.error('Error deleting product', { error: error.message });
             toast({ title: 'Error al eliminar', description: error.message, variant: 'destructive' });
         }
     });

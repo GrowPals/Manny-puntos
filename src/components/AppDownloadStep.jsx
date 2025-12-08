@@ -19,6 +19,15 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/customSupabaseClient';
+import { logger } from '@/lib/logger';
+import {
+  VAPID_PUBLIC_KEY,
+  urlBase64ToUint8Array,
+  getDeviceInfo,
+  getOrCreateSubscription,
+  extractSubscriptionKeys
+} from '@/lib/pushUtils';
 
 // Pre-generate particle positions to avoid re-renders
 const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
@@ -112,60 +121,31 @@ const AppDownloadStep = ({
       setNotificationPermission(permission);
 
       if (permission === 'granted' && clienteId) {
-        // Registrar suscripción push
+        // Registrar suscripción push usando utilidades compartidas
         try {
-          const registration = await navigator.serviceWorker.ready;
-          const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-
           if (VAPID_PUBLIC_KEY) {
-            const urlBase64ToUint8Array = (base64String) => {
-              const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-              const base64 = (base64String + padding)
-                .replace(/-/g, '+')
-                .replace(/_/g, '/');
-              const rawData = atob(base64);
-              const outputArray = new Uint8Array(rawData.length);
-              for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-              }
-              return outputArray;
-            };
-
-            let subscription = await registration.pushManager.getSubscription();
-            if (!subscription) {
-              subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-              });
-            }
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await getOrCreateSubscription(registration);
+            const keys = extractSubscriptionKeys(subscription);
 
             // Guardar en Supabase
-            const { supabase } = await import('@/lib/customSupabaseClient');
             await supabase.from('push_subscriptions').upsert({
               cliente_id: clienteId,
-              endpoint: subscription.endpoint,
-              p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))),
-              auth: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))),
+              ...keys,
               is_admin: false, // Siempre false aquí - solo clientes llegan por gift/referral
-              device_info: {
-                userAgent: navigator.userAgent,
-                platform: navigator.platform,
-                language: navigator.language,
-                standalone: window.matchMedia('(display-mode: standalone)').matches,
-                timestamp: new Date().toISOString()
-              },
+              device_info: getDeviceInfo(),
               updated_at: new Date().toISOString()
             }, { onConflict: 'endpoint' });
           }
         } catch (pushError) {
-          console.warn('[AppDownloadStep] Push subscription failed:', pushError);
+          logger.warn('[AppDownloadStep] Push subscription failed', { error: pushError.message });
         }
       }
 
       setStep('complete');
       setTimeout(() => onComplete(), 1500);
     } catch (err) {
-      console.error('Error requesting notification permission:', err);
+      logger.error('Error requesting notification permission', { error: err.message });
       setStep('complete');
       setTimeout(() => onComplete(), 1500);
     } finally {

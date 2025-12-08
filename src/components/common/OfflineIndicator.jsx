@@ -43,15 +43,4 @@ export const OfflineIndicator = () => {
   );
 };
 
-/**
- * HOC para agregar validación de conexión antes de operaciones
- */
-export const withNetworkCheck = (WrappedComponent) => {
-  return function NetworkCheckedComponent(props) {
-    const { isOnline } = useNetworkStatus();
-
-    return <WrappedComponent {...props} isOnline={isOnline} />;
-  };
-};
-
 export default OfflineIndicator;

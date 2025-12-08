@@ -1,42 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import {
   Users, Gift, Copy, Share2, Check, Loader2, Clock, CheckCircle,
-  XCircle, ChevronRight, Coins, TrendingUp
+  XCircle, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-
-const StatCard = ({ icon: Icon, label, value, color = "primary" }) => (
-  <div className="bg-card rounded-xl p-4 border border-border">
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${color}/10`}>
-        <Icon className={`w-5 h-5 text-${color}`} />
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
-      </div>
-    </div>
-  </div>
-);
+import StatCard from '@/components/common/StatCard';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { logger } from '@/lib/logger';
 
 const MisReferidos = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const { data: stats, isLoading: loadingStats } = useQuery({
+  const { data: stats, isLoading: loadingStats, error: statsError } = useQuery({
     queryKey: ['referral-stats', user?.id],
     queryFn: () => api.referrals.getReferralStats(user.id),
     enabled: !!user?.id,
   });
 
-  const { data: referidos, isLoading: loadingReferidos } = useQuery({
+  const { data: referidos, isLoading: loadingReferidos, error: referidosError } = useQuery({
     queryKey: ['mis-referidos', user?.id],
     queryFn: () => api.referrals.getMisReferidos(user.id),
     enabled: !!user?.id,
@@ -46,6 +35,19 @@ const MisReferidos = () => {
     queryKey: ['referral-config'],
     queryFn: api.referrals.getReferralConfig,
   });
+
+  // Handle errors
+  useEffect(() => {
+    const error = statsError || referidosError;
+    if (error) {
+      logger.error('Error loading referrals', { error: error.message });
+      toast({
+        title: 'Error',
+        description: 'No pudimos cargar la información de referidos.',
+        variant: 'destructive',
+      });
+    }
+  }, [statsError, referidosError, toast]);
 
   const loading = loadingStats || loadingReferidos;
 
@@ -125,11 +127,7 @@ const MisReferidos = () => {
     : 0;
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" />;
   }
 
   return (
@@ -179,7 +177,7 @@ const MisReferidos = () => {
         </motion.div>
 
         {/* Progreso mensual */}
-        {stats?.limite_mensual && (
+        {stats?.limite_mensual > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

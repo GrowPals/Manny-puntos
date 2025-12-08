@@ -1,6 +1,7 @@
 import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { API_CONFIG } from '@/config'
+import { logger } from '@/lib/logger'
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs))
@@ -53,15 +54,6 @@ export async function withRetry(fn, options = {}) {
 }
 
 /**
- * Format a phone number for display (XXX-XXX-XXXX)
- */
-export function formatPhone(phone) {
-  const cleaned = String(phone).replace(/\D/g, '');
-  if (cleaned.length !== 10) return phone;
-  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-}
-
-/**
  * Format a number as currency (MXN)
  */
 export function formatCurrency(amount) {
@@ -102,7 +94,7 @@ export const safeStorage = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch {
-      console.warn(`Failed to save ${key} to localStorage`);
+      logger.warn('Failed to save to localStorage', { key });
       return false;
     }
   },
@@ -116,9 +108,10 @@ export const safeStorage = {
     }
   },
 
+  // For storing raw strings (non-JSON) - used by ThemeContext
   getString: (key, defaultValue = null) => {
     try {
-      return localStorage.getItem(key) || defaultValue;
+      return localStorage.getItem(key) ?? defaultValue;
     } catch {
       return defaultValue;
     }
@@ -129,8 +122,8 @@ export const safeStorage = {
       localStorage.setItem(key, value);
       return true;
     } catch {
-      console.warn(`Failed to save ${key} to localStorage`);
+      logger.warn('Failed to save string to localStorage', { key });
       return false;
     }
-  }
+  },
 };

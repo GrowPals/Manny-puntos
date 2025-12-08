@@ -13,6 +13,7 @@ import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const MisServicios = () => {
     const { user } = useAuth();
@@ -36,7 +37,7 @@ const MisServicios = () => {
 
     useEffect(() => {
         if (errorServicios) {
-            console.error("Error al cargar historial de servicios:", errorServicios);
+            logger.error('Error al cargar historial de servicios', { error: errorServicios.message });
             toast({
                 title: "Error",
                 description: "No pudimos cargar tu historial de servicios.",
@@ -54,8 +55,8 @@ const MisServicios = () => {
     const StatsHeader = () => {
         if (!stats) return null;
 
-        const hasPuntos = stats.total_puntos && stats.total_puntos > 0;
-        const hasServicios = stats.total_servicios && stats.total_servicios > 0;
+        const hasPuntos = stats.total_puntos > 0;
+        const hasServicios = stats.total_servicios > 0;
 
         // Si no hay ninguna estadística con valor, no mostrar nada
         if (!hasPuntos && !hasServicios) return null;
@@ -93,8 +94,8 @@ const MisServicios = () => {
         const hasTipo = servicio.tipo_trabajo && servicio.tipo_trabajo.trim() !== '';
         const hasTitulo = servicio.titulo && servicio.titulo.trim() !== '';
         const hasDescripcion = servicio.descripcion && servicio.descripcion.trim() !== '';
-        const hasMonto = servicio.monto && servicio.monto > 0;
-        const hasPuntos = servicio.puntos_generados && servicio.puntos_generados > 0;
+        const hasMonto = servicio.monto > 0;
+        const hasPuntos = servicio.puntos_generados > 0;
 
         return (
             <motion.div

@@ -3,6 +3,7 @@ import { withRetry } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { isValidPhone } from '@/config';
 import { enqueueSyncOperation } from './sync';
+import { logger } from '@/lib/logger';
 import {
   notifyClienteBeneficioReclamado,
   notifyAdminsNuevoBeneficio,
@@ -49,10 +50,11 @@ export const getGiftByCode = async (codigo) => {
     .maybeSingle();
 
   if (error) {
-    console.error('Error obteniendo regalo:', error);
-    return null;
+    logger.error('Error obteniendo regalo', { error: error.message, codigo });
+    throw new Error(ERROR_MESSAGES.GIFTS.LOAD_ERROR || 'Error al cargar regalo');
   }
 
+  // null is valid - gift not found
   if (!data) return null;
 
   // Verificar expiración del link
@@ -93,7 +95,7 @@ export const claimGift = async (codigo, telefono) => {
       });
 
       if (error) {
-        console.error('Error canjeando regalo:', error);
+        logger.error('Error canjeando regalo', { error: error.message, codigo: codigoLimpio });
         throw new Error(ERROR_MESSAGES.GIFTS.CLAIM_ERROR);
       }
 
@@ -131,7 +133,7 @@ export const getMisBeneficios = async (clienteId) => {
   });
 
   if (error) {
-    console.error('Error obteniendo beneficios:', error);
+    logger.error('Error obteniendo beneficios', { error: error.message, clienteId });
     throw new Error(ERROR_MESSAGES.GIFTS.BENEFITS_LOAD_ERROR);
   }
 
@@ -199,7 +201,7 @@ export const createGiftLink = async ({
     .single();
 
   if (error) {
-    console.error('Error creando link:', error);
+    logger.error('Error creando link de regalo', { error: error.message, tipo, es_campana });
     throw new Error(ERROR_MESSAGES.GIFTS.CREATE_ERROR);
   }
 
@@ -225,7 +227,7 @@ export const getAllGiftLinks = async () => {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error obteniendo links:', error);
+    logger.error('Error obteniendo links de regalo', { error: error.message });
     throw new Error(ERROR_MESSAGES.GIFTS.LOAD_ERROR);
   }
 
@@ -245,7 +247,7 @@ export const getGiftStats = async () => {
     .select('estado, puntos_otorgados');
 
   if (e1) {
-    console.error('Error obteniendo stats:', e1);
+    logger.error('Error obteniendo stats de regalos', { error: e1.message });
     throw new Error(ERROR_MESSAGES.GIFTS.STATS_ERROR);
   }
 
@@ -284,7 +286,7 @@ export const getLinkBeneficiarios = async (linkId) => {
     .order('fecha_canje', { ascending: false });
 
   if (error) {
-    console.error('Error obteniendo beneficiarios:', error);
+    logger.error('Error obteniendo beneficiarios', { error: error.message, linkId });
     throw new Error(ERROR_MESSAGES.GIFTS.BENEFICIARIES_ERROR);
   }
 
@@ -305,7 +307,7 @@ export const getClienteBeneficios = async (clienteId) => {
     .order('fecha_canje', { ascending: false });
 
   if (error) {
-    console.error('Error obteniendo beneficios del cliente:', error);
+    logger.error('Error obteniendo beneficios del cliente', { error: error.message, clienteId });
     throw new Error(ERROR_MESSAGES.GIFTS.BENEFITS_LOAD_ERROR);
   }
 
@@ -330,7 +332,7 @@ export const marcarBeneficioUsado = async (beneficioId, adminId, notas = null) =
   });
 
   if (error) {
-    console.error('Error marcando beneficio:', error);
+    logger.error('Error marcando beneficio como usado', { error: error.message, beneficioId });
     throw new Error(ERROR_MESSAGES.GIFTS.MARK_USED_ERROR);
   }
 
@@ -359,7 +361,7 @@ export const expireGiftLink = async (linkId) => {
     .single();
 
   if (error) {
-    console.error('Error expirando link:', error);
+    logger.error('Error expirando link de regalo', { error: error.message, linkId });
     throw new Error(ERROR_MESSAGES.GIFTS.EXPIRE_ERROR);
   }
 
@@ -387,7 +389,7 @@ export const deleteGiftLink = async (linkId) => {
     .eq('id', linkId);
 
   if (error) {
-    console.error('Error eliminando link:', error);
+    logger.error('Error eliminando link de regalo', { error: error.message, linkId });
     throw new Error(ERROR_MESSAGES.GIFTS.DELETE_ERROR);
   }
 
@@ -411,7 +413,7 @@ export const createBenefitTicket = async (beneficioId) => {
 
     return data;
   } catch (error) {
-    console.warn('Direct Notion sync failed, queueing for retry:', error.message);
+    logger.warn('Direct Notion sync failed, queueing for retry', { error: error.message, beneficioId });
 
     // Queue for retry instead of failing silently
     await enqueueSyncOperation('create_benefit_ticket', beneficioId, {

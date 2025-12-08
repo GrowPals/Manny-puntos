@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { logger } from '@/lib/logger';
 
 const MisCanjes = () => {
     const { user } = useAuth();
@@ -24,7 +25,7 @@ const MisCanjes = () => {
 
     useEffect(() => {
         if (error) {
-            console.error("Error al cargar el historial:", error);
+            logger.error('Error al cargar el historial', { error: error.message });
             toast({
                 title: "Error de Historial",
                 description: "No pudimos cargar tu historial.",

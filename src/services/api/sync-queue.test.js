@@ -12,6 +12,42 @@ vi.mock('@/lib/customSupabaseClient', () => ({
   },
 }));
 
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    audit: vi.fn(),
+    giftClaimed: vi.fn(),
+    giftClaimFailed: vi.fn(),
+    syncQueued: vi.fn(),
+    syncFailed: vi.fn(),
+  },
+  LogLevel: {
+    DEBUG: 'debug',
+    INFO: 'info',
+    WARN: 'warn',
+    ERROR: 'error',
+  },
+  EventType: {
+    LOGIN_SUCCESS: 'auth.login_success',
+    LOGIN_FAILED: 'auth.login_failed',
+    LOGOUT: 'auth.logout',
+    PIN_REGISTERED: 'auth.pin_registered',
+    GIFT_VIEWED: 'gift.viewed',
+    GIFT_CLAIMED: 'gift.claimed',
+    GIFT_CLAIM_FAILED: 'gift.claim_failed',
+    REFERRAL_APPLIED: 'referral.applied',
+    REFERRAL_FAILED: 'referral.failed',
+    SYNC_QUEUED: 'sync.queued',
+    SYNC_COMPLETED: 'sync.completed',
+    SYNC_FAILED: 'sync.failed',
+    REDEMPTION_SUCCESS: 'redemption.success',
+    REDEMPTION_FAILED: 'redemption.failed',
+  },
+}));
+
 describe('Sync Queue Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,17 +90,14 @@ describe('Sync Queue Integration', () => {
       }));
     });
 
-    it('should still return queued status even if enqueue fails', async () => {
+    it('should throw when both Notion sync and enqueue fail', async () => {
       supabase.functions.invoke.mockResolvedValue({
         data: null,
         error: { message: 'Network error' },
       });
       supabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } });
 
-      const result = await syncToNotion('client-123');
-
-      // Should not throw, should return queued status
-      expect(result.queued).toBe(true);
+      await expect(syncToNotion('client-123')).rejects.toThrow('Error al encolar operación de sincronización');
     });
   });
 
@@ -88,16 +121,15 @@ describe('Sync Queue Integration', () => {
       });
     });
 
-    it('should return null on error without throwing', async () => {
+    it('should throw on error', async () => {
       supabase.rpc.mockResolvedValue({
         data: null,
         error: { message: 'Database unavailable' },
       });
 
-      const result = await enqueueSyncOperation('sync_cliente', 'resource-123');
-
-      expect(result).toBeNull();
-      // Should not throw
+      await expect(enqueueSyncOperation('sync_cliente', 'resource-123')).rejects.toThrow(
+        'Error al encolar operación de sincronización: Database unavailable'
+      );
     });
   });
 });

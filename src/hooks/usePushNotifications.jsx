@@ -13,52 +13,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { logger } from '@/lib/logger';
+import {
+  VAPID_PUBLIC_KEY,
+  SW_PATH,
+  urlBase64ToUint8Array,
+  getDeviceInfo,
+  waitForServiceWorker,
+  SW_TIMEOUT
+} from '@/lib/pushUtils';
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-const SW_PATH = '/sw.js';
-const SW_TIMEOUT = 5000;
 const SUBSCRIPTION_CHECK_TIMEOUT = 3000;
-
-/**
- * Convert VAPID key from base64 URL-safe format to Uint8Array
- */
-const urlBase64ToUint8Array = (base64String) => {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-};
-
-/**
- * Get device information for subscription metadata
- */
-const getDeviceInfo = () => ({
-  userAgent: navigator.userAgent,
-  platform: navigator.platform,
-  language: navigator.language,
-  standalone: window.matchMedia('(display-mode: standalone)').matches,
-  screenWidth: window.screen.width,
-  screenHeight: window.screen.height,
-  timestamp: new Date().toISOString()
-});
-
-/**
- * Wait for service worker with timeout
- */
-const waitForServiceWorker = async (timeout = SW_TIMEOUT) => {
-  return Promise.race([
-    navigator.serviceWorker.ready,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Service Worker timeout')), timeout)
-    )
-  ]);
-};
 
 /**
  * Register service worker if not already registered
@@ -80,7 +45,7 @@ const ensureServiceWorkerRegistered = async () => {
     await navigator.serviceWorker.ready;
     return registration;
   } catch (error) {
-    console.error('[Push] Service worker registration failed:', error);
+    logger.error('[Push] Service worker registration failed', { error: error.message });
     throw error;
   }
 };
@@ -103,7 +68,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
    */
   const saveSubscriptionToServer = useCallback(async (sub, clientId, adminFlag) => {
     if (!clientId) {
-      console.warn('[Push] Cannot save subscription: clientId is required');
+      logger.warn('[Push] Cannot save subscription: clientId is required');
       return false;
     }
 
@@ -131,10 +96,10 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
         });
 
       if (dbError) throw dbError;
-      console.log('[Push] Subscription saved successfully for client:', clientId);
+      logger.info('[Push] Subscription saved successfully', { clientId });
       return true;
     } catch (err) {
-      console.error('[Push] Error saving subscription:', err);
+      logger.error('[Push] Error saving subscription', { error: err.message });
       throw err;
     }
   }, []);
@@ -151,12 +116,12 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
         .maybeSingle();
 
       if (dbError) {
-        console.error('[Push] Error checking subscription in DB:', dbError);
+        logger.error('[Push] Error checking subscription in DB', { error: dbError.message });
         return null;
       }
       return data;
     } catch (err) {
-      console.error('[Push] Error checking subscription:', err);
+      logger.error('[Push] Error checking subscription', { error: err.message });
       return null;
     }
   }, []);
@@ -176,12 +141,12 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
       if (!dbRecord) {
         // Subscription exists in browser but not in DB - save it
-        console.log('[Push] Found browser subscription without DB record, syncing...');
+        logger.info('[Push] Found browser subscription without DB record, syncing...');
         await saveSubscriptionToServer(sub, clientId, adminFlag);
         lastSyncedClienteRef.current = clientId;
       } else if (dbRecord.cliente_id !== clientId) {
         // Subscription exists but for different client - update it
-        console.log('[Push] Updating subscription cliente_id');
+        logger.info('[Push] Updating subscription cliente_id');
         await saveSubscriptionToServer(sub, clientId, adminFlag);
         lastSyncedClienteRef.current = clientId;
       } else {
@@ -189,7 +154,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
         lastSyncedClienteRef.current = clientId;
       }
     } catch (err) {
-      console.error('[Push] Error syncing subscription:', err);
+      logger.error('[Push] Error syncing subscription', { error: err.message });
     } finally {
       syncInProgressRef.current = false;
     }
@@ -222,7 +187,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
         }
       } catch (err) {
         // Silent fail - service worker might not be ready yet
-        console.log('[Push] Subscription check skipped:', err.message);
+        logger.debug('[Push] Subscription check skipped', { reason: err.message });
       }
     };
 
@@ -267,7 +232,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
     // Validate clienteId is available
     if (!clienteId) {
-      console.error('[Push] Cannot request permission: clienteId is required');
+      logger.error('[Push] Cannot request permission: clienteId is required');
       return {
         success: false,
         error: 'Error interno: usuario no identificado'
@@ -292,7 +257,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
       // Check VAPID key
       if (!VAPID_PUBLIC_KEY) {
-        console.warn('[Push] VAPID key not configured, using local notifications only');
+        logger.warn('[Push] VAPID key not configured, using local notifications only');
         setIsLoading(false);
         return { success: true, localOnly: true };
       }
@@ -302,7 +267,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
       try {
         registration = await waitForServiceWorker(SW_TIMEOUT);
       } catch {
-        console.log('[Push] Service worker not ready, registering...');
+        logger.info('[Push] Service worker not ready, registering...');
         registration = await ensureServiceWorkerRegistered();
       }
 
@@ -334,13 +299,13 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
           tipo: 'bienvenida',
           cliente_id: clienteId
         }
-      }).catch(e => console.log('[Push] Welcome notification skipped:', e.message));
+      }).catch(e => logger.debug('[Push] Welcome notification skipped', { reason: e.message }));
 
       setIsLoading(false);
       return { success: true };
 
     } catch (err) {
-      console.error('[Push] Error requesting permission:', err);
+      logger.error('[Push] Error requesting permission', { error: err.message });
       setError(err.message);
       setIsLoading(false);
       return { success: false, error: err.message };
@@ -369,7 +334,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
           .eq('endpoint', currentSubscription.endpoint);
 
         if (dbError) {
-          console.warn('[Push] Error removing from DB:', dbError);
+          logger.warn('[Push] Error removing from DB', { error: dbError.message });
           // Continue anyway - we still want to unsubscribe from browser
         }
       }
@@ -384,7 +349,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
 
       return { success: true };
     } catch (err) {
-      console.error('[Push] Error unsubscribing:', err);
+      logger.error('[Push] Error unsubscribing', { error: err.message });
       setError(err.message);
       setIsLoading(false);
       return { success: false, error: err.message };
@@ -412,7 +377,7 @@ export const usePushNotifications = (clienteId, isAdmin = false) => {
       });
       return true;
     } catch (err) {
-      console.error('[Push] Error showing local notification:', err);
+      logger.error('[Push] Error showing local notification', { error: err.message });
       return false;
     }
   }, [permission]);

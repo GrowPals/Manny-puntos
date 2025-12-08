@@ -4,6 +4,18 @@
  */
 
 // ============================================
+// CONTACT & WHATSAPP CONFIGURATION
+// ============================================
+export const CONTACT_CONFIG = {
+  // Main WhatsApp number for general support
+  WHATSAPP_MAIN: '5214625905222',
+  // WhatsApp number for service scheduling
+  WHATSAPP_SERVICES: '5214624844148',
+  // Support email
+  EMAIL: 'soporte@mannysoytupartner.com',
+};
+
+// ============================================
 // API & NETWORK CONFIGURATION
 // ============================================
 export const API_CONFIG = {

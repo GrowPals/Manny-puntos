@@ -4,7 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     Users, Search, Edit, Loader2, Gift, Crown, ChevronRight,
-    ArrowUpDown, Coins, X, Star, TrendingUp, Phone, UserPlus
+    ArrowUpDown, Coins, X, Star, TrendingUp, Phone, UserPlus,
+    ArrowUpCircle, MoreHorizontal
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -127,14 +128,14 @@ const FilterTab = ({ active, onClick, children, count, color }) => (
     </button>
 );
 
-// Quick Action Button
-const QuickAction = ({ icon: Icon, label, onClick, color = 'text-muted-foreground' }) => (
+// Quick Action Button - Clean, monochrome for professional look
+const QuickAction = ({ icon: Icon, onClick, label }) => (
     <button
-        onClick={onClick}
-        className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-muted/50 transition-colors ${color} hover:text-foreground`}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
+        className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-95 transition-all"
+        title={label}
     >
-        <Icon className="w-4 h-4" />
-        <span className="text-[10px] font-medium">{label}</span>
+        <Icon className="w-[18px] h-[18px]" />
     </button>
 );
 
@@ -238,13 +239,13 @@ const ClientForm = ({ client, onFinished }) => {
     );
 };
 
-const AssignPointsForm = ({ client, onFinished }) => {
+const AssignPointsForm = ({ client, onFinished, presetsPuntos }) => {
     const [pointsToAdd, setPointsToAdd] = useState('');
     const [concept, setConcept] = useState('');
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    const quickPoints = [50, 100, 200, 500];
+    const quickPoints = presetsPuntos || [50, 100, 200, 500];
 
     const mutation = useMutation({
         mutationFn: ({ telefono, puntos, concepto }) => api.clients.asignarPuntosManualmente(telefono, puntos, concepto),
@@ -616,73 +617,74 @@ const ClientRow = ({ cliente, onAction, navigate }) => (
     </tr>
 );
 
-// Mobile Card
-const ClientCard = ({ cliente, onAction }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card rounded-2xl border border-border overflow-hidden"
-    >
-        <Link
-            to={`/admin/clientes/${cliente.id}`}
-            className="block p-4 active:bg-muted/30 transition-colors"
+// Mobile Card - Clean, professional design
+const ClientCard = ({ cliente, onAction }) => {
+    const isVip = cliente.nivel === 'vip';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-2xl border border-border"
         >
-            <div className="flex items-center gap-3">
+            {/* Main Content - Tappable area */}
+            <Link
+                to={`/admin/clientes/${cliente.id}`}
+                className="flex items-center gap-3 p-4 active:bg-muted/30 transition-colors"
+            >
+                {/* Avatar - the gradient already indicates level */}
                 <ClientAvatar nombre={cliente.nombre} nivel={cliente.nivel} size="md" />
+
+                {/* Client Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <p className="font-semibold text-foreground truncate">{cliente.nombre}</p>
-                        <LevelBadge nivel={cliente.nivel} showLabel={false} />
+                        {isVip && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-600 rounded">
+                                VIP
+                            </span>
+                        )}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-sm text-muted-foreground">{cliente.telefono}</span>
-                        <LevelBadge nivel={cliente.nivel} />
-                    </div>
+                    <p className="text-sm text-muted-foreground">{cliente.telefono}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                            <Coins className="w-4 h-4 text-primary" />
-                            <p className="font-bold text-foreground text-xl">{cliente.puntos_actuales?.toLocaleString('es-MX') || 0}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">puntos</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                </div>
-            </div>
-        </Link>
 
-        {/* Quick Actions Bar */}
-        <div className="border-t border-border px-4 py-2 flex justify-between items-center bg-muted/20">
-            <div className="flex gap-1">
+                {/* Points */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-xl font-bold text-foreground">
+                        {cliente.puntos_actuales?.toLocaleString('es-MX') || 0}
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground/40" />
+                </div>
+            </Link>
+
+            {/* Clean Action Bar - All same color for consistency */}
+            <div className="flex items-center justify-between px-3 py-2 border-t border-border/50">
+                <div className="flex items-center gap-1">
+                    <QuickAction
+                        icon={Coins}
+                        label="Agregar puntos"
+                        onClick={() => onAction('assign', cliente)}
+                    />
+                    <QuickAction
+                        icon={Gift}
+                        label="Asignar beneficio"
+                        onClick={() => onAction('service', cliente)}
+                    />
+                    <QuickAction
+                        icon={ArrowUpCircle}
+                        label="Cambiar nivel"
+                        onClick={() => onAction('level', cliente)}
+                    />
+                </div>
                 <QuickAction
-                    icon={Coins}
-                    label="Puntos"
-                    onClick={() => onAction('assign', cliente)}
-                    color="text-primary"
-                />
-                <QuickAction
-                    icon={Gift}
-                    label="Beneficio"
-                    onClick={() => onAction('service', cliente)}
-                    color="text-green-500"
-                />
-                <QuickAction
-                    icon={cliente.nivel === 'vip' ? Star : Crown}
-                    label="Nivel"
-                    onClick={() => onAction('level', cliente)}
-                    color={cliente.nivel === 'vip' ? 'text-blue-500' : 'text-amber-500'}
+                    icon={MoreHorizontal}
+                    label="Editar cliente"
+                    onClick={() => onAction('edit', cliente)}
                 />
             </div>
-            <button
-                onClick={() => onAction('edit', cliente)}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-                <Edit className="w-4 h-4" />
-            </button>
-        </div>
-    </motion.div>
-);
+        </motion.div>
+    );
+};
 
 const AdminClientes = () => {
     const navigate = useNavigate();
@@ -691,6 +693,15 @@ const AdminClientes = () => {
     const [levelFilter, setLevelFilter] = useState('all');
     const [sortBy, setSortBy] = useState('nombre');
     const [sortOrder, setSortOrder] = useState('asc');
+
+    // Obtener configuración global
+    const { data: globalConfig } = useQuery({
+        queryKey: ['config-global'],
+        queryFn: api.config.getConfigGlobal,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const presetsPuntos = globalConfig?.presets_puntos || [50, 100, 200, 500];
 
     const { data: clientes = [], isLoading: loading } = useQuery({
         queryKey: ['admin-clientes'],
@@ -1034,7 +1045,7 @@ const AdminClientes = () => {
             <Dialog open={!!modalState.type} onOpenChange={() => setModalState({ type: null, client: null })}>
                 {modalState.type === 'create' && <ClientForm onFinished={handleModalClose} />}
                 {modalState.type === 'edit' && <ClientForm client={modalState.client} onFinished={handleModalClose} />}
-                {modalState.type === 'assign' && <AssignPointsForm client={modalState.client} onFinished={handleModalClose} />}
+                {modalState.type === 'assign' && <AssignPointsForm client={modalState.client} onFinished={handleModalClose} presetsPuntos={presetsPuntos} />}
                 {modalState.type === 'service' && <AssignServiceForm client={modalState.client} onFinished={handleModalClose} />}
                 {modalState.type === 'level' && <ChangeLevelForm client={modalState.client} onFinished={handleModalClose} />}
             </Dialog>

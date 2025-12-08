@@ -1,10 +1,23 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS with whitelist
+const ALLOWED_ORIGINS = [
+  'https://recompensas.manny.mx',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://[::]:3000',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cliente-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 const TICKETS_MANNY_DB = '17ac6cfd-8c1e-8162-b724-d4047a7e7635';
 const MANNY_REWARDS_DB = '2bfc6cfd-8c1e-8026-9291-e4bc8c18ee01';
@@ -186,20 +199,50 @@ async function createTicketInNotion(
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const notionToken = Deno.env.get('NOTION_TOKEN');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
 
     if (!notionToken) {
       throw new Error('NOTION_TOKEN not configured');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate caller is authenticated
+    const callerClienteId = req.headers.get('x-cliente-id');
+    if (!callerClienteId) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify caller exists in database
+    const { data: caller, error: callerError } = await supabase
+      .from('clientes')
+      .select('id, es_admin')
+      .eq('id', callerClienteId)
+      .single();
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const payload = await req.json();
 
     console.log('Create reward ticket/pendiente payload:', JSON.stringify(payload, null, 2));

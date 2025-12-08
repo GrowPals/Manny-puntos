@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench, UserPlus, Settings, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -102,11 +102,18 @@ const Header = () => {
         </div>
     );
 
-    const ClientNavLinks = ({ onClick, compact = false }) => (
+    const ClientNavLinks = ({ onClick, compact = false, showExtras = false }) => (
         <>
             <NavLink to="/dashboard" end onClick={onClick} compact={compact}><Gift className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Canjear</NavLink>
             <NavLink to="/mis-servicios" onClick={onClick} compact={compact}><Wrench className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Servicios</NavLink>
             <NavLink to="/mis-canjes" onClick={onClick} compact={compact}><History className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Canjes</NavLink>
+            {showExtras && (
+                <>
+                    <div className="my-3 border-t border-border" />
+                    <NavLink to="/configuracion" onClick={onClick} compact={compact}><Settings className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Configuración</NavLink>
+                    <NavLink to="/ayuda" onClick={onClick} compact={compact}><HelpCircle className={cn(compact ? "w-4 h-4 mr-1.5" : "w-5 h-5 mr-3")} />Ayuda</NavLink>
+                </>
+            )}
         </>
     );
 
@@ -125,16 +132,19 @@ const Header = () => {
     return (
         <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
             <nav className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-14">
-                <div className="flex items-center justify-between h-full gap-4">
-                    <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0" aria-label="Ir a la página principal">
+                <div className="flex items-center h-full gap-4">
+                    {/* Logo - fixed width for balance */}
+                    <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0 lg:min-w-[120px]" aria-label="Ir a la página principal">
                         <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
                     </Link>
 
-                    <div className="hidden lg:flex items-center gap-1">
+                    {/* Navigation - centered, takes available space */}
+                    <div className="hidden lg:flex items-center justify-center gap-1 flex-1">
                         {isAdmin ? <AdminNavLinksDesktop /> : (user && <ClientNavLinks compact />)}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {/* Actions - aligned right */}
+                    <div className="flex items-center gap-2 ml-auto lg:ml-0 lg:min-w-[120px] lg:justify-end">
                         {user && (
                             <div className={cn(
                                 "px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold flex items-center gap-1.5 text-sm",
@@ -147,6 +157,14 @@ const Header = () => {
                         {/* Notification bell for all logged in users */}
                         {user && (
                             <NotificationBell clienteId={user?.id} isAdmin={isAdmin} />
+                        )}
+                        {/* Settings button - visible for clients */}
+                        {user && !isAdmin && (
+                            <Link to="/configuracion">
+                                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Configuración">
+                                    <Settings className="w-5 h-5" />
+                                </Button>
+                            </Link>
                         )}
                         <ThemeToggle />
                         {user && (
@@ -207,7 +225,7 @@ const Header = () => {
 
                             {/* Navigation - scrollable */}
                             <div className="flex-1 overflow-y-auto p-4">
-                                {isAdmin ? <AdminNavLinksMobile onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} />}
+                                {isAdmin ? <AdminNavLinksMobile onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} showExtras />}
                             </div>
 
                             {/* Logout button - fixed at bottom with safe area */}

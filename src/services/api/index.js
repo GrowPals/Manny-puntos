@@ -7,6 +7,7 @@ import * as admin from './admin';
 import * as referrals from './referrals';
 import * as gifts from './gifts';
 import * as sync from './sync';
+import * as config from './config';
 
 export const api = {
   auth,
@@ -18,4 +19,5 @@ export const api = {
   referrals,
   gifts,
   sync,
+  config,
 };

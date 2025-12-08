@@ -1,10 +1,12 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { withRetry } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import {
     notifyClienteCanjeListoParaRecoger,
     notifyClienteCanjeEntregado,
-    notifyAdminsNuevoCanje
+    notifyAdminsNuevoCanje,
+    notifyClienteCanjeRegistrado
 } from './notifications';
 
 export const getTodosLosCanjes = async () => {
@@ -46,11 +48,21 @@ export const getCanjesPendientes = async () => {
 
 export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
     // Get canje data before updating for notification
-    const { data: canjeData } = await supabase
+    const { data: canjeData, error: fetchError } = await supabase
         .from('canjes')
         .select('cliente_id, productos(nombre)')
         .eq('id', canjeId)
-        .single();
+        .maybeSingle();
+
+    if (fetchError) {
+        logger.error('Error fetching canje for status update', { error: fetchError.message, canjeId });
+        throw new Error(ERROR_MESSAGES.REDEMPTIONS.NOT_FOUND || 'Canje no encontrado');
+    }
+
+    if (!canjeData) {
+        logger.warn('Canje not found for status update', { canjeId });
+        throw new Error(ERROR_MESSAGES.REDEMPTIONS.NOT_FOUND || 'Canje no encontrado');
+    }
 
     const { error } = await supabase
         .from('canjes')
@@ -73,7 +85,7 @@ export const actualizarEstadoCanje = async (canjeId, nuevoEstado) => {
         await supabase.functions.invoke('update-canje-status-notion', {
             body: { canje_id: canjeId, nuevo_estado: nuevoEstado }
         });
-    } catch (e) { console.warn('Error syncing canje status to Notion:', e); }
+    } catch (e) { logger.warn('Error syncing canje status to Notion', { error: e.message, canjeId }); }
 
     return true;
 };
@@ -88,7 +100,7 @@ export const registrarCanje = async ({ cliente_id, producto_id, cliente_nombre, 
             });
 
             if (error) {
-                console.error('Error en RPC registrar_canje_atomico:', error);
+                logger.error('Error en registrar_canje_atomico', { error: error.message, cliente_id, producto_id });
                 // Don't retry business logic errors
                 if (error.message.includes('Puntos insuficientes')) {
                     const businessError = new Error(ERROR_MESSAGES.REDEMPTIONS.INSUFFICIENT_POINTS);
@@ -110,6 +122,11 @@ export const registrarCanje = async ({ cliente_id, producto_id, cliente_nombre, 
         }
     );
 
+    // Fire and forget: Notify client about their redemption
+    if (cliente_id && producto_nombre) {
+        notifyClienteCanjeRegistrado(cliente_id, producto_nombre, puntos_producto || 0);
+    }
+
     // Fire and forget: Notify admins about new redemption
     if (cliente_nombre && producto_nombre) {
         notifyAdminsNuevoCanje(cliente_nombre, producto_nombre, puntos_producto || 0);
@@ -120,7 +137,7 @@ export const registrarCanje = async ({ cliente_id, producto_id, cliente_nombre, 
         await supabase.functions.invoke('create-reward-ticket', {
             body: { tipo: 'canje', id: data.canjeId }
         });
-    } catch (e) { console.warn('Error creating reward ticket:', e); }
+    } catch (e) { logger.warn('Error creating reward ticket', { error: e.message, canjeId: data.canjeId }); }
 
     return {
         nuevoSaldo: data.nuevoSaldo,

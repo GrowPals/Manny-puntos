@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Gift, Loader2, ExternalLink } from 'lucide-react';
+import { CheckCircle, Gift, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import { CONTACT_CONFIG } from '@/config';
 
 const ServicesList = () => {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ const ServicesList = () => {
 
       // Abrir WhatsApp con mensaje pre-llenado
       const message = `Hola, soy ${user.nombre} (Tel: ${user.telefono}). Acabo de canjear mi beneficio Partner: ${variables.nombre}`;
-      const whatsappUrl = `https://wa.me/5214624844148?text=${encodeURIComponent(message)}`;
+      const whatsappUrl = `https://wa.me/${CONTACT_CONFIG.WHATSAPP_SERVICES}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
 
       await queryClient.invalidateQueries(['services', user.id]);

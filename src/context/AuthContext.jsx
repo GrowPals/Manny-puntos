@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '@/services/api';
@@ -6,6 +5,7 @@ import { safeStorage } from '@/lib/utils';
 import { STORAGE_CONFIG } from '@/config';
 import { offlineStorage } from '@/lib/offlineStorage';
 import { refreshSupabaseHeaders } from '@/lib/customSupabaseClient';
+import { logger } from '@/lib/logger';
 
 const AuthContext = createContext(null);
 
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const result = await api.referrals.applyReferralCode(clienteData.id, pendingReferralCode);
           safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
-          console.log('Pending referral code applied successfully:', result);
+          logger.info('Pending referral code applied successfully', { result });
         } catch (referralError) {
           // Only clear the code if it's a business logic error (invalid code, already used, etc.)
           // Keep it for retry if it's a network/server error
@@ -73,11 +73,11 @@ export const AuthProvider = ({ children }) => {
             referralError.message?.includes('límite');
 
           if (isBusinessError) {
-            console.warn('Referral code rejected (business error):', referralError.message);
+            logger.warn('Referral code rejected (business error)', { error: referralError.message });
             safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
           } else {
             // Network error - keep the code for next login attempt
-            console.warn('Failed to apply referral code (will retry):', referralError.message);
+            logger.warn('Failed to apply referral code (will retry)', { error: referralError.message });
             // Don't remove - will try again on next login
           }
         }
@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }) => {
 
       return clienteData;
     } catch (error) {
-      console.error('Login failed:', error);
+      logger.error('Login failed', { error: error.message });
       setUser(null);
       safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
       throw error;
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
 
       return clienteData;
     } catch (error) {
-      console.error('First time login failed:', error);
+      logger.error('First time login failed', { error: error.message });
       setUser(null);
       setNeedsOnboarding(false);
       throw error;
@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
 
       return true;
     } catch (error) {
-      console.error('Register PIN failed:', error);
+      logger.error('Register PIN failed', { error: error.message });
       throw error;
     } finally {
       setLoading(false);
@@ -178,7 +178,7 @@ export const AuthProvider = ({ children }) => {
     // Clear offline cache (non-blocking, fire-and-forget)
     if (offlineStorage.isAvailable()) {
       offlineStorage.clearAll().catch((err) => {
-        console.warn('Failed to clear offline storage on logout:', err);
+        logger.warn('Failed to clear offline storage on logout', { error: err.message });
       });
     }
 

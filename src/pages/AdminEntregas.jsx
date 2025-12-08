@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { logger } from '@/lib/logger';
 
 const AdminEntregas = () => {
     const { toast } = useToast();
@@ -27,7 +28,7 @@ const AdminEntregas = () => {
             queryClient.invalidateQueries(['admin-canjes']);
         },
         onError: (error) => {
-            console.error("Error updating status:", error);
+            logger.error('Error updating status', { error: error.message });
             toast({ title: 'Error al actualizar', description: error.message, variant: 'destructive' });
         }
     });

@@ -31,11 +31,12 @@ export default defineConfig({
 							cacheName: 'supabase-api-cache',
 							expiration: {
 								maxEntries: 100,
-								maxAgeSeconds: 60 * 60 * 24,
+								maxAgeSeconds: 60 * 5, // 5 minutos para datos dinámicos
 							},
 							cacheableResponse: {
-								statuses: [0, 200],
+								statuses: [200], // Solo cachear respuestas exitosas (no status 0 = CORS error)
 							},
+							networkTimeoutSeconds: 10, // Timeout antes de usar cache
 						},
 					},
 					{
@@ -48,7 +49,7 @@ export default defineConfig({
 								maxAgeSeconds: 60 * 60 * 24 * 365,
 							},
 							cacheableResponse: {
-								statuses: [0, 200],
+								statuses: [200],
 							},
 						},
 					},
@@ -130,7 +131,21 @@ export default defineConfig({
 				'@babel/traverse',
 				'@babel/generator',
 				'@babel/types'
-			]
+			],
+			output: {
+				manualChunks: {
+					// Core React - loaded on every page
+					'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+					// UI framework - loaded on every page
+					'vendor-ui': ['framer-motion', '@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-toast', '@radix-ui/react-dropdown-menu'],
+					// Charts - only used in Admin dashboard
+					'vendor-charts': ['recharts'],
+					// Data fetching
+					'vendor-query': ['@tanstack/react-query'],
+					// Supabase
+					'vendor-supabase': ['@supabase/supabase-js'],
+				}
+			}
 		}
 	},
 	test: {

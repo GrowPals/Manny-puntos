@@ -8,6 +8,53 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from './useNetworkStatus';
 import { offlineStorage } from '@/lib/offlineStorage';
+import { api } from '@/services/api';
+import { logger, EventType } from '@/lib/logger';
+
+/**
+ * Execute a sync action based on its type
+ * Returns true if successful, throws error otherwise
+ */
+const executeSyncAction = async (action) => {
+  const { type, payload } = action;
+
+  switch (type) {
+    case 'REDEEM_PRODUCT': {
+      // Re-attempt redemption with correct signature
+      const { cliente_id, producto_id, cliente_nombre, producto_nombre, puntos_producto } = payload;
+      await api.redemptions.registrarCanje({
+        cliente_id,
+        producto_id,
+        cliente_nombre,
+        producto_nombre,
+        puntos_producto
+      });
+      logger.info('Offline redemption synced', { producto_id, cliente_id }, EventType.SYNC);
+      return true;
+    }
+
+    case 'CLAIM_GIFT': {
+      // Re-attempt gift claim with correct function name
+      const { codigo, telefono } = payload;
+      await api.gifts.claimGift(codigo, telefono);
+      logger.info('Offline gift claim synced', { codigo }, EventType.SYNC);
+      return true;
+    }
+
+    case 'APPLY_REFERRAL': {
+      // Re-attempt referral code application
+      const { clienteId, code } = payload;
+      await api.referrals.applyReferralCode(clienteId, code);
+      logger.info('Offline referral applied', { code }, EventType.SYNC);
+      return true;
+    }
+
+    default:
+      // Unknown action type - log and remove
+      logger.warn(`Unknown sync action type: ${type}`, { action }, EventType.SYNC);
+      return true; // Return true to remove from queue
+  }
+};
 
 /**
  * Hook to sync pending offline actions when back online
@@ -26,15 +73,26 @@ export const useSyncOfflineActions = () => {
     if (!offlineStorage.isAvailable()) return;
 
     isProcessing.current = true;
+    let successCount = 0;
+    let failCount = 0;
 
     try {
       const pendingActions = await offlineStorage.getPendingSyncActions();
 
+      if (pendingActions.length === 0) {
+        return { success: true, synced: 0, failed: 0 };
+      }
+
+      logger.info(`Processing ${pendingActions.length} offline actions`, {}, EventType.SYNC);
+
       for (const action of pendingActions) {
         try {
-          // For now, just remove completed actions
-          // Future: Add actual sync logic based on action.type
+          // Execute the actual sync action
+          await executeSyncAction(action);
+
+          // Remove successfully synced action
           await offlineStorage.removeSyncAction(action.id);
+          successCount++;
 
           // Invalidate related queries to trigger refetch
           if (action.invalidateQueries && Array.isArray(action.invalidateQueries)) {
@@ -47,12 +105,14 @@ export const useSyncOfflineActions = () => {
           const newRetries = (action.retries || 0) + 1;
 
           if (newRetries >= 3) {
-            // Mark as failed after max retries
-            await offlineStorage.updateSyncAction(action.id, {
-              status: 'failed',
-              lastError: error.message,
-              lastAttempt: Date.now(),
-            });
+            // Mark as failed after max retries and remove from queue
+            logger.error(`Sync action failed permanently after 3 retries`, {
+              actionType: action.type,
+              error: error.message,
+            }, EventType.SYNC);
+
+            await offlineStorage.removeSyncAction(action.id);
+            failCount++;
           } else {
             await offlineStorage.updateSyncAction(action.id, {
               retries: newRetries,
@@ -62,6 +122,12 @@ export const useSyncOfflineActions = () => {
           }
         }
       }
+
+      if (successCount > 0 || failCount > 0) {
+        logger.info(`Sync complete: ${successCount} synced, ${failCount} failed`, {}, EventType.SYNC);
+      }
+
+      return { success: true, synced: successCount, failed: failCount };
     } finally {
       isProcessing.current = false;
     }
@@ -91,38 +157,31 @@ export const useClearOfflineCache = () => {
 };
 
 /**
- * Hook to prefill React Query cache from IndexedDB on mount
- * Use this in components that need offline data immediately
+ * Helper to queue an offline action for later sync
+ * Use this when an operation fails due to being offline
  */
-export const usePrefillFromOfflineCache = (queryKey, getCacheFn) => {
-  const queryClient = useQueryClient();
-  const hasPrefilled = useRef(false);
+export const queueOfflineAction = async (type, payload, invalidateQueries = []) => {
+  if (!offlineStorage.isAvailable()) {
+    logger.warn('Cannot queue offline action: IndexedDB not available', { type });
+    return false;
+  }
 
-  useEffect(() => {
-    const prefill = async () => {
-      if (hasPrefilled.current) return;
-      if (!offlineStorage.isAvailable()) return;
-
-      const currentData = queryClient.getQueryData(queryKey);
-      if (currentData) return; // Already has data
-
-      try {
-        const cached = await getCacheFn();
-        if (cached && (Array.isArray(cached) ? cached.length > 0 : true)) {
-          queryClient.setQueryData(queryKey, cached);
-          hasPrefilled.current = true;
-        }
-      } catch (error) {
-        console.warn('Failed to prefill from offline cache:', error);
-      }
-    };
-
-    prefill();
-  }, [queryClient, queryKey, getCacheFn]);
+  try {
+    await offlineStorage.addToSyncQueue({
+      type,
+      payload,
+      invalidateQueries,
+    });
+    logger.info('Action queued for offline sync', { type }, EventType.SYNC);
+    return true;
+  } catch (error) {
+    logger.error('Failed to queue offline action', { type, error: error.message });
+    return false;
+  }
 };
 
 export default {
   useSyncOfflineActions,
   useClearOfflineCache,
-  usePrefillFromOfflineCache,
+  queueOfflineAction,
 };

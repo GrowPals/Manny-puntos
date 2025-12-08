@@ -11,6 +11,7 @@ import MannyLogo from '@/assets/images/manny-logo-new.svg';
 import { VALIDATION, STORAGE_CONFIG, isValidPhone } from '@/config';
 import { safeStorage } from '@/lib/utils';
 import AppDownloadStep from '@/components/AppDownloadStep';
+import { logger } from '@/lib/logger';
 
 const ReferralLanding = () => {
   const { codigo } = useParams();
@@ -46,21 +47,28 @@ const ReferralLanding = () => {
       }
 
       try {
-        const [codeData, configData] = await Promise.all([
+        const [codeResult, configData] = await Promise.all([
           api.referrals.validateReferralCode(codigo),
           api.referrals.getReferralConfig()
         ]);
 
-        if (!codeData) {
-          setError('Este código de referido no es válido o ha expirado');
+        // Manejar diferentes razones de código inválido
+        if (!codeResult.valid) {
+          if (codeResult.reason === 'not_found') {
+            setError('Este código de referido no existe');
+          } else if (codeResult.reason === 'inactive') {
+            setError('Este código de referido ya no está activo');
+          } else {
+            setError('Este código de referido no es válido');
+          }
         } else if (!configData?.activo) {
           setError('El programa de referidos no está disponible en este momento');
         } else {
-          setReferralData(codeData);
+          setReferralData(codeResult.data);
           setConfig(configData);
         }
       } catch (err) {
-        console.error('Error validating code:', err);
+        logger.error('Error validating code', { error: err.message, codigo });
         setError('Error al validar el código');
       } finally {
         setLoading(false);
@@ -134,7 +142,7 @@ const ReferralLanding = () => {
       // Fallback si no hay clienteData (no debería pasar)
       navigate('/dashboard');
     } catch (err) {
-      console.error('Error en registro:', err);
+      logger.error('Error en registro', { error: err.message });
       toast({
         title: 'Error',
         description: err.message || 'No pudimos completar el registro',

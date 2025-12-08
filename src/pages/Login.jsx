@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import SEOHelmet from '@/components/common/SEOHelmet';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
-import { VALIDATION, isValidPhone } from '@/config';
+import { VALIDATION, isValidPhone, CONTACT_CONFIG } from '@/config';
 
 const Login = () => {
   const [telefono, setTelefono] = useState('');
@@ -370,7 +370,7 @@ const Login = () => {
                       </p>
 
                       <a
-                        href="https://wa.me/524621234567?text=Hola,%20necesito%20recuperar%20el%20PIN%20de%20mi%20cuenta%20de%20recompensas.%20Mi%20número%20es%20"
+                        href={`https://wa.me/${CONTACT_CONFIG.WHATSAPP_MAIN}?text=Hola,%20necesito%20recuperar%20el%20PIN%20de%20mi%20cuenta%20de%20recompensas.%20Mi%20número%20es%20`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-block"
