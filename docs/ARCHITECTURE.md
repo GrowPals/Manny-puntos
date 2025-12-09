@@ -200,10 +200,10 @@ verify_client_pin_secure(
 - 5 intentos máximo, bloqueo 5 minutos
 - Retorna `{ success, cliente?, error?, rate_limited? }`
 
-#### canjear_link_regalo_v3
+#### canjear_link_regalo
 
 ```sql
-canjear_link_regalo_v3(
+canjear_link_regalo(
   p_codigo TEXT,
   p_telefono TEXT
 ) RETURNS JSON

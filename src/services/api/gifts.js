@@ -101,7 +101,7 @@ export const claimGift = async (codigo, telefono) => {
   // Use retry logic for the critical gift claiming operation
   return await withRetry(
     async () => {
-      const { data, error } = await supabase.rpc('canjear_link_regalo_v3', {
+      const { data, error } = await supabase.rpc('canjear_link_regalo', {
         p_codigo: codigoLimpio,
         p_telefono: telefonoLimpio
       });
