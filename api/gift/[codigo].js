@@ -143,13 +143,16 @@ export default async function handler(request) {
       title = `🎁 ${escapeHtml(gift.nombre_beneficio)}`;
     }
 
-    // Descripción - usar call to action corto para evitar duplicación con el mensaje del usuario
-    if (gift.es_campana) {
+    // Descripción - usar mensaje personalizado si existe (sin escapar emojis)
+    if (gift.mensaje_personalizado) {
+      // Truncar pero NO escapar HTML en emojis - solo en texto peligroso
+      description = truncate(gift.mensaje_personalizado, 160);
+    } else if (gift.descripcion_beneficio) {
+      description = truncate(gift.descripcion_beneficio, 160);
+    } else if (gift.es_campana) {
       description = 'Abre el link para reclamar tu regalo exclusivo de Manny Rewards.';
     } else if (gift.tipo === 'puntos' && gift.puntos_regalo) {
-      description = `Reclama tus ${gift.puntos_regalo.toLocaleString()} puntos Manny. ¡Abre el link ahora!`;
-    } else if (gift.nombre_beneficio) {
-      description = `Reclama: ${escapeHtml(truncate(gift.nombre_beneficio, 80))}. ¡Abre el link!`;
+      description = `¡Reclama tus ${gift.puntos_regalo.toLocaleString()} puntos Manny ahora!`;
     }
 
     // Usar banner de campaña o imagen por defecto
