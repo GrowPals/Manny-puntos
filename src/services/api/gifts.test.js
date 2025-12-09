@@ -165,7 +165,7 @@ describe('Gifts Service', () => {
       const result = await claimGift('VALIDCODE', '1234567890');
 
       expect(result).toEqual(mockResult);
-      expect(supabase.rpc).toHaveBeenCalledWith('canjear_link_regalo_v3', {
+      expect(supabase.rpc).toHaveBeenCalledWith('canjear_link_regalo', {
         p_codigo: 'VALIDCODE',
         p_telefono: '1234567890',
       });
