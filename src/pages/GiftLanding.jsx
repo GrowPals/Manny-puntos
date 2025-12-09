@@ -745,8 +745,7 @@ const GiftLanding = () => {
               </form>
 
               <p className="text-xs text-muted-foreground text-center mt-4">
-                Si ya tienes cuenta, el regalo se agregará automáticamente.
-                Si eres nuevo, crearemos tu cuenta.
+                Exclusivo para clientes Partner de Manny
               </p>
             </motion.div>
           )}
