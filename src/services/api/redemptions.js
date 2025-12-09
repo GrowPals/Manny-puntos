@@ -9,10 +9,16 @@ import {
     notifyClienteCanjeRegistrado
 } from './notifications';
 
+// COLUMNAS VERIFICADAS canjes: id, created_at, cliente_id, producto_id, puntos_usados, estado, fecha_entrega, tipo_producto_original, notion_page_id, notion_ticket_id, notion_reward_id
+
 export const getTodosLosCanjes = async ({ limit = 100, offset = 0 } = {}) => {
     const { data, error, count } = await supabase
         .from('canjes')
-        .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`, { count: 'exact' })
+        .select(`
+            id, created_at, cliente_id, producto_id, puntos_usados, estado,
+            fecha_entrega, tipo_producto_original, notion_page_id, notion_ticket_id, notion_reward_id,
+            clientes(nombre, telefono), productos(nombre, tipo)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -33,7 +39,11 @@ export const getTodosLosCanjes = async ({ limit = 100, offset = 0 } = {}) => {
 export const getCanjesPendientes = async ({ limit = 50, offset = 0 } = {}) => {
     const { data, error, count } = await supabase
         .from('canjes')
-        .select(`*, clientes(nombre, telefono), productos(nombre, tipo)`, { count: 'exact' })
+        .select(`
+            id, created_at, cliente_id, producto_id, puntos_usados, estado,
+            fecha_entrega, tipo_producto_original, notion_page_id, notion_ticket_id, notion_reward_id,
+            clientes(nombre, telefono), productos(nombre, tipo)
+        `, { count: 'exact' })
         .in('estado', ['pendiente_entrega', 'en_lista'])
         .order('created_at', { ascending: true })
         .range(offset, offset + limit - 1);

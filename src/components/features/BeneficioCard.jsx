@@ -1,10 +1,11 @@
 import { memo, useState } from 'react';
-import { Gift, Sparkles, Wrench, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Gift, Sparkles, Wrench, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { CONTACT_CONFIG } from '@/config';
 
 const BeneficioCard = memo(({ beneficio }) => {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ const BeneficioCard = memo(({ beneficio }) => {
 
   const isService = beneficio.tipo === 'servicio';
   const imagenUrl = beneficio.imagen_url || beneficio.campana_imagen;
+  const hasNotionTicket = !!beneficio.notion_ticket_id;
 
   const activarMutation = useMutation({
     mutationFn: () => api.gifts.activarRecompensa('beneficio', beneficio.id, user?.id),
@@ -100,26 +102,41 @@ const BeneficioCard = memo(({ beneficio }) => {
           </span>
         </div>
 
-        {/* Action button */}
-        <Button
-          onClick={handleActivar}
-          disabled={isActivating}
-          variant="investment"
-          size="lg"
-          className="w-full h-11 text-sm"
-        >
-          {isActivating ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Activando...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 mr-2" />
-              Usar Ahora
-            </>
-          )}
-        </Button>
+        {/* Action button - solo si tiene ticket en Notion */}
+        {hasNotionTicket ? (
+          <Button
+            onClick={handleActivar}
+            disabled={isActivating}
+            variant="investment"
+            size="lg"
+            className="w-full h-11 text-sm"
+          >
+            {isActivating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Activando...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Usar Ahora
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full h-11 text-sm"
+            onClick={() => {
+              const msg = `Hola, quiero usar mi beneficio: ${beneficio.nombre}`;
+              window.open(`https://wa.me/${CONTACT_CONFIG.WHATSAPP_SERVICES}?text=${encodeURIComponent(msg)}`, '_blank');
+            }}
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Contactar para usar
+          </Button>
+        )}
       </div>
     </div>
   );

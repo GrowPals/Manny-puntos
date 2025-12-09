@@ -2,6 +2,13 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { logger } from '@/lib/logger';
 
+// COLUMNAS VERIFICADAS clientes: id, created_at, nombre, telefono, puntos_actuales, es_admin, ultimo_servicio, fecha_ultimo_servicio, fecha_registro, last_sync_at, notion_page_id, nivel, sync_source, pin, has_pin, referido_por, notion_reward_id, pin_hash, login_attempts, last_login_attempt, updated_at
+// COLUMNAS VERIFICADAS productos: id, created_at, nombre, descripcion, tipo, puntos_requeridos, stock, activo, imagen_url, categoria
+// COLUMNAS VERIFICADAS canjes: id, created_at, cliente_id, producto_id, puntos_usados, estado, fecha_entrega, tipo_producto_original, notion_page_id, notion_ticket_id, notion_reward_id
+// COLUMNAS VERIFICADAS historial_puntos: id, created_at, cliente_id, puntos, concepto, canje_id
+// COLUMNAS VERIFICADAS tipos_servicio_recurrente: id, tipo_trabajo, dias_recordatorio, activo, mensaje_personalizado, created_at
+
+// NOTA: exportMannyData usa .select('*') intencionalmente para backup completo
 export const exportMannyData = async () => {
     const { data: clientes, error: e1 } = await supabase.from('clientes').select('*');
     if (e1) throw new Error(`${ERROR_MESSAGES.ADMIN.EXPORT_CLIENTS_ERROR}: ${e1.message}`);
@@ -48,10 +55,11 @@ export const importMannyData = async (data) => {
 };
 
 // RECORDATORIOS
+// COLUMNAS VERIFICADAS config_recordatorios: id, activo, max_notificaciones_mes, titulo_default, mensaje_default, hora_envio, updated_at (NO tiene created_at)
 export const getConfigRecordatorios = async () => {
     const { data, error } = await supabase
         .from('config_recordatorios')
-        .select('id, activo, max_notificaciones_mes, titulo_default, mensaje_default, hora_envio, created_at, updated_at')
+        .select('id, activo, max_notificaciones_mes, titulo_default, mensaje_default, hora_envio, updated_at')
         .limit(1)
         .maybeSingle();
 
@@ -115,7 +123,7 @@ export const actualizarConfigRecordatorios = async (config) => {
 export const getTiposServicioRecurrente = async () => {
     const { data, error } = await supabase
         .from('tipos_servicio_recurrente')
-        .select('id, tipo_trabajo, dias_recordatorio, activo, created_at')
+        .select('id, tipo_trabajo, dias_recordatorio, activo, mensaje_personalizado, created_at')
         .order('tipo_trabajo', { ascending: true });
 
     if (error) throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_LOAD_ERROR);

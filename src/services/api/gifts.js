@@ -11,6 +11,9 @@ import {
   notifyClienteBeneficioUsado
 } from './notifications';
 
+// COLUMNAS VERIFICADAS links_regalo: id, codigo, tipo, nombre_beneficio, descripcion_beneficio, puntos_regalo, mensaje_personalizado, imagen_url, imagen_banner, color_tema, estado, fecha_expiracion, destinatario_telefono, creado_por, canjeado_por, es_campana, nombre_campana, max_canjes, canjes_realizados, veces_visto, terminos_condiciones, instrucciones_uso, vigencia_beneficio, created_at
+// COLUMNAS VERIFICADAS beneficios_cliente: id, cliente_id, link_regalo_id, tipo, nombre, descripcion, terminos, instrucciones, puntos_otorgados, estado, fecha_canje, fecha_uso, fecha_expiracion, notas_uso, verificado_por, created_at, notion_ticket_id, updated_at
+
 // ==================== STORAGE ====================
 
 /**
@@ -232,7 +235,11 @@ export const getAllGiftLinks = async () => {
   const { data, error } = await supabase
     .from('links_regalo')
     .select(`
-      *,
+      id, codigo, tipo, nombre_beneficio, descripcion_beneficio, puntos_regalo,
+      mensaje_personalizado, imagen_url, imagen_banner, color_tema, estado,
+      fecha_expiracion, destinatario_telefono, es_campana, nombre_campana,
+      max_canjes, canjes_realizados, veces_visto, terminos_condiciones,
+      instrucciones_uso, vigencia_beneficio, created_at,
       creador:creado_por (id, nombre),
       canjeador:canjeado_por (id, nombre, telefono)
     `)
@@ -291,7 +298,9 @@ export const getLinkBeneficiarios = async (linkId) => {
   const { data, error } = await supabase
     .from('beneficios_cliente')
     .select(`
-      *,
+      id, cliente_id, link_regalo_id, tipo, nombre, descripcion, terminos,
+      instrucciones, puntos_otorgados, estado, fecha_canje, fecha_uso,
+      fecha_expiracion, notas_uso, verificado_por, created_at, notion_ticket_id, updated_at,
       cliente:cliente_id (id, nombre, telefono)
     `)
     .eq('link_regalo_id', linkId)
@@ -312,7 +321,9 @@ export const getClienteBeneficios = async (clienteId) => {
   const { data, error } = await supabase
     .from('beneficios_cliente')
     .select(`
-      *,
+      id, cliente_id, link_regalo_id, tipo, nombre, descripcion, terminos,
+      instrucciones, puntos_otorgados, estado, fecha_canje, fecha_uso,
+      fecha_expiracion, notas_uso, verificado_por, created_at, notion_ticket_id, updated_at,
       link:link_regalo_id (codigo, nombre_campana, imagen_banner)
     `)
     .eq('cliente_id', clienteId)

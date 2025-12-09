@@ -3,10 +3,11 @@ import { ERROR_MESSAGES } from '@/constants/errors';
 import { logger } from '@/lib/logger';
 import { uploadImage } from '@/lib/storage';
 
+// COLUMNAS VERIFICADAS productos: id, created_at, nombre, descripcion, tipo, puntos_requeridos, stock, activo, imagen_url, categoria
 export const getProductosCanje = async () => {
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, created_at')
+    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, categoria, created_at')
     .eq('activo', true)
     .order('puntos_requeridos', { ascending: true });
     
@@ -17,7 +18,7 @@ export const getProductosCanje = async () => {
 export const getAllProductosAdmin = async ({ limit = 100, offset = 0 } = {}) => {
   const { data, error, count } = await supabase
     .from('productos')
-    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, created_at', { count: 'exact' })
+    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, categoria, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -28,7 +29,7 @@ export const getAllProductosAdmin = async ({ limit = 100, offset = 0 } = {}) => 
 export const getProductoById = async (id) => {
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, created_at')
+    .select('id, nombre, descripcion, tipo, puntos_requeridos, imagen_url, stock, activo, categoria, created_at')
     .eq('id', id)
     .maybeSingle();
     

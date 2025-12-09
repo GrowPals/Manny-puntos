@@ -2,6 +2,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { logger } from '@/lib/logger';
 
+// COLUMNAS VERIFICADAS servicios_asignados: id, cliente_id, nombre, descripcion, estado, fecha_canje, created_at
+// COLUMNAS VERIFICADAS historial_servicios: id, cliente_id, notion_ticket_id, ticket_number, tipo_trabajo, titulo, descripcion, monto, puntos_generados, fecha_servicio, created_at
+
 // SERVICIOS ASIGNADOS (Para Partners/VIP)
 export const getServiciosCliente = async (clienteId) => {
     const { data, error } = await supabase
@@ -62,7 +65,7 @@ export const eliminarServicioAsignado = async (servicioId) => {
 export const getHistorialServicios = async (clienteId) => {
     const { data, error } = await supabase
         .from('historial_servicios')
-        .select('id, cliente_id, tipo_trabajo, monto, puntos_generados, fecha_servicio, notion_ticket_id, created_at')
+        .select('id, cliente_id, notion_ticket_id, ticket_number, tipo_trabajo, titulo, descripcion, monto, puntos_generados, fecha_servicio, created_at')
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 

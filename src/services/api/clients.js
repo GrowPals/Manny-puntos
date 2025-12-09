@@ -6,10 +6,13 @@ import { notifyClienteNivelCambiado, notifyClientePuntosRecibidos } from './noti
 import { logger } from '@/lib/logger';
 import { callEdgeFunction } from '@/lib/utils';
 
+// COLUMNAS VERIFICADAS clientes: id, created_at, nombre, telefono, puntos_actuales, es_admin, ultimo_servicio, fecha_ultimo_servicio, fecha_registro, last_sync_at, notion_page_id, nivel, sync_source, pin, has_pin, referido_por, notion_reward_id, pin_hash, login_attempts, last_login_attempt, updated_at
+// NOTA: pin_hash NUNCA se expone - solo se usa en funciones RPC SECURITY DEFINER
+
 export const getTodosLosClientes = async ({ limit = 100, offset = 0 } = {}) => {
   const { data, error, count } = await supabase
     .from('clientes')
-    .select('id, telefono, nombre, email, puntos_actuales, nivel, es_admin, notion_contacto_id, notion_manny_rewards_id, created_at, updated_at', { count: 'exact' })
+    .select('id, telefono, nombre, puntos_actuales, nivel, es_admin, notion_page_id, notion_reward_id, created_at, updated_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -95,9 +98,10 @@ export const getClienteHistorial = async (telefono) => {
 
 // ADMIN: Obtener detalle completo de un cliente por ID
 export const getClienteDetalleAdmin = async (clienteId) => {
+    // COLUMNAS VERIFICADAS: id, created_at, nombre, telefono, puntos_actuales, es_admin, nivel, notion_page_id, notion_reward_id, has_pin, updated_at
     const { data: cliente, error: clienteError } = await supabase
         .from('clientes')
-        .select('id, telefono, nombre, email, puntos_actuales, nivel, es_admin, notion_contacto_id, notion_manny_rewards_id, created_at, updated_at')
+        .select('id, telefono, nombre, puntos_actuales, nivel, es_admin, notion_page_id, notion_reward_id, has_pin, created_at, updated_at')
         .eq('id', clienteId)
         .single();
 
@@ -105,7 +109,11 @@ export const getClienteDetalleAdmin = async (clienteId) => {
 
     const { data: canjes, error: canjesError } = await supabase
         .from('canjes')
-        .select('*, productos(nombre, tipo)')
+        .select(`
+            id, created_at, cliente_id, producto_id, puntos_usados, estado,
+            fecha_entrega, tipo_producto_original, notion_page_id, notion_ticket_id, notion_reward_id,
+            productos(nombre, tipo)
+        `)
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
@@ -130,7 +138,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
     // Historial de servicios (trabajos realizados por Manny)
     const { data: historialServicios, error: histServError } = await supabase
         .from('historial_servicios')
-        .select('id, cliente_id, tipo_trabajo, monto, puntos_generados, fecha_servicio, notion_ticket_id, created_at')
+        .select('id, cliente_id, notion_ticket_id, ticket_number, tipo_trabajo, titulo, descripcion, monto, puntos_generados, fecha_servicio, created_at')
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 

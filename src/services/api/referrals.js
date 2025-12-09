@@ -3,6 +3,10 @@ import { withRetry } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/constants/errors';
 import { logger } from '@/lib/logger';
 
+// COLUMNAS VERIFICADAS referidos: id, referidor_id, referido_id, codigo_usado, estado, puntos_referidor, puntos_referido, fecha_activacion, fecha_expiracion, created_at
+// COLUMNAS VERIFICADAS config_referidos: id, activo, puntos_referidor, puntos_referido, limite_mensual, limite_total, max_referidos_mes, dias_expiracion, mensaje_compartir, titulo_landing, subtitulo_landing, updated_at (NO created_at!)
+// COLUMNAS VERIFICADAS codigos_referido: id, cliente_id, codigo, activo, created_at
+
 // ==================== CLIENTE ====================
 
 /**
@@ -263,7 +267,8 @@ export const getAllReferidos = async ({ limit = 100, offset = 0 } = {}) => {
   const { data, error, count } = await supabase
     .from('referidos')
     .select(`
-      *,
+      id, referidor_id, referido_id, codigo_usado, estado,
+      puntos_referidor, puntos_referido, fecha_activacion, fecha_expiracion, created_at,
       referidor:referidor_id (id, nombre, telefono),
       referido:referido_id (id, nombre, telefono)
     `, { count: 'exact' })
