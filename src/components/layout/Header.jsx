@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate, NavLink as RouterNavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench, UserPlus, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Package, Truck, Coins, Shield, Users, Menu, X, Gift, History, LogOut, ShieldCheck, Bell, Wrench, UserPlus, Settings, HelpCircle, Download, Smartphone, Share, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,8 +34,53 @@ const NavLink = React.memo(({ to, children, onClick, end = false, compact = fals
 const Header = () => {
     const { user, isAdmin, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [isInstalled, setIsInstalled] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
+
+    // Detectar plataforma y estado de instalación
+    useEffect(() => {
+        // Detectar iOS
+        const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        setIsIOS(iOS);
+
+        // Detectar si ya está instalado
+        const standalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone
+            || document.referrer.includes('android-app://');
+        setIsInstalled(standalone);
+
+        // Escuchar evento de instalación (Android/Desktop)
+        const handlePrompt = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handlePrompt);
+
+        // Detectar cuando se instala
+        const handleInstalled = () => {
+            setIsInstalled(true);
+            setDeferredPrompt(null);
+        };
+        window.addEventListener('appinstalled', handleInstalled);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handlePrompt);
+            window.removeEventListener('appinstalled', handleInstalled);
+        };
+    }, []);
+
+    // Manejar instalación
+    const handleInstall = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
+    };
 
     useEffect(() => {
         const handleResize = () => {
@@ -67,7 +112,7 @@ const Header = () => {
         logout();
         navigate('/login', { replace: true });
     }, [logout, navigate]);
-    
+
     const toggleMenu = useCallback(() => setIsMenuOpen(prev => !prev), []);
 
     // Desktop admin links - compact version for header
@@ -122,7 +167,7 @@ const Header = () => {
         visible: { opacity: 1 },
         exit: { opacity: 0 }
     };
-    
+
     const menuVariants = {
         hidden: { x: '100%' },
         visible: { x: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } },
@@ -130,60 +175,70 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
-            <nav className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-14">
-                <div className="flex items-center h-full gap-4">
-                    {/* Logo - fixed width for balance */}
-                    <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0 lg:min-w-[120px]" aria-label="Ir a la página principal">
-                        <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
-                    </Link>
+        <>
+            <header className="bg-card shadow-sm sticky top-0 z-50 border-b border-border">
+                <nav className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-14">
+                    <div className="flex items-center h-full gap-4">
+                        {/* Logo - fixed width for balance */}
+                        <Link to={isAdmin ? '/admin' : '/dashboard'} className="flex items-center group flex-shrink-0 lg:min-w-[120px]" aria-label="Ir a la página principal">
+                            <img src={MannyLogo} alt="Manny Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
+                        </Link>
 
-                    {/* Navigation - centered, takes available space */}
-                    <div className="hidden lg:flex items-center justify-center gap-1 flex-1">
-                        {isAdmin ? <AdminNavLinksDesktop /> : (user && <ClientNavLinks compact />)}
-                    </div>
+                        {/* Navigation - centered, takes available space */}
+                        <div className="hidden lg:flex items-center justify-center gap-1 flex-1">
+                            {isAdmin ? <AdminNavLinksDesktop /> : (user && <ClientNavLinks compact />)}
+                        </div>
 
-                    {/* Actions - aligned right */}
-                    <div className="flex items-center gap-2 ml-auto lg:ml-0 lg:min-w-[120px] lg:justify-end">
-                        {user && (
-                            <div className={cn(
-                                "px-3 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold flex items-center gap-1.5 text-sm",
-                                isAdmin && "hidden lg:flex"
-                            )}>
-                                <Coins className="w-4 h-4" />
-                                {user.puntos_actuales?.toLocaleString('es-MX')}
-                            </div>
-                        )}
-                        {/* Notification bell for all logged in users */}
-                        {user && (
-                            <NotificationBell clienteId={user?.id} isAdmin={isAdmin} />
-                        )}
-                        {/* Settings button - visible for clients */}
-                        {user && !isAdmin && (
-                            <Link to="/configuracion">
-                                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Configuración">
-                                    <Settings className="w-5 h-5" />
+                        {/* Actions - aligned right */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto lg:ml-0 lg:min-w-[120px] lg:justify-end">
+                            {/* Points badge */}
+                            {user && (
+                                <div className={cn(
+                                    "px-2.5 py-1.5 bg-primary/10 text-primary rounded-lg font-semibold flex items-center gap-1.5 text-sm",
+                                    isAdmin && "hidden lg:flex"
+                                )}>
+                                    <Coins className="w-4 h-4" />
+                                    <span className="tabular-nums">{user.puntos_actuales?.toLocaleString('es-MX')}</span>
+                                </div>
+                            )}
+
+                            {/* Notification bell */}
+                            {user && (
+                                <NotificationBell clienteId={user?.id} isAdmin={isAdmin} />
+                            )}
+
+                            {/* Settings button - visible for clients on desktop */}
+                            {user && !isAdmin && (
+                                <Link to="/configuracion" className="hidden sm:block">
+                                    <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Configuración">
+                                        <Settings className="w-5 h-5" />
+                                    </Button>
+                                </Link>
+                            )}
+
+                            <ThemeToggle />
+
+                            {/* Logout - desktop only */}
+                            {user && (
+                                <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden lg:flex h-9 w-9" aria-label="Cerrar sesión">
+                                    <LogOut className="w-5 h-5" />
                                 </Button>
-                            </Link>
-                        )}
-                        <ThemeToggle />
-                        {user && (
-                            <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden lg:flex h-9 w-9" aria-label="Cerrar sesión">
-                                <LogOut className="w-5 h-5" />
-                            </Button>
-                        )}
-                        {/* Hamburger menu on mobile/tablet */}
-                        {user && (
-                            <div className="lg:hidden">
-                                <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-9 w-9" aria-label="Abrir menú">
-                                    <Menu className="w-5 h-5" />
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </nav>
+                            )}
 
+                            {/* Hamburger menu on mobile/tablet */}
+                            {user && (
+                                <div className="lg:hidden">
+                                    <Button variant="ghost" size="icon" onClick={toggleMenu} className="h-9 w-9" aria-label="Abrir menú">
+                                        <Menu className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </nav>
+            </header>
+
+            {/* Mobile Menu Drawer */}
             <AnimatePresence>
                 {isMenuOpen && user && (
                     <>
@@ -193,7 +248,7 @@ const Header = () => {
                             animate="visible"
                             exit="exit"
                             onClick={toggleMenu}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99] md:hidden"
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99] lg:hidden"
                             aria-hidden="true"
                         />
                         <motion.div
@@ -228,22 +283,59 @@ const Header = () => {
                                 {isAdmin ? <AdminNavLinksMobile onClick={toggleMenu} /> : <ClientNavLinks onClick={toggleMenu} showExtras />}
                             </div>
 
-                            {/* Logout button - fixed at bottom with safe area */}
-                            <div className="p-4 border-t border-border bg-card pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                            {/* Bottom actions - fixed at bottom with safe area */}
+                            <div className="p-4 border-t border-border bg-card pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3">
+                                {/* Install button for Android/Desktop in mobile menu */}
+                                {deferredPrompt && !isInstalled && (
+                                    <Button
+                                        size="lg"
+                                        onClick={() => {
+                                            handleInstall();
+                                            toggleMenu();
+                                        }}
+                                        className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-primary/80"
+                                    >
+                                        <Download className="w-5 h-5 mr-2" />
+                                        Instalar App
+                                    </Button>
+                                )}
+
+                                {/* iOS install instructions in mobile menu */}
+                                {isIOS && !isInstalled && (
+                                    <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                                        <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                                            <Smartphone className="w-4 h-4 text-primary" />
+                                            Instalar en iPhone
+                                        </p>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-1 bg-background px-2 py-1 rounded border">
+                                                <Share className="w-3 h-3" />
+                                                <span>Compartir</span>
+                                            </div>
+                                            <span>→</span>
+                                            <div className="flex items-center gap-1 bg-background px-2 py-1 rounded border">
+                                                <Plus className="w-3 h-3" />
+                                                <span>Agregar a inicio</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <Button
                                     variant="destructive"
                                     size="lg"
                                     onClick={handleLogout}
                                     className="w-full h-12 text-base font-semibold"
                                 >
-                                    <LogOut className="w-5 h-5 mr-2" /> Cerrar Sesión
+                                    <LogOut className="w-5 h-5 mr-2" />
+                                    Cerrar Sesión
                                 </Button>
                             </div>
                         </motion.div>
                     </>
                 )}
             </AnimatePresence>
-        </header>
+        </>
     );
 };
 
