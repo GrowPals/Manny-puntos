@@ -9,7 +9,7 @@ import { callEdgeFunction } from '@/lib/utils';
 // COLUMNAS VERIFICADAS clientes: id, created_at, nombre, telefono, puntos_actuales, es_admin, ultimo_servicio, fecha_ultimo_servicio, fecha_registro, last_sync_at, notion_page_id, nivel, sync_source, pin, has_pin, referido_por, notion_reward_id, pin_hash, login_attempts, last_login_attempt, updated_at
 // NOTA: pin_hash NUNCA se expone - solo se usa en funciones RPC SECURITY DEFINER
 
-export const getTodosLosClientes = async ({ limit = 100, offset = 0 } = {}) => {
+export const getTodosLosClientes = async ({ limit = 1000, offset = 0 } = {}) => {
   const { data, error, count } = await supabase
     .from('clientes')
     .select('id, telefono, nombre, puntos_actuales, nivel, es_admin, notion_page_id, notion_reward_id, created_at, updated_at', { count: 'exact' })
