@@ -34,42 +34,21 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
-// Truncar texto para meta descriptions (emoji-safe)
-function truncate(text, maxLength = 160) {
-  if (!text) return '';
-
-  // Usar Array.from para respetar caracteres Unicode completos (incluyendo emojis)
-  const chars = Array.from(text);
-
-  if (chars.length <= maxLength) return text;
-
-  // Truncar respetando caracteres completos
-  return chars.slice(0, maxLength - 3).join('') + '...';
-}
-
 export const config = {
   runtime: 'edge',
 };
 
+// Imagen por defecto para regalos
+const DEFAULT_IMAGE = 'https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png';
+
 export default async function handler(request) {
   const url = new URL(request.url);
   const pathParts = url.pathname.split('/').filter(Boolean);
-  // Path puede ser /api/gift/CODIGO o /g/CODIGO
   const codigo = pathParts[pathParts.length - 1];
   const userAgent = request.headers.get('user-agent') || '';
 
-  // Debug logging
-  console.log('[gift-og] Request:', {
-    pathname: url.pathname,
-    codigo,
-    userAgent: userAgent.substring(0, 100),
-    isCrawler: isCrawler(userAgent)
-  });
-
-  // Si no es un crawler, redirigir a /gift/:codigo (diferente path que SPA manejará)
-  // Esto evita el loop de rewrite ya que /g/* se reescribe pero /gift/* no
+  // Si no es un crawler, redirigir a la app
   if (!isCrawler(userAgent)) {
-    const codigo = pathParts[pathParts.length - 1];
     return new Response(null, {
       status: 302,
       headers: {
@@ -79,10 +58,8 @@ export default async function handler(request) {
     });
   }
 
-  // Es un crawler - obtener datos del regalo y servir HTML con meta tags
+  // Es un crawler - obtener datos del regalo
   try {
-    // Variables de entorno para Supabase
-    // Prioridad: SUPABASE_URL > VITE_SUPABASE_URL > hardcoded fallback
     const supabaseUrl = process.env.SUPABASE_URL
       || process.env.VITE_SUPABASE_URL
       || 'https://kuftyqupibyjliaukpxn.supabase.co';
@@ -92,175 +69,68 @@ export default async function handler(request) {
       || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseKey) {
-      console.error('Missing SUPABASE_ANON_KEY environment variable');
-      return serveGenericHtml(codigo);
+      return serveHtml(codigo, '🎁 Tienes un regalo', DEFAULT_IMAGE);
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('[gift-og] Fetching gift:', codigo.toUpperCase());
-
     const { data: gift, error } = await supabase
       .from('links_regalo')
-      .select(`
-        codigo,
-        tipo,
-        nombre_beneficio,
-        descripcion_beneficio,
-        puntos_regalo,
-        mensaje_personalizado,
-        imagen_banner,
-        color_tema,
-        es_campana,
-        nombre_campana,
-        estado
-      `)
+      .select('nombre_campana, nombre_beneficio, imagen_banner, tipo, puntos_regalo')
       .eq('codigo', codigo.toUpperCase())
       .maybeSingle();
 
-    console.log('[gift-og] Query result:', {
-      found: !!gift,
-      error: error?.message,
-      nombre: gift?.nombre_campana || gift?.nombre_beneficio
-    });
-
     if (error || !gift) {
-      // Regalo no encontrado - servir meta tags genéricos
-      console.log('[gift-og] Gift not found, serving generic HTML');
-      return serveGenericHtml(codigo);
+      return serveHtml(codigo, '🎁 Tienes un regalo', DEFAULT_IMAGE);
     }
 
-    // Construir meta tags dinámicos con formato atractivo
-    let title = '🎁 ¡Tienes un regalo!';
-    let description = 'Alguien especial te envió un regalo de Manny Rewards. ¡Ábrelo ahora!';
-
-    // Título principal
-    if (gift.es_campana && gift.nombre_campana) {
+    // Título simple
+    let title = '🎁 Tienes un regalo';
+    if (gift.nombre_campana) {
       title = `🎁 ${escapeHtml(gift.nombre_campana)}`;
     } else if (gift.tipo === 'puntos' && gift.puntos_regalo) {
-      title = `🎁 ¡Te regalan ${gift.puntos_regalo.toLocaleString()} puntos!`;
+      title = `🎁 ${gift.puntos_regalo.toLocaleString()} puntos`;
     } else if (gift.nombre_beneficio) {
       title = `🎁 ${escapeHtml(gift.nombre_beneficio)}`;
     }
 
-    // Descripción - usar mensaje personalizado si existe (sin escapar emojis)
-    if (gift.mensaje_personalizado) {
-      // Truncar pero NO escapar HTML en emojis - solo en texto peligroso
-      description = truncate(gift.mensaje_personalizado, 160);
-    } else if (gift.descripcion_beneficio) {
-      description = truncate(gift.descripcion_beneficio, 160);
-    } else if (gift.es_campana) {
-      description = 'Abre el link para reclamar tu regalo exclusivo de Manny Rewards.';
-    } else if (gift.tipo === 'puntos' && gift.puntos_regalo) {
-      description = `¡Reclama tus ${gift.puntos_regalo.toLocaleString()} puntos Manny ahora!`;
-    }
+    // Imagen: usar banner si existe, sino default
+    const image = gift.imagen_banner || DEFAULT_IMAGE;
 
-    // Usar banner de campaña o imagen por defecto
-    const image = gift.imagen_banner || 'https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png';
-
-    const canonicalUrl = `https://recompensas.manny.mx/g/${codigo}`;
-    const themeColor = gift.color_tema || '#e91e63';
-
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- SEO -->
-  <title>${title} | Manny Rewards</title>
-  <meta name="description" content="${description}">
-  <meta name="robots" content="noindex, nofollow">
-
-  <!-- Open Graph / Facebook / WhatsApp -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Manny Rewards">
-  <meta property="og:title" content="${title}">
-  <meta property="og:description" content="${description}">
-  <meta property="og:image" content="${image}">
-  <meta property="og:image:secure_url" content="${image}">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="${title}">
-  <meta property="og:url" content="${canonicalUrl}">
-  <meta property="og:locale" content="es_MX">
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${title}">
-  <meta name="twitter:description" content="${description}">
-  <meta name="twitter:image" content="${image}">
-  <meta name="twitter:image:alt" content="${title}">
-
-  <!-- WhatsApp específico -->
-  <meta property="whatsapp:title" content="${title}">
-  <meta property="whatsapp:description" content="${description}">
-  <meta property="whatsapp:image" content="${image}">
-
-  <!-- Theme -->
-  <meta name="theme-color" content="${themeColor}">
-
-  <!-- Canonical -->
-  <link rel="canonical" href="${canonicalUrl}">
-
-  <!-- Redirect for browsers -->
-  <meta http-equiv="refresh" content="0;url=${canonicalUrl}">
-</head>
-<body>
-  <h1>${title}</h1>
-  <p>${description}</p>
-  <p><a href="${canonicalUrl}">Reclama tu regalo</a></p>
-</body>
-</html>`;
-
-    return new Response(html, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=300, s-maxage=300',
-      },
-    });
+    return serveHtml(codigo, title, image);
 
   } catch (error) {
     console.error('Error fetching gift:', error);
-    return serveGenericHtml(codigo);
+    return serveHtml(codigo, '🎁 Tienes un regalo', DEFAULT_IMAGE);
   }
 }
 
-function serveGenericHtml(codigo) {
+function serveHtml(codigo, title, image) {
   const canonicalUrl = `https://recompensas.manny.mx/g/${codigo}`;
-  const image = 'https://i.ibb.co/jZrZCyNs/solo-haz-que-mi-personaje-en-lugar-de-estar-en-el-centro-este-en-la-izquierda-y-que-a-la-derecha-di.png';
-  const title = '🎁 ¡Tienes un regalo!';
-  const description = 'Alguien especial te envió un regalo de Manny Rewards. ¡Ábrelo ahora!';
 
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} | Manny Rewards</title>
-  <meta name="description" content="${description}">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Manny Rewards">
+  <title>${title}</title>
+
+  <!-- Open Graph -->
   <meta property="og:title" content="${title}">
-  <meta property="og:description" content="${description}">
   <meta property="og:image" content="${image}">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
   <meta property="og:url" content="${canonicalUrl}">
-  <meta property="og:locale" content="es_MX">
+  <meta property="og:type" content="website">
+
+  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${title}">
-  <meta name="twitter:description" content="${description}">
   <meta name="twitter:image" content="${image}">
+
   <meta name="theme-color" content="#e91e63">
   <meta http-equiv="refresh" content="0;url=${canonicalUrl}">
 </head>
 <body>
-  <h1>${title}</h1>
-  <p>${description}</p>
-  <p><a href="${canonicalUrl}">Abrir regalo</a></p>
+  <a href="${canonicalUrl}">${title}</a>
 </body>
 </html>`;
 
@@ -268,7 +138,7 @@ function serveGenericHtml(codigo) {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=60',
+      'Cache-Control': 'public, max-age=300',
     },
   });
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle, Calendar, Clock } from 'lucide-react';
+import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
@@ -269,14 +269,33 @@ const GiftLanding = () => {
     }
   };
 
+  // Forzar modo claro en la página de regalo para consistencia en móviles
+  useEffect(() => {
+    // Remover clase dark si existe para forzar modo claro
+    document.documentElement.classList.remove('dark');
+    // Agregar meta tag para color-scheme
+    let metaColorScheme = document.querySelector('meta[name="color-scheme"]');
+    if (!metaColorScheme) {
+      metaColorScheme = document.createElement('meta');
+      metaColorScheme.name = 'color-scheme';
+      document.head.appendChild(metaColorScheme);
+    }
+    metaColorScheme.content = 'light';
+
+    return () => {
+      // Limpiar al desmontar
+      metaColorScheme.content = 'light dark';
+    };
+  }, []);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
         >
-          <Gift className="w-16 h-16 text-primary" />
+          <Gift className="w-16 h-16 text-pink-500" />
         </motion.div>
       </div>
     );
@@ -284,15 +303,15 @@ const GiftLanding = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-pink-50 p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-card rounded-2xl p-8 max-w-md w-full text-center border border-border shadow-xl"
+          className="bg-white rounded-2xl p-8 max-w-md w-full text-center border border-gray-200 shadow-xl"
         >
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground mb-2">Oh no...</h1>
-          <p className="text-muted-foreground mb-6">{error}</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Oh no...</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
           <Button onClick={() => navigate('/login')} variant="outline">
             Ir al inicio
           </Button>
@@ -323,7 +342,7 @@ const GiftLanding = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-pink-50 relative overflow-hidden">
       <FloatingParticles />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
@@ -425,7 +444,7 @@ const GiftLanding = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-3xl font-bold text-foreground mb-3"
+                className="text-3xl font-bold text-gray-900 mb-3"
               >
                 {giftData?.es_campana && giftData?.nombre_campana
                   ? giftData.nombre_campana
@@ -437,7 +456,7 @@ const GiftLanding = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-muted-foreground mb-8"
+                className="text-gray-600 mb-8"
               >
                 {giftData?.mensaje_personalizado || 'Alguien especial te envió algo...'}
               </motion.p>
@@ -469,7 +488,7 @@ const GiftLanding = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="bg-card/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full border border-border shadow-2xl text-center"
+              className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full border border-gray-200 shadow-2xl text-center"
             >
               {/* Icono del tipo de regalo */}
               <motion.div
@@ -494,7 +513,7 @@ const GiftLanding = () => {
                 transition={{ delay: 0.3 }}
               >
                 <PartyPopper className="w-8 h-8 text-yellow-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-foreground mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   ¡Felicidades!
                 </h2>
               </motion.div>
@@ -515,15 +534,15 @@ const GiftLanding = () => {
                     <p className="text-5xl font-black mb-2" style={{ color: giftData.color_tema || '#E91E63' }}>
                       {giftData.puntos_regalo?.toLocaleString()}
                     </p>
-                    <p className="text-lg text-foreground">Puntos Manny</p>
+                    <p className="text-lg text-gray-900">Puntos Manny</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-xl font-bold text-foreground mb-2">
+                    <p className="text-xl font-bold text-gray-900 mb-2">
                       {giftData.nombre_beneficio}
                     </p>
                     {giftData.descripcion_beneficio && (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-gray-600">
                         {giftData.descripcion_beneficio}
                       </p>
                     )}
@@ -576,7 +595,7 @@ const GiftLanding = () => {
                 >
                   {giftData.es_campana && giftData.terminos_condiciones
                     ? 'Ver condiciones'
-                    : 'Reclamar mi regalo'
+                    : 'Obtener mi regalo'
                   }
                 </Button>
               </motion.div>
@@ -590,7 +609,7 @@ const GiftLanding = () => {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
-              className="bg-card/90 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full border border-border shadow-2xl max-h-[85vh] overflow-y-auto"
+              className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full border border-gray-200 shadow-2xl max-h-[85vh] overflow-y-auto"
             >
               <div className="text-center mb-6">
                 <div
@@ -599,62 +618,62 @@ const GiftLanding = () => {
                 >
                   <FileText className="w-8 h-8" style={{ color: giftData.color_tema || '#E91E63' }} />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">
+                <h2 className="text-xl font-bold text-gray-900">
                   Antes de continuar
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-sm text-gray-600 mt-1">
                   Lee las condiciones de tu regalo
                 </p>
               </div>
 
               {/* Qué incluye */}
-              <div className="mb-4 p-4 rounded-xl border border-border bg-muted/20">
+              <div className="mb-4 p-4 rounded-xl border border-gray-200 bg-gray-50">
                 <div className="flex items-center gap-2 mb-2">
                   <Gift className="w-4 h-4" style={{ color: giftData.color_tema || '#E91E63' }} />
-                  <p className="font-medium text-sm">Tu regalo incluye:</p>
+                  <p className="font-medium text-sm text-gray-700">Tu regalo incluye:</p>
                 </div>
-                <p className="text-foreground font-medium">{giftData.nombre_beneficio}</p>
+                <p className="text-gray-900 font-medium">{giftData.nombre_beneficio}</p>
                 {giftData.descripcion_beneficio && (
-                  <p className="text-sm text-muted-foreground mt-1">{giftData.descripcion_beneficio}</p>
+                  <p className="text-sm text-gray-600 mt-1">{giftData.descripcion_beneficio}</p>
                 )}
               </div>
 
               {/* Términos y Condiciones */}
               {giftData.terminos_condiciones && (
-                <div className="mb-4 p-4 rounded-xl border border-orange-500/20 bg-orange-500/5">
+                <div className="mb-4 p-4 rounded-xl border border-orange-200 bg-orange-50">
                   <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    <p className="font-medium text-sm text-orange-600 dark:text-orange-400">Condiciones importantes</p>
+                    <p className="font-medium text-sm text-orange-600">Condiciones importantes</p>
                   </div>
                   <FormattedText
                     text={giftData.terminos_condiciones}
-                    className="text-foreground"
+                    className="text-gray-700"
                   />
                 </div>
               )}
 
               {/* Instrucciones de uso */}
               {giftData.instrucciones_uso && (
-                <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                <div className="mb-4 p-4 rounded-xl border border-blue-200 bg-blue-50">
                   <div className="flex items-center gap-2 mb-3">
                     <Info className="w-4 h-4 text-blue-500" />
-                    <p className="font-medium text-sm text-blue-600 dark:text-blue-400">¿Cómo usarlo?</p>
+                    <p className="font-medium text-sm text-blue-600">¿Cómo usarlo?</p>
                   </div>
                   <FormattedText
                     text={giftData.instrucciones_uso}
-                    className="text-foreground"
+                    className="text-gray-700"
                   />
                 </div>
               )}
 
               {/* Vigencia */}
               {giftData.vigencia_beneficio && (
-                <div className="mb-6 p-3 rounded-xl bg-muted/30 border border-border">
+                <div className="mb-6 p-3 rounded-xl bg-gray-50 border border-gray-200">
                   <div className="flex items-center justify-center gap-4 text-sm">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      <span className="text-muted-foreground">Vigencia:</span>
-                      <span className="font-medium text-foreground">
+                      <Calendar className="w-4 h-4" style={{ color: giftData.color_tema || '#E91E63' }} />
+                      <span className="text-gray-600">Vigencia:</span>
+                      <span className="font-medium text-gray-900">
                         {giftData.vigencia_beneficio === 365
                           ? '1 año'
                           : giftData.vigencia_beneficio === 30
@@ -664,8 +683,8 @@ const GiftLanding = () => {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center mt-1">
-                    A partir del momento en que lo reclames
+                  <p className="text-xs text-gray-500 text-center mt-1">
+                    A partir del momento en que lo obtengas
                   </p>
                 </div>
               )}
@@ -702,49 +721,60 @@ const GiftLanding = () => {
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
-              className="bg-card/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full border border-border shadow-2xl"
+              className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full border border-gray-200 shadow-2xl"
             >
               <div className="text-center mb-6">
-                <Gift className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-foreground">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: `linear-gradient(135deg, ${giftData?.color_tema || '#E91E63'}, #9C27B0)` }}
+                >
+                  <Gift className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
                   Ingresa tu teléfono
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-sm text-gray-600 mt-1">
                   Para agregar el regalo a tu cuenta
                 </p>
               </div>
 
               <form onSubmit={handleClaim} className="space-y-4">
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     placeholder="10 dígitos"
                     value={telefono}
                     onChange={handlePhoneChange}
-                    className="pl-12 h-14 text-lg"
+                    className="pl-12 h-14 text-lg bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-pink-500 focus:ring-pink-500"
                     maxLength={10}
                     disabled={claiming}
                     autoFocus
+                    autoComplete="tel"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  variant="investment"
                   size="lg"
-                  className="w-full h-14 text-lg"
+                  className="w-full h-14 text-lg text-white font-semibold"
+                  style={{
+                    background: `linear-gradient(to right, ${giftData?.color_tema || '#E91E63'}, #9C27B0)`,
+                    opacity: claiming || !isValidPhone(telefono) ? 0.6 : 1
+                  }}
                   disabled={claiming || !isValidPhone(telefono)}
                 >
                   {claiming ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    'Reclamar'
+                    'Obtener mi regalo'
                   )}
                 </Button>
               </form>
 
-              <p className="text-xs text-muted-foreground text-center mt-4">
+              <p className="text-xs text-gray-500 text-center mt-4">
                 Exclusivo para clientes Partner de Manny
               </p>
             </motion.div>
@@ -772,7 +802,7 @@ const GiftLanding = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-3xl font-bold text-foreground mb-3"
+                className="text-3xl font-bold text-gray-900 mb-3"
               >
                 ¡Listo!
               </motion.h2>
@@ -781,7 +811,7 @@ const GiftLanding = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-lg text-muted-foreground mb-2"
+                className="text-lg text-gray-600 mb-2"
               >
                 Tu regalo ha sido agregado a tu cuenta
               </motion.p>
