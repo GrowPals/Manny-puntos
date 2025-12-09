@@ -4,12 +4,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Coins, Gift, History, LogOut, Loader2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import ProductCard from '@/components/features/ProductCard';
+import BeneficioCard from '@/components/features/BeneficioCard';
 import ServicesList from '@/components/features/ServicesList';
 import NotificationSettings from '@/components/NotificationSettings';
 import ReferralCard from '@/components/features/ReferralCard';
-import MisBeneficiosCard from '@/components/features/MisBeneficiosCard';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
 import { useProducts } from '@/hooks/useProducts';
@@ -20,6 +22,15 @@ const Dashboard = () => {
   const { user, logout, isPartner, isVIP } = useAuth();
   const { productos, loading, error } = useProducts();
   const { toast } = useToast();
+
+  // Cargar beneficios activos del usuario
+  const { data: beneficios = [] } = useQuery({
+    queryKey: ['mis-beneficios', user?.id],
+    queryFn: () => api.gifts.getMisBeneficios(user?.id),
+    enabled: !!user?.id,
+  });
+
+  const beneficiosActivos = beneficios.filter(b => b.estado === 'activo');
 
   // Handle products loading error
   useEffect(() => {
@@ -122,23 +133,30 @@ const Dashboard = () => {
         {/* Services for Partner/VIP */}
         {showServices && <ServicesList />}
 
-        {/* Benefits from gifts (guardables - cliente activa cuando quiera) */}
-        <MisBeneficiosCard />
-
         {/* Referral Card */}
         <ReferralCard />
 
-        {/* Rewards Catalog */}
+        {/* Rewards Catalog - includes active benefits */}
         <section aria-labelledby="catalog-heading">
           <div className="flex items-center gap-2 mb-3">
             <Gift className="w-5 h-5 text-primary" aria-hidden="true" />
-            <h2 id="catalog-heading" className="text-lg font-bold">Catálogo de Recompensas</h2>
+            <h2 id="catalog-heading" className="text-lg font-bold">
+              {beneficiosActivos.length > 0 ? 'Mis Recompensas' : 'Catalogo de Recompensas'}
+            </h2>
           </div>
 
           {loading ? (
             <LoadingSpinner size="sm" />
-          ) : productos.length > 0 ? (
+          ) : (beneficiosActivos.length > 0 || productos.length > 0) ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Beneficios activos primero - ya estan listos para usar */}
+              {beneficiosActivos.map((beneficio) => (
+                <BeneficioCard
+                  key={`beneficio-${beneficio.id}`}
+                  beneficio={beneficio}
+                />
+              ))}
+              {/* Luego productos canjeables con puntos */}
               {productos.map((producto) => (
                 <ProductCard
                   key={producto.id}

@@ -80,113 +80,140 @@ const MisBeneficiosCard = () => {
       animate={{ opacity: 1, y: 0 }}
       className="mb-6 px-4 md:px-0"
     >
-      <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 rounded-2xl border border-purple-500/20 p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-purple-500/20 rounded-xl">
-            <Gift className="w-6 h-6 text-purple-500" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-foreground">Mis Beneficios</h3>
-            <p className="text-sm text-muted-foreground">Regalos que has recibido</p>
-          </div>
-        </div>
+      <div className="relative overflow-hidden rounded-3xl">
+        {/* Fondo con gradiente más vibrante */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 via-fuchsia-500/15 to-pink-500/20" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-400/10 via-transparent to-transparent" />
 
-        {isLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+        <div className="relative p-6">
+          {/* Header mejorado */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl blur-lg opacity-50" />
+              <div className="relative p-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl shadow-lg">
+                <Gift className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div>
+              <h3 className="font-bold text-xl text-foreground">Mis Beneficios</h3>
+              <p className="text-sm text-muted-foreground">
+                {beneficiosActivos.length} {beneficiosActivos.length === 1 ? 'regalo disponible' : 'regalos disponibles'}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {beneficiosActivos.map((beneficio) => {
-              // Use dias_restantes from RPC if available, otherwise calculate
-              const daysRemaining = beneficio.dias_restantes ?? getDaysRemaining(beneficio.fecha_expiracion);
-              const isExpiringSoon = daysRemaining !== null && daysRemaining <= alertaVencimientoDias && daysRemaining > 0;
 
-              return (
-                <motion.div
-                  key={beneficio.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="bg-card/80 backdrop-blur rounded-xl p-4 border border-border"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-foreground truncate">
-                          {beneficio.nombre || beneficio.nombre_beneficio}
-                        </span>
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-500 border border-green-500/20 flex-shrink-0">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-md opacity-50 animate-pulse" />
+                <Loader2 className="relative w-8 h-8 animate-spin text-violet-500" />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {beneficiosActivos.map((beneficio, index) => {
+                const daysRemaining = beneficio.dias_restantes ?? getDaysRemaining(beneficio.fecha_expiracion);
+                const isExpiringSoon = daysRemaining !== null && daysRemaining <= alertaVencimientoDias && daysRemaining > 0;
+
+                return (
+                  <motion.div
+                    key={beneficio.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group relative"
+                  >
+                    {/* Glow effect on hover */}
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300" />
+
+                    <div className="relative bg-card/90 backdrop-blur-xl rounded-2xl p-5 border border-white/10 shadow-xl">
+                      {/* Status badge flotante */}
+                      <div className="absolute -top-2 right-4">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-green-500/25">
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                           Activo
                         </span>
                       </div>
 
-                      {beneficio.descripcion && (
-                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                          {beneficio.descripcion}
-                        </p>
-                      )}
+                      {/* Contenido principal */}
+                      <div className="pt-2">
+                        <h4 className="font-bold text-lg text-foreground mb-2 pr-16">
+                          {beneficio.nombre || beneficio.nombre_beneficio}
+                        </h4>
 
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Canjeado: {formatDate(beneficio.fecha_canje)}
-                        </span>
-
-                        {daysRemaining !== null && (
-                          <span className={`flex items-center gap-1 ${
-                            isExpiringSoon ? 'text-orange-500' : ''
-                          }`}>
-                            {isExpiringSoon && <AlertTriangle className="w-3 h-3" />}
-                            Expira: {formatDate(beneficio.fecha_expiracion)}
-                            {isExpiringSoon && ` (${daysRemaining} días)`}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Instrucciones de uso */}
-                      {(beneficio.instrucciones || beneficio.instrucciones_uso) && (
-                        <div className="mt-3 p-2 bg-blue-500/5 rounded-lg border border-blue-500/20">
-                          <p className="text-xs text-blue-600">
-                            <strong>Cómo usarlo:</strong> {beneficio.instrucciones || beneficio.instrucciones_uso}
+                        {beneficio.descripcion && (
+                          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                            {beneficio.descripcion}
                           </p>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Botón de activar - solo para beneficios de servicio con notion_ticket_id */}
-                      {beneficio.notion_ticket_id && beneficio.tipo === 'servicio' && (
-                        <div className="mt-3">
+                        {/* Fechas en pills */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            Canjeado: {formatDate(beneficio.fecha_canje)}
+                          </span>
+
+                          {daysRemaining !== null && (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full ${
+                              isExpiringSoon
+                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                                : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+                            }`}>
+                              {isExpiringSoon && <AlertTriangle className="w-3.5 h-3.5" />}
+                              {isExpiringSoon ? `Expira en ${daysRemaining} días` : `Expira: ${formatDate(beneficio.fecha_expiracion)}`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Instrucciones con mejor diseño */}
+                        {(beneficio.instrucciones || beneficio.instrucciones_uso) && (
+                          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/10 p-4 mb-4">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-500 to-cyan-500" />
+                            <p className="text-sm text-blue-700 dark:text-blue-300 pl-3">
+                              <span className="font-semibold">Como usarlo:</span>{' '}
+                              <span className="text-blue-600/80 dark:text-blue-400/80">
+                                {beneficio.instrucciones || beneficio.instrucciones_uso}
+                              </span>
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Botón mejorado */}
+                        {beneficio.notion_ticket_id && beneficio.tipo === 'servicio' && (
                           <Button
                             onClick={() => handleActivar(beneficio)}
                             disabled={activatingId === beneficio.id}
-                            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                            size="sm"
+                            className="w-full h-12 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 hover:from-violet-700 hover:via-fuchsia-600 hover:to-pink-600 text-white font-semibold rounded-xl shadow-lg shadow-fuchsia-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-fuchsia-500/30 hover:scale-[1.02]"
                           >
                             {activatingId === beneficio.id ? (
                               <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                                 Activando...
                               </>
                             ) : (
                               <>
-                                <Sparkles className="w-4 h-4 mr-2" />
+                                <Sparkles className="w-5 h-5 mr-2" />
                                 Usar Ahora
                               </>
                             )}
                           </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
 
-        {/* Mensaje informativo */}
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          Presiona "Usar Ahora" cuando estés listo para tu servicio, o contáctanos por WhatsApp.
-        </p>
+          {/* Footer mejorado */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground/80">
+              Presiona <span className="font-medium text-violet-500">"Usar Ahora"</span> cuando estes listo, o contactanos por WhatsApp
+            </p>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
