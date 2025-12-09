@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 export const getServiciosCliente = async (clienteId) => {
     const { data, error } = await supabase
         .from('servicios_asignados')
-        .select('*')
+        .select('id, cliente_id, nombre, descripcion, estado, fecha_canje, created_at')
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
@@ -62,7 +62,7 @@ export const eliminarServicioAsignado = async (servicioId) => {
 export const getHistorialServicios = async (clienteId) => {
     const { data, error } = await supabase
         .from('historial_servicios')
-        .select('*')
+        .select('id, cliente_id, tipo_trabajo, monto, puntos_generados, fecha_servicio, notion_ticket_id, created_at')
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 

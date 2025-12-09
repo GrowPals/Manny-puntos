@@ -9,7 +9,7 @@ import { callEdgeFunction } from '@/lib/utils';
 export const getTodosLosClientes = async ({ limit = 100, offset = 0 } = {}) => {
   const { data, error, count } = await supabase
     .from('clientes')
-    .select('*', { count: 'exact' })
+    .select('id, telefono, nombre, email, puntos_actuales, nivel, es_admin, notion_contacto_id, notion_manny_rewards_id, created_at, updated_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -97,7 +97,7 @@ export const getClienteHistorial = async (telefono) => {
 export const getClienteDetalleAdmin = async (clienteId) => {
     const { data: cliente, error: clienteError } = await supabase
         .from('clientes')
-        .select('*')
+        .select('id, telefono, nombre, email, puntos_actuales, nivel, es_admin, notion_contacto_id, notion_manny_rewards_id, created_at, updated_at')
         .eq('id', clienteId)
         .single();
 
@@ -113,7 +113,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
 
     const { data: historialPuntos, error: historialError } = await supabase
         .from('historial_puntos')
-        .select('*')
+        .select('id, cliente_id, puntos, concepto, canje_id, created_at')
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
@@ -121,7 +121,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
 
     const { data: serviciosAsignados, error: serviciosError } = await supabase
         .from('servicios_asignados')
-        .select('*')
+        .select('id, cliente_id, nombre, descripcion, estado, fecha_canje, created_at')
         .eq('cliente_id', clienteId)
         .order('created_at', { ascending: false });
 
@@ -130,7 +130,7 @@ export const getClienteDetalleAdmin = async (clienteId) => {
     // Historial de servicios (trabajos realizados por Manny)
     const { data: historialServicios, error: histServError } = await supabase
         .from('historial_servicios')
-        .select('*')
+        .select('id, cliente_id, tipo_trabajo, monto, puntos_generados, fecha_servicio, notion_ticket_id, created_at')
         .eq('cliente_id', clienteId)
         .order('fecha_servicio', { ascending: false });
 

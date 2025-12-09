@@ -4,8 +4,24 @@ echo "=========================================="
 echo "AUDITORÍA FINAL - FUNCIONES RPC"
 echo "=========================================="
 
-API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1ZnR5cXVwaWJ5amxpYXVrcHhuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTIzNjM1NSwiZXhwIjoyMDc2ODEyMzU1fQ.f6KP7A8TYtzkER1CLq_1o5jruYRnlvtFoxgZapfdL2Q"
-BASE="https://kuftyqupibyjliaukpxn.supabase.co/rest/v1/rpc"
+# IMPORTANTE: Configurar estas variables antes de ejecutar
+# export SUPABASE_SERVICE_ROLE_KEY="tu-service-role-key"
+# export SUPABASE_URL="https://tu-proyecto.supabase.co"
+
+if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+  echo "ERROR: SUPABASE_SERVICE_ROLE_KEY no está configurada"
+  echo "Ejecuta: export SUPABASE_SERVICE_ROLE_KEY='tu-key'"
+  exit 1
+fi
+
+if [ -z "$SUPABASE_URL" ]; then
+  echo "ERROR: SUPABASE_URL no está configurada"
+  echo "Ejecuta: export SUPABASE_URL='https://tu-proyecto.supabase.co'"
+  exit 1
+fi
+
+API_KEY="$SUPABASE_SERVICE_ROLE_KEY"
+BASE="$SUPABASE_URL/rest/v1/rpc"
 
 test_fn() {
   name="$1"
@@ -50,7 +66,7 @@ test_fn "get_dashboard_stats" '{}'
 
 echo ""
 echo "=== CANJES (redemptions.js) ==="
-test_fn "registrar_canje_atomico" '{"p_cliente_id":"00000000-0000-0000-0000-000000000000","p_puntos":0}'
+test_fn "registrar_canje_atomico" '{"p_cliente_id":"00000000-0000-0000-0000-000000000000","p_producto_id":"00000000-0000-0000-0000-000000000000"}'
 
 echo ""
 echo "=== SERVICIOS (services.js) ==="

@@ -51,7 +51,7 @@ export const importMannyData = async (data) => {
 export const getConfigRecordatorios = async () => {
     const { data, error } = await supabase
         .from('config_recordatorios')
-        .select('*')
+        .select('id, activo, max_notificaciones_mes, titulo_default, mensaje_default, hora_envio, created_at, updated_at')
         .limit(1)
         .maybeSingle();
 
@@ -115,7 +115,7 @@ export const actualizarConfigRecordatorios = async (config) => {
 export const getTiposServicioRecurrente = async () => {
     const { data, error } = await supabase
         .from('tipos_servicio_recurrente')
-        .select('*')
+        .select('id, tipo_trabajo, dias_recordatorio, activo, created_at')
         .order('tipo_trabajo', { ascending: true });
 
     if (error) throw new Error(ERROR_MESSAGES.ADMIN.SERVICE_TYPES_LOAD_ERROR);

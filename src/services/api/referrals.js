@@ -184,7 +184,7 @@ export const applyReferralCode = async (referidoId, codigo) => {
 export const getReferralConfig = async () => {
   const { data, error } = await supabase
     .from('config_referidos')
-    .select('*')
+    .select('id, puntos_referidor, puntos_referido, limite_mensual, limite_total, activo, created_at')
     .eq('activo', true)
     .maybeSingle();
 
@@ -284,7 +284,7 @@ export const getAllReferidos = async ({ limit = 100, offset = 0 } = {}) => {
 export const getAdminReferralConfig = async () => {
   const { data, error } = await supabase
     .from('config_referidos')
-    .select('*')
+    .select('id, puntos_referidor, puntos_referido, limite_mensual, limite_total, activo, created_at, updated_at')
     .limit(1)
     .single();
 
