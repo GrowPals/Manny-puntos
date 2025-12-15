@@ -102,20 +102,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, [navigate, location.state]);
 
-  // Login primera vez (sin PIN - para onboarding)
-  // skipNavigation: si es true, no navega automáticamente (útil para flujos con pasos intermedios)
+  // Login primera vez (sin PIN)
+  // Para ADMINS: marca needsOnboarding para forzar creación de PIN
+  // Para USUARIOS NORMALES: NO marca needsOnboarding (PIN es opcional)
+  // skipNavigation: si es true, no navega automáticamente
   const loginFirstTime = useCallback(async (telefono, { skipNavigation = false } = {}) => {
     setLoading(true);
     try {
       const clienteData = await api.auth.loginFirstTime(telefono);
+      const isAdmin = clienteData.es_admin === true;
+
+      // Solo los admins necesitan onboarding obligatorio para crear PIN
+      const requiresOnboarding = isAdmin;
 
       setUser(clienteData);
-      setNeedsOnboarding(true);
+      setNeedsOnboarding(requiresOnboarding);
 
-      // Guardamos sesión temporal para que si el usuario recarga, pueda continuar el onboarding
-      // Se marca con needsOnboarding: true para que al recargar sepa que debe completar el proceso
-      const tempUserData = { ...clienteData, needsOnboarding: true };
-      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, tempUserData);
+      // Guardamos sesión
+      const userData = requiresOnboarding
+        ? { ...clienteData, needsOnboarding: true }
+        : clienteData;
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, userData);
 
       // Refresh Supabase client headers with new user
       refreshSupabaseHeaders();
@@ -146,8 +153,8 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.auth.registerPin(user.telefono, newPin);
 
-      // Actualizar usuario sin needsOnboarding
-      const updatedUser = { ...user };
+      // Actualizar usuario: marcar que tiene PIN y quitar needsOnboarding
+      const updatedUser = { ...user, has_pin: true };
       delete updatedUser.needsOnboarding;
 
       setUser(updatedUser);
@@ -165,6 +172,27 @@ export const AuthProvider = ({ children }) => {
       throw error;
     } finally {
       setLoading(false);
+    }
+  }, [user]);
+
+  // Verificar si el usuario actual tiene PIN
+  const checkUserHasPin = useCallback(async () => {
+    if (!user?.telefono) {
+      return false;
+    }
+    try {
+      const result = await api.auth.checkClienteExists(user.telefono);
+      const hasPin = result.has_pin || false;
+      // Actualizar estado local si cambió
+      if (user.has_pin !== hasPin) {
+        const updatedUser = { ...user, has_pin: hasPin };
+        setUser(updatedUser);
+        safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, updatedUser);
+      }
+      return hasPin;
+    } catch (error) {
+      logger.error('Check user has PIN failed', { error: error.message });
+      return user.has_pin || false;
     }
   }, [user]);
 
@@ -216,13 +244,14 @@ export const AuthProvider = ({ children }) => {
     loading,
     needsOnboarding,
     checkCliente,
+    checkUserHasPin,
     login,
     loginWithPin,
     loginFirstTime,
     registerPin,
     logout,
     updateUser,
-  }), [user, isAdmin, isPartner, isVIP, loading, needsOnboarding, checkCliente, login, loginWithPin, loginFirstTime, registerPin, logout, updateUser]);
+  }), [user, isAdmin, isPartner, isVIP, loading, needsOnboarding, checkCliente, checkUserHasPin, login, loginWithPin, loginFirstTime, registerPin, logout, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

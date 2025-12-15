@@ -63,15 +63,24 @@ const Login = () => {
 
       setClienteInfo(result.cliente);
 
+      const isAdmin = result.cliente?.es_admin === true;
+
       if (result.has_pin) {
         // Usuario ya tiene PIN, pedir que lo ingrese
         setStep('pin');
+      } else if (isAdmin) {
+        // Admin sin PIN - debe crear uno (mostrar onboarding)
+        await loginFirstTime(telefono);
+        toast({
+          title: `Hola, ${result.cliente.nombre?.split(' ')[0]}`,
+          description: "Como administrador, necesitas crear un PIN de seguridad."
+        });
       } else {
-        // Primera vez, entrar directo y mostrar onboarding
+        // Usuario normal sin PIN - entrar directo sin onboarding
         await loginFirstTime(telefono);
         toast({
           title: `¡Bienvenido, ${result.cliente.nombre?.split(' ')[0]}!`,
-          description: "Es tu primera vez, vamos a configurar tu cuenta."
+          description: "Accediendo a tu cuenta de recompensas."
         });
       }
     } catch (error) {

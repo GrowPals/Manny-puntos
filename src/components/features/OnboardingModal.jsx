@@ -99,7 +99,7 @@ const FloatingParticles = () => (
 );
 
 const OnboardingModal = () => {
-  const { user, needsOnboarding, registerPin, loading } = useAuth();
+  const { user, needsOnboarding, registerPin, loading, isAdmin } = useAuth();
   const { toast } = useToast();
   const { productos } = useProducts();
   const [pin, setPin] = useState('');
@@ -108,7 +108,13 @@ const OnboardingModal = () => {
   const [isDismissed, setIsDismissed] = useState(false);
 
   // Check if user has temporarily dismissed the modal
+  // Nota: Los admins NO pueden posponer - el PIN es obligatorio
   useEffect(() => {
+    if (isAdmin) {
+      // Admins no pueden posponer, siempre muestran modal
+      setIsDismissed(false);
+      return;
+    }
     const dismissedUntil = localStorage.getItem(DISMISS_KEY);
     if (dismissedUntil) {
       const dismissTime = parseInt(dismissedUntil, 10);
@@ -118,10 +124,19 @@ const OnboardingModal = () => {
         localStorage.removeItem(DISMISS_KEY);
       }
     }
-  }, []);
+  }, [isAdmin]);
 
   const handleDismiss = () => {
-    // Dismiss for 24 hours
+    // Admins no pueden posponer
+    if (isAdmin) {
+      toast({
+        title: "PIN requerido",
+        description: "Como administrador, necesitas crear un PIN de seguridad.",
+        variant: "destructive"
+      });
+      return;
+    }
+    // Dismiss for 24 hours (solo usuarios normales, aunque ya no deberían ver este modal)
     const dismissUntil = Date.now() + 24 * 60 * 60 * 1000;
     localStorage.setItem(DISMISS_KEY, dismissUntil.toString());
     setIsDismissed(true);
@@ -209,8 +224,8 @@ const OnboardingModal = () => {
       >
         <DialogTitle className="sr-only">Configuración inicial de cuenta</DialogTitle>
 
-        {/* Close button - only show on steps 0 and 1 */}
-        {step < 2 && (
+        {/* Close button - only show on steps 0 and 1, and NOT for admins */}
+        {step < 2 && !isAdmin && (
           <button
             onClick={handleDismiss}
             className="absolute right-4 top-4 p-1.5 rounded-full hover:bg-muted transition-colors z-10"
@@ -312,13 +327,16 @@ const OnboardingModal = () => {
                   <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
 
-                <button
-                  type="button"
-                  onClick={handleDismiss}
-                  className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Recordarme después
-                </button>
+                {/* Solo mostrar opción de posponer para no-admins */}
+                {!isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleDismiss}
+                    className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Recordarme después
+                  </button>
+                )}
               </motion.div>
             )}
 
