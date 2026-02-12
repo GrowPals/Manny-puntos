@@ -85,6 +85,36 @@ export const registerPin = async (telefono, newPin) => {
   return data.cliente;
 };
 
+// Registrar nuevo cliente (auto-registro público)
+export const registerNewClient = async (telefono, nombre) => {
+  const telefonoLimpio = String(telefono).replace(/\D/g, '');
+  const nombreLimpio = String(nombre).trim();
+
+  if (!/^[0-9]{10}$/.test(telefonoLimpio)) {
+    throw new Error(ERROR_MESSAGES.AUTH.INVALID_PHONE_FORMAT);
+  }
+
+  if (nombreLimpio.length < 3 || nombreLimpio.length > 100) {
+    throw new Error(ERROR_MESSAGES.REGISTER.INVALID_NAME);
+  }
+
+  const { data, error } = await supabase.rpc('registrar_cliente_publico', {
+    p_telefono: telefonoLimpio,
+    p_nombre: nombreLimpio
+  });
+
+  if (error) {
+    logger.error('Error registering new client', { error: error.message, telefono: telefonoLimpio });
+    throw new Error(ERROR_MESSAGES.REGISTER.FAILED);
+  }
+
+  if (!data || !data.success) {
+    throw new Error(data?.error || ERROR_MESSAGES.REGISTER.FAILED);
+  }
+
+  return data; // { success, cliente_nuevo, cliente: {...} }
+};
+
 // Resetear PIN (admin)
 export const resetClientPin = async (clienteId) => {
   const { data, error } = await supabase.rpc('reset_client_pin', {

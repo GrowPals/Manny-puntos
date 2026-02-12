@@ -37,6 +37,7 @@ const Header = () => {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [isInstalled, setIsInstalled] = useState(false);
     const [isIOS, setIsIOS] = useState(false);
+    const [showIOSTip, setShowIOSTip] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -75,11 +76,13 @@ const Header = () => {
     // Manejar instalación
     const handleInstall = async () => {
         if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
+        try {
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+        } catch {
+            // prompt() ya fue consumido por otro componente
         }
+        setDeferredPrompt(null);
     };
 
     useEffect(() => {
@@ -106,7 +109,16 @@ const Header = () => {
 
     useEffect(() => {
         setIsMenuOpen(false);
+        setShowIOSTip(false);
     }, [location.pathname]);
+
+    // Cerrar iOS tip al hacer click fuera
+    useEffect(() => {
+        if (!showIOSTip) return;
+        const handleClickOutside = () => setShowIOSTip(false);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [showIOSTip]);
 
     const handleLogout = useCallback(() => {
         logout();
@@ -214,6 +226,48 @@ const Header = () => {
                                         <Settings className="w-5 h-5" />
                                     </Button>
                                 </Link>
+                            )}
+
+                            {/* Install App button - only visible in browser, not when installed */}
+                            {!isInstalled && (deferredPrompt || isIOS) && (
+                                <div className="relative">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={isIOS ? (e) => { e.stopPropagation(); setShowIOSTip(prev => !prev); } : handleInstall}
+                                        className="h-9 w-9 text-primary hover:text-primary"
+                                        aria-label="Instalar app"
+                                    >
+                                        <Download className="w-5 h-5" />
+                                    </Button>
+                                    <AnimatePresence>
+                                        {isIOS && showIOSTip && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                                                transition={{ duration: 0.15 }}
+                                                className="absolute right-0 top-full mt-2 w-56 p-3 rounded-xl bg-card border border-border shadow-xl z-50"
+                                            >
+                                                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                                                    <Smartphone className="w-4 h-4 text-primary" />
+                                                    Instalar en iPhone
+                                                </p>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
+                                                        <Share className="w-3 h-3" />
+                                                        <span>Compartir</span>
+                                                    </div>
+                                                    <span>→</span>
+                                                    <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
+                                                        <Plus className="w-3 h-3" />
+                                                        <span>Agregar a inicio</span>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             )}
 
                             <ThemeToggle />

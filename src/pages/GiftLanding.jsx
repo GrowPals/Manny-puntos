@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle, Calendar } from 'lucide-react';
+import { Gift, Phone, Loader2, Sparkles, PartyPopper, XCircle, Coins, Wrench, FileText, Info, CheckCircle2, AlertTriangle, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/services/api';
 import confetti from 'canvas-confetti';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
-import { VALIDATION, UI_CONFIG, isValidPhone } from '@/config';
+import { VALIDATION, UI_CONFIG, isValidPhone, isValidName } from '@/config';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { logger } from '@/lib/logger';
 import AppDownloadStep from '@/components/AppDownloadStep';
@@ -62,6 +62,9 @@ const GiftLanding = () => {
   const [error, setError] = useState(null);
   const [step, setStep] = useState('intro'); // 'intro' | 'reveal' | 'terms' | 'claim' | 'download'
   const [telefono, setTelefono] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [needsRegister, setNeedsRegister] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -137,9 +140,51 @@ const GiftLanding = () => {
     setStep('claim');
   };
 
+  // Ref para evitar checks duplicados del mismo teléfono
+  const lastCheckedPhone = React.useRef('');
+
+  const checkPhoneExists = async (phoneToCheck) => {
+    if (!isValidPhone(phoneToCheck) || checkingPhone) return;
+    if (lastCheckedPhone.current === phoneToCheck) return;
+
+    // Para regalos exclusivos con teléfono incorrecto, no hacer check
+    if (giftData.destinatario_telefono && giftData.destinatario_telefono !== phoneToCheck) {
+      return;
+    }
+
+    setCheckingPhone(true);
+    try {
+      const result = await api.auth.checkClienteExists(phoneToCheck);
+      lastCheckedPhone.current = phoneToCheck;
+      if (!result.exists) {
+        setNeedsRegister(true);
+      } else {
+        setNeedsRegister(false);
+      }
+    } catch {
+      // Si falla el check, se validará durante el claim
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
   const handlePhoneChange = (e) => {
     const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
     setTelefono(formatted);
+    if (needsRegister) {
+      setNeedsRegister(false);
+      setNombre('');
+      lastCheckedPhone.current = '';
+    }
+
+    // Auto-trigger check cuando se completan 10 dígitos
+    if (formatted.length === VALIDATION.PHONE.LENGTH && isValidPhone(formatted)) {
+      checkPhoneExists(formatted);
+    }
+  };
+
+  const handleNombreChange = (e) => {
+    setNombre(e.target.value.slice(0, VALIDATION.NAME.MAX_LENGTH));
   };
 
   const handleClaim = async (e) => {
@@ -184,10 +229,63 @@ const GiftLanding = () => {
       return;
     }
 
+    // Si necesita registro, validar nombre
+    if (needsRegister) {
+      if (!isValidName(nombre)) {
+        toast({
+          title: 'Nombre requerido',
+          description: 'Ingresa tu nombre (mínimo 3 caracteres) para crear tu cuenta.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     setClaiming(true);
     setClaimAttempted(true);
 
+    // Track si nosotros registramos al cliente (para Notion sync)
+    let didRegisterClient = false;
+
     try {
+      // Si no se hizo el check de existencia aún (e.g. blur no se disparó),
+      // hacerlo ahora antes de intentar el claim
+      if (!needsRegister && lastCheckedPhone.current !== telefono) {
+        try {
+          const checkResult = await api.auth.checkClienteExists(telefono);
+          lastCheckedPhone.current = telefono;
+          if (!checkResult.exists) {
+            // El cliente no existe - necesita registrarse
+            setNeedsRegister(true);
+            setClaiming(false);
+            setClaimAttempted(false);
+            return;
+          }
+        } catch {
+          // Si falla el check, intentar el claim directo
+        }
+      }
+
+      // Si es usuario nuevo, registrarlo primero
+      if (needsRegister) {
+        try {
+          await api.auth.registerNewClient(telefono, nombre);
+          didRegisterClient = true;
+          // Marcar como registrado para que retries no re-registren
+          setNeedsRegister(false);
+          lastCheckedPhone.current = telefono;
+        } catch (regError) {
+          // Si ya está registrado (race condition o retry), continuar al claim
+          if (regError.message?.includes('ya está registrado')) {
+            didRegisterClient = false;
+            setNeedsRegister(false);
+            lastCheckedPhone.current = telefono;
+          } else {
+            throw regError;
+          }
+        }
+      }
+
       const result = await api.gifts.claimGift(codigo, telefono);
 
       if (result.success) {
@@ -195,28 +293,34 @@ const GiftLanding = () => {
         logger.giftClaimed(giftData.id, result.cliente_id, {
           codigo,
           tipo: giftData.tipo,
-          esClienteNuevo: result.cliente_nuevo,
+          esClienteNuevo: result.cliente_nuevo || didRegisterClient,
         });
 
-        // Si es cliente nuevo, sincronizar a Notion (now with queue fallback)
-        if (result.cliente_nuevo && result.cliente_id) {
-          const syncResult = await api.clients.syncToNotion(result.cliente_id);
-          if (syncResult?.queued) {
-            logger.syncQueued(result.cliente_id, 'sync_cliente', { source: 'gift_claim' });
-          }
+        // Sincronizar a Notion si es cliente nuevo (non-blocking, no debe afectar el flujo de éxito)
+        if ((result.cliente_nuevo || didRegisterClient) && result.cliente_id) {
+          api.clients.syncToNotion(result.cliente_id).then(syncResult => {
+            if (syncResult?.queued) {
+              logger.syncQueued(result.cliente_id, 'sync_cliente', { source: 'gift_claim' });
+            }
+          }).catch(err => {
+            logger.warn('Notion sync failed after gift claim', { error: err.message });
+          });
         }
 
-        // Crear ticket en Notion automáticamente para servicios (now with queue fallback)
+        // Crear ticket en Notion automáticamente para servicios (non-blocking)
         if (result.beneficio_id && giftData.tipo === 'servicio') {
-          const ticketResult = await api.gifts.createBenefitTicket(result.beneficio_id);
-          if (ticketResult?.queued) {
-            logger.syncQueued(result.beneficio_id, 'create_benefit_ticket', { source: 'gift_claim' });
-          }
+          api.gifts.createBenefitTicket(result.beneficio_id).then(ticketResult => {
+            if (ticketResult?.queued) {
+              logger.syncQueued(result.beneficio_id, 'create_benefit_ticket', { source: 'gift_claim' });
+            }
+          }).catch(err => {
+            logger.warn('Benefit ticket creation failed', { error: err.message });
+          });
         }
 
         // Store cliente info for download step
         setClaimedClienteId(result.cliente_id);
-        setIsClienteNuevo(result.cliente_nuevo);
+        setIsClienteNuevo(result.cliente_nuevo || didRegisterClient);
         setClaimed(true);
 
         // Mega confetti with error handling
@@ -731,7 +835,7 @@ const GiftLanding = () => {
                   <Gift className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  Ingresa tu teléfono
+                  {needsRegister ? 'Tus datos' : 'Ingresa tu teléfono'}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
                   Para agregar el regalo a tu cuenta
@@ -748,13 +852,43 @@ const GiftLanding = () => {
                     placeholder="10 dígitos"
                     value={telefono}
                     onChange={handlePhoneChange}
+                    onBlur={() => checkPhoneExists(telefono)}
                     className="pl-12 h-14 text-lg bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-pink-500 focus:ring-pink-500"
                     maxLength={10}
-                    disabled={claiming}
+                    disabled={claiming || needsRegister}
                     autoFocus
                     autoComplete="tel"
                   />
+                  {checkingPhone && (
+                    <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                  )}
                 </div>
+
+                {/* Campo de nombre inline para usuarios nuevos */}
+                <AnimatePresence>
+                  {needsRegister && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Tu nombre completo"
+                          value={nombre}
+                          onChange={handleNombreChange}
+                          className="pl-12 h-14 text-lg bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-pink-500 focus:ring-pink-500"
+                          maxLength={VALIDATION.NAME.MAX_LENGTH}
+                          disabled={claiming}
+                          autoFocus
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <Button
                   type="submit"
@@ -762,9 +896,9 @@ const GiftLanding = () => {
                   className="w-full h-14 text-lg text-white font-semibold"
                   style={{
                     background: `linear-gradient(to right, ${giftData?.color_tema || '#E91E63'}, #9C27B0)`,
-                    opacity: claiming || !isValidPhone(telefono) ? 0.6 : 1
+                    opacity: claiming || checkingPhone || !isValidPhone(telefono) || (needsRegister && !isValidName(nombre)) ? 0.6 : 1
                   }}
-                  disabled={claiming || !isValidPhone(telefono)}
+                  disabled={claiming || checkingPhone || !isValidPhone(telefono) || (needsRegister && !isValidName(nombre))}
                 >
                   {claiming ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -774,9 +908,15 @@ const GiftLanding = () => {
                 </Button>
               </form>
 
-              <p className="text-xs text-gray-500 text-center mt-4">
-                Exclusivo para clientes Partner de Manny
-              </p>
+              {needsRegister && (
+                <button
+                  type="button"
+                  onClick={() => { setNeedsRegister(false); setNombre(''); lastCheckedPhone.current = ''; }}
+                  className="text-xs text-gray-500 text-center mt-3 w-full hover:text-gray-700 transition-colors"
+                >
+                  Cambiar número de teléfono
+                </button>
+              )}
             </motion.div>
           )}
 

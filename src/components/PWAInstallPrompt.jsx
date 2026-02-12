@@ -58,11 +58,14 @@ export const PWAInstallPrompt = () => {
     const handleInstall = async () => {
         if (!deferredPrompt) return;
 
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-
-        if (outcome === 'accepted') {
-            setShowPrompt(false);
+        try {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                setShowPrompt(false);
+            }
+        } catch {
+            // prompt() ya fue consumido por otro componente
         }
         setDeferredPrompt(null);
     };

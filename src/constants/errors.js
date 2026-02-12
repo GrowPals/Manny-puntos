@@ -92,6 +92,11 @@ export const ERROR_MESSAGES = {
     DELETE_HAS_BENEFICIARIES: 'No se puede eliminar un link que ya tiene beneficiarios',
     TICKET_ERROR: 'Error al crear ticket para el beneficio',
   },
+  REGISTER: {
+    FAILED: 'Error al crear tu cuenta. Inténtalo de nuevo.',
+    PHONE_EXISTS: 'Este número ya está registrado.',
+    INVALID_NAME: 'El nombre debe tener entre 3 y 100 caracteres.',
+  },
   REFERRALS: {
     CODE_ERROR: 'Error al obtener tu código de referido',
     LOAD_ERROR: 'Error al cargar tus referidos',

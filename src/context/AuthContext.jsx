@@ -143,6 +143,59 @@ export const AuthProvider = ({ children }) => {
     }
   }, [navigate]);
 
+  // Registrar nuevo cliente y hacer login automático
+  const registerAndLogin = useCallback(async (telefono, nombre, { skipNavigation = false } = {}) => {
+    setLoading(true);
+    try {
+      const result = await api.auth.registerNewClient(telefono, nombre);
+      const clienteData = result.cliente;
+
+      setUser(clienteData);
+      setNeedsOnboarding(false);
+
+      safeStorage.set(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER, clienteData);
+
+      // Refresh Supabase client headers with new user
+      refreshSupabaseHeaders();
+
+      // Sincronizar nuevo cliente a Notion (non-blocking)
+      if (clienteData.id) {
+        api.clients.syncToNotion(clienteData.id).catch((syncErr) => {
+          logger.warn('Failed to sync new client to Notion', { error: syncErr.message });
+        });
+      }
+
+      // Check for pending referral code and apply it
+      const pendingReferralCode = safeStorage.getString(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+      if (pendingReferralCode && clienteData.id) {
+        try {
+          await api.referrals.applyReferralCode(clienteData.id, pendingReferralCode);
+          safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+          logger.info('Pending referral code applied to new client', { clienteId: clienteData.id });
+        } catch (referralError) {
+          logger.warn('Failed to apply referral code to new client', { error: referralError.message });
+          // Keep for retry on network errors
+          if (referralError.message?.includes('inválido') || referralError.message?.includes('expirado')) {
+            safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.PENDING_REFERRAL_CODE);
+          }
+        }
+      }
+
+      if (!skipNavigation) {
+        navigate('/dashboard', { replace: true });
+      }
+
+      return clienteData;
+    } catch (error) {
+      logger.error('Register and login failed', { error: error.message });
+      setUser(null);
+      safeStorage.remove(STORAGE_CONFIG.LOCAL_STORAGE_KEYS.USER);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
   // Registrar PIN (onboarding)
   const registerPin = useCallback(async (newPin) => {
     if (!user?.telefono) {
@@ -248,10 +301,11 @@ export const AuthProvider = ({ children }) => {
     login,
     loginWithPin,
     loginFirstTime,
+    registerAndLogin,
     registerPin,
     logout,
     updateUser,
-  }), [user, isAdmin, isPartner, isVIP, loading, needsOnboarding, checkCliente, checkUserHasPin, login, loginWithPin, loginFirstTime, registerPin, logout, updateUser]);
+  }), [user, isAdmin, isPartner, isVIP, loading, needsOnboarding, checkCliente, checkUserHasPin, login, loginWithPin, loginFirstTime, registerAndLogin, registerPin, logout, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

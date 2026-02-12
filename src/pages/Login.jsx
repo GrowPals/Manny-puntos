@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Loader2, Lock, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Phone, Loader2, Lock, ArrowLeft, MessageCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import SEOHelmet from '@/components/common/SEOHelmet';
 import MannyLogo from '@/assets/images/manny-logo-new.svg';
-import { VALIDATION, isValidPhone, CONTACT_CONFIG } from '@/config';
+import { VALIDATION, isValidPhone, isValidName, CONTACT_CONFIG } from '@/config';
 
 const Login = () => {
   const [telefono, setTelefono] = useState('');
   const [pin, setPin] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [showNombreField, setShowNombreField] = useState(false);
   const [step, setStep] = useState('phone'); // 'phone' | 'pin' | 'forgot'
   const [clienteInfo, setClienteInfo] = useState(null);
-  const { user, isAdmin, checkCliente, loginWithPin, loginFirstTime, loading } = useAuth();
+  const [checking, setChecking] = useState(false);
+  const { user, isAdmin, checkCliente, loginWithPin, loginFirstTime, registerAndLogin, loading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -30,6 +33,10 @@ const Login = () => {
   const handlePhoneChange = (e) => {
     const formatted = e.target.value.replace(/\D/g, '').slice(0, VALIDATION.PHONE.LENGTH);
     setTelefono(formatted);
+    if (showNombreField) {
+      setShowNombreField(false);
+      setNombre('');
+    }
   };
 
   const handlePinChange = (e) => {
@@ -37,9 +44,15 @@ const Login = () => {
     setPin(formatted);
   };
 
-  // Paso 1: Verificar teléfono
+  const handleNombreChange = (e) => {
+    setNombre(e.target.value.slice(0, VALIDATION.NAME.MAX_LENGTH));
+  };
+
+  // Formulario principal: verificar teléfono o registrar
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
+    if (checking || loading) return;
+
     if (!isValidPhone(telefono)) {
       toast({
         title: "Teléfono inválido",
@@ -49,15 +62,51 @@ const Login = () => {
       return;
     }
 
+    // Si ya se mostró el campo nombre, es un registro
+    if (showNombreField) {
+      if (!isValidName(nombre)) {
+        toast({
+          title: "Nombre inválido",
+          description: `El nombre debe tener al menos ${VALIDATION.NAME.MIN_LENGTH} caracteres.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        await registerAndLogin(telefono, nombre);
+        toast({
+          title: `¡Bienvenido, ${nombre.trim().split(' ')[0]}!`,
+          description: "Accediendo a tu cuenta de recompensas."
+        });
+      } catch (error) {
+        if (error.message?.includes('ya está registrado') || error.message?.includes('ya registrado')) {
+          setShowNombreField(false);
+          setNombre('');
+          toast({
+            title: "Este número ya tiene cuenta",
+            description: "Intenta de nuevo para iniciar sesión.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "No pudimos continuar.",
+            variant: "destructive"
+          });
+        }
+      }
+      return;
+    }
+
+    // Verificar si el teléfono existe
+    setChecking(true);
     try {
       const result = await checkCliente(telefono);
 
       if (!result.exists) {
-        toast({
-          title: "Número no registrado",
-          description: "No encontramos una cuenta con este número. Contacta a Manny para registrarte.",
-          variant: "destructive"
-        });
+        // No existe: mostrar campo nombre inline, sin cambiar de paso
+        setShowNombreField(true);
         return;
       }
 
@@ -66,17 +115,14 @@ const Login = () => {
       const isAdmin = result.cliente?.es_admin === true;
 
       if (result.has_pin) {
-        // Usuario ya tiene PIN, pedir que lo ingrese
         setStep('pin');
       } else if (isAdmin) {
-        // Admin sin PIN - debe crear uno (mostrar onboarding)
         await loginFirstTime(telefono);
         toast({
           title: `Hola, ${result.cliente.nombre?.split(' ')[0]}`,
           description: "Como administrador, necesitas crear un PIN de seguridad."
         });
       } else {
-        // Usuario normal sin PIN - entrar directo sin onboarding
         await loginFirstTime(telefono);
         toast({
           title: `¡Bienvenido, ${result.cliente.nombre?.split(' ')[0]}!`,
@@ -89,6 +135,8 @@ const Login = () => {
         description: error.message || "No pudimos verificar tu número.",
         variant: "destructive"
       });
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -123,6 +171,8 @@ const Login = () => {
   const handleBack = () => {
     setStep('phone');
     setPin('');
+    setNombre('');
+    setShowNombreField(false);
   };
 
   const handleForgotPin = () => {
@@ -157,6 +207,11 @@ const Login = () => {
     center: { x: 0, opacity: 1 },
     exit: { x: -50, opacity: 0 }
   };
+
+  // Determinar si el botón principal debe estar habilitado
+  const isPhoneFormValid = showNombreField
+    ? isValidPhone(telefono) && isValidName(nombre)
+    : isValidPhone(telefono);
 
   // Don't render login form while checking auth status or if already authenticated
   if (loading || user) {
@@ -252,11 +307,41 @@ const Login = () => {
                         onChange={handlePhoneChange}
                         className="w-full h-14 pl-12 pr-4 text-lg font-light tracking-wide rounded-xl bg-background border border-border text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-300 placeholder:text-muted-foreground/40 disabled:opacity-50"
                         maxLength={10}
-                        disabled={loading}
-                        autoFocus
+                        disabled={loading || checking || showNombreField}
+                        autoFocus={!showNombreField}
                       />
                     </div>
                   </motion.div>
+
+                  {/* Campo de nombre — aparece inline si el teléfono no está registrado */}
+                  <AnimatePresence>
+                    {showNombreField && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                      >
+                        <label htmlFor="nombre-input" className="block text-sm font-medium text-muted-foreground mb-2">
+                          Tu nombre
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 z-10" />
+                          <input
+                            id="nombre-input"
+                            type="text"
+                            placeholder="Nombre completo"
+                            value={nombre}
+                            onChange={handleNombreChange}
+                            className="w-full h-14 pl-12 pr-4 text-lg font-light tracking-wide rounded-xl bg-background border border-border text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-300 placeholder:text-muted-foreground/40 disabled:opacity-50"
+                            maxLength={VALIDATION.NAME.MAX_LENGTH}
+                            disabled={loading || checking}
+                            autoFocus
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <motion.div variants={itemVariants}>
                     <Button
@@ -264,15 +349,31 @@ const Login = () => {
                       variant="investment"
                       size="lg"
                       className="w-full h-14 text-base"
-                      disabled={loading || !isValidPhone(telefono)}
+                      disabled={loading || checking || !isPhoneFormValid}
                     >
-                      {loading ? <Loader2 className="animate-spin" /> : 'Continuar'}
+                      {(loading || checking) ? <Loader2 className="animate-spin" /> : 'Continuar'}
                     </Button>
                   </motion.div>
 
-                  <motion.p variants={itemVariants} className="text-center text-sm text-muted-foreground/80 pt-2">
-                    ¡Gracias por tu preferencia!
-                  </motion.p>
+                  {showNombreField ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => { setShowNombreField(false); setNombre(''); }}
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cambiar número
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.p variants={itemVariants} className="text-center text-sm text-muted-foreground/80 pt-2">
+                      ¡Gracias por tu preferencia!
+                    </motion.p>
+                  )}
                 </motion.form>
               )}
 
