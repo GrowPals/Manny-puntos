@@ -1,0 +1,10 @@
+20240523        add_pin_to_clients
+20251209030000  create_missing_rpc_functions
+20251209031000  fix_remaining_issues
+20251209032000  create_v3_alias
+20251209033000  fix_canjear_link_regalo
+20251209034000  missing_referral_and_canje
+20251209035000  fix_canjear_link_regalo_final
+20251209040000  fix_registrar_canje_atomico
+20251209041000  add_rls_policies
+20260212        registrar_cliente_publico
